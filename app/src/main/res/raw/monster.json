@@ -1,0 +1,42 @@
+{
+  "imp": [
+    {
+      "level": 1,
+      "sprite_path": "/pathImp",
+      "description": "Hell's biggest joke",
+      "maxLVL" : 1,
+      "hp": 100,
+      "reward": "wood_chest"
+    }
+  ],
+  "scarecrow": [
+    {
+      "level": 1,
+      "sprite_path": "/pathScarecrow",
+      "description": "Quit helping around the farm",
+      "maxLVL" : 1,
+      "hp": 400,
+      "reward": "wheat_chest"
+    }
+  ],
+  "gargoyle": [
+    {
+      "level": 1,
+      "sprite_path": "/pathGargoyle",
+      "description": "I swear this wasn't moving before",
+      "maxLVL" : 1,
+      "hp": 1100,
+      "reward": "stone_chest"
+    }
+  ],
+  "efreet": [
+    {
+      "level": 1,
+      "sprite_path": "/pathEfreet",
+      "description": "Hot genie",
+      "maxLVL" : 1,
+      "hp": 2000,
+      "reward": "fire_chest"
+    }
+  ]
+}

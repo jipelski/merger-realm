@@ -1,0 +1,188 @@
+{
+  "sawmill": [
+    {
+      "level": 1,
+      "sprite_path": "/pathSawmill",
+      "description": "Foundation for building",     
+      "maxLVL" : 5,
+      "storage_type": "timber",
+      "storage_size": 3000,
+      "build_cost1": 15,
+      "build_cost2": 15,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 2,
+      "sprite_path": "/pathSawmill",
+      "description": "Foundation for building",     
+      "maxLVL" : 5,
+      "storage_type": "timber",
+      "storage_size": 5500,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 3,
+      "sprite_path": "/pathSawmill",
+      "description": "Foundation for building",     
+      "maxLVL" : 5,
+      "storage_type": "timber",
+      "storage_size": 8000,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 4,
+      "sprite_path": "/pathSawmill",
+      "description": "Foundation for building",     
+      "maxLVL" : 5,
+      "storage_type": "timber",
+      "storage_size": 11500,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 5,
+      "sprite_path": "/pathSawmill",
+      "description": "Foundation for building",     
+      "maxLVL" : 5,
+      "storage_type": "timber",
+      "storage_size": 15000,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    }
+  ],
+  "quarry": [
+    {
+      "level": 1,
+      "sprite_path": "/pathQuarry",
+      "description": "First material to create the wheel",     
+      "maxLVL" : 5,
+      "storage_type": "stone",
+      "storage_size": 2500,
+      "build_cost1": 0,
+      "build_cost2": 15,
+      "build_cost3": 15,
+      "build_cost4": 0
+    },
+    {
+      "level": 2,
+      "sprite_path": "/pathQuarry",
+      "description": "First material to create the wheel",     
+      "maxLVL" : 5,
+      "storage_type": "stone",
+      "storage_size": 4750,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 3,
+      "sprite_path": "/pathQuarry",
+      "description": "First material to create the wheel",     
+      "maxLVL" : 5,
+      "storage_type": "stone",
+      "storage_size": 7000,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 4,
+      "sprite_path": "/pathQuarry",
+      "description": "First material to create the wheel",     
+      "maxLVL" : 5,
+      "storage_type": "stone",
+      "storage_size": 9500,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 5,
+      "sprite_path": "/pathQuarry",
+      "description": "First material to create the wheel",     
+      "maxLVL" : 5,
+      "storage_type": "stone",
+      "storage_size": 11500,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    }
+  ],
+  "ironmine": [
+    {
+      "level": 1,
+      "sprite_path": "/pathIronMine",
+      "description": "Dirty job for shiny results",     
+      "maxLVL" : 5,
+      "storage_type": "iron",
+      "storage_size": 2000,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 15,
+      "build_cost4": 15
+    },
+    {
+      "level": 2,
+      "sprite_path": "/pathIronMine",
+      "description": "Dirty job for shiny results",     
+      "maxLVL" : 5,
+      "storage_type": "iron",
+      "storage_size": 3750,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 3,
+      "sprite_path": "/pathIronMine",
+      "description": "Dirty job for shiny results",     
+      "maxLVL" : 5,
+      "storage_type": "iron",
+      "storage_size": 5500,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 4,
+      "sprite_path": "/pathIronMine",
+      "description": "Dirty job for shiny results",     
+      "maxLVL" : 5,
+      "storage_type": "iron",
+      "storage_size": 7250,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    },
+    {
+      "level": 5,
+      "sprite_path": "/pathIronMine",
+      "description": "Dirty job for shiny results",
+      "maxLVL" : 5,
+      "storage_type": "iron",
+      "storage_size": 9000,
+      "build_cost1": 0,
+      "build_cost2": 0,
+      "build_cost3": 0,
+      "build_cost4": 0
+    }
+  ]
+}

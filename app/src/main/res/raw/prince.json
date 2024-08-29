@@ -1,0 +1,58 @@
+{
+  "prince": [
+    {
+      "level": 1,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 8,
+      "resource_2" : 0,
+      "resource_3" : 0
+    },
+    {
+      "level": 2,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 8,
+      "resource_2" : 6,
+      "resource_3" : 0
+    },
+    {
+      "level": 3,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 8,
+      "resource_2" : 6,
+      "resource_3" : 4
+    },
+    {
+      "level": 4,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 16,
+      "resource_2" : 6,
+      "resource_3" : 4
+    },
+    {
+      "level": 5,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 16,
+      "resource_2" : 12,
+      "resource_3" : 4
+    },
+    {
+      "level": 6,
+      "sprite_path": "/pathPrince1",
+      "description": "Someone left these here",
+      "maxLVL": 6,
+      "resource_1" : 16,
+      "resource_2" : 12,
+      "resource_3" : 8
+    }
+  ]
+}

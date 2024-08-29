@@ -1,0 +1,30 @@
+{
+  "prince_1_011293": {
+    "type": "prince",
+    "id": "prince_1_011293",
+    "lvl": 1,
+    "maxLVL": 3,
+    "xPos": 0,
+    "yPos": 0,
+    "sprite": "prince_sprite",
+    "state": "idle",
+    "description": "whatever silviu wrote",
+    "resource_1": 10,
+    "resource_2": 0,
+    "resource_3": 0
+  },
+  "archeryrange_2_213293": {
+    "type": "archery",
+    "id": "archeryrange_2_213293",
+    "lvl": 2,
+    "maxLVL": 5,
+    "xPos": 1,
+    "yPos": 1,
+    "sprite": "archery_2_sprite",
+    "state": "idle",
+    "description": "whatever silviu wrote",
+    "resource_1": 10,
+    "resource_2": 0,
+    "resource_3": 0
+  }
+}

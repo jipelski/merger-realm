@@ -1,0 +1,30 @@
+{
+  "woodchest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "wheatchest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "stonechest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "firechest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ]
+}
