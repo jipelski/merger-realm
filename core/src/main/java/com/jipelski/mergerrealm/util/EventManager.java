@@ -43,6 +43,9 @@ public class EventManager {
     private final GridObjectManager  GRID_OBJECT_MANAGER;
     private final BattleFieldManager BATTLE_FIELD_MANAGER;
 
+    public GameDataLoader getGameDataLoader() { return GDLInstance; }
+    public BattleFieldManager getBattleFieldManager() { return BATTLE_FIELD_MANAGER; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);

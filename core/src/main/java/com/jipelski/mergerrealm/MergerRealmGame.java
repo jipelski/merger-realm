@@ -44,7 +44,8 @@ public class MergerRealmGame extends ApplicationAdapter {
     private float gridStartY;
 
     // ── HUD area ──
-    private static final float HUD_HEIGHT = 120f;
+    private static final float HUD_HEIGHT = 120f;       // resources at top
+    private static final float INFO_BAR_HEIGHT = 50f;    // object info below resources
 
     // ── Game systems ──
     private JsonManager jsonManager;
@@ -174,7 +175,7 @@ public class MergerRealmGame extends ApplicationAdapter {
         int rows = grid.getHeight();
 
         float availableWidth = WORLD_WIDTH - (GRID_PADDING * 2);
-        float availableHeight = WORLD_HEIGHT - HUD_HEIGHT - (GRID_PADDING * 2);
+        float availableHeight = WORLD_HEIGHT - HUD_HEIGHT - INFO_BAR_HEIGHT - (GRID_PADDING * 2);
 
         float maxCellWidth = (availableWidth - (CELL_GAP * (cols - 1))) / cols;
         float maxCellHeight = (availableHeight - (CELL_GAP * (rows - 1))) / rows;
@@ -184,7 +185,7 @@ public class MergerRealmGame extends ApplicationAdapter {
         gridStartX = (WORLD_WIDTH - totalGridWidth) / 2f;
 
         float totalGridHeight = (cellSize * rows) + (CELL_GAP * (rows - 1));
-        gridStartY = WORLD_HEIGHT - HUD_HEIGHT - GRID_PADDING - totalGridHeight;
+        float gridStartY = WORLD_HEIGHT - HUD_HEIGHT - INFO_BAR_HEIGHT - GRID_PADDING - totalGridHeight;
 
         Gdx.app.log(TAG, "Grid layout: cellSize=" + cellSize
             + " startX=" + gridStartX + " startY=" + gridStartY
@@ -236,6 +237,7 @@ public class MergerRealmGame extends ApplicationAdapter {
         drawGrid();
         drawDraggedObject();
         drawHUD();
+        drawInfoBar();
         batch.end();
     }
 
@@ -380,21 +382,46 @@ public class MergerRealmGame extends ApplicationAdapter {
 
         float drawX = gridStartX + selX * (cellSize + CELL_GAP);
         float drawY = gridStartY + (rows - 1 - selY) * (cellSize + CELL_GAP);
-        float thickness = 3f;
+        float t = 3f; // outline thickness
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f); // bright green
 
-        // Top
-        shapeRenderer.rect(drawX - thickness, drawY + cellSize, cellSize + thickness * 2, thickness);
-        // Bottom
-        shapeRenderer.rect(drawX - thickness, drawY - thickness, cellSize + thickness * 2, thickness);
-        // Left
-        shapeRenderer.rect(drawX - thickness, drawY - thickness, thickness, cellSize + thickness * 2);
-        // Right
-        shapeRenderer.rect(drawX + cellSize, drawY - thickness, thickness, cellSize + thickness * 2);
+        // Top edge
+        shapeRenderer.rect(drawX - t, drawY + cellSize, cellSize + t * 2, t);
+        // Bottom edge
+        shapeRenderer.rect(drawX - t, drawY - t, cellSize + t * 2, t);
+        // Left edge
+        shapeRenderer.rect(drawX - t, drawY - t, t, cellSize + t * 2);
+        // Right edge
+        shapeRenderer.rect(drawX + cellSize, drawY - t, t, cellSize + t * 2);
 
         shapeRenderer.end();
+    }
+
+    /**
+     * Draws object name and description in the info bar between
+     * the resource HUD and the grid.
+     */
+    private void drawInfoBar() {
+        String name = inputHandler.getSelectedDisplayName();
+        String desc = inputHandler.getSelectedDescription();
+
+        float barY = WORLD_HEIGHT - HUD_HEIGHT;
+        float textX = 20f;
+
+        if (name != null) {
+            // Object name in white
+            font.setColor(Color.WHITE);
+            font.draw(batch, name, textX, barY - 10f);
+
+            // Description in a softer color below
+            if (desc != null) {
+                font.setColor(0.7f, 0.7f, 0.8f, 1f);
+                font.draw(batch, desc, textX, barY - 30f);
+                font.setColor(Color.WHITE); // reset
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════

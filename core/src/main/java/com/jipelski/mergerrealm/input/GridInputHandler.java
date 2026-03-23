@@ -11,34 +11,17 @@ import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
-/**
- * Handles all grid touch input: tap, drag-and-drop, merge, swap,
- * facility selection, and hold-to-spawn.
- *
- * Facility interaction:
- *   - First tap on a facility → select it (green outline)
- *   - Tap on a selected facility → spawn one unit
- *   - Hold down on any facility → auto-spawn every 0.25s
- *   - Tap elsewhere or drag → deselect
- *
- * General touch:
- *   - Touch down on occupied cell → starts potential drag
- *   - Finger moves beyond threshold → enters drag mode, deselects
- *   - Touch up without drag on non-facility → normal tap action
- *   - Touch up while dragging → merge, swap, or move
- */
 public class GridInputHandler extends InputAdapter {
 
     private static final String TAG = "GridInputHandler";
     private static final float DRAG_THRESHOLD = 8f;
     private static final float HOLD_SPAWN_INTERVAL = 0.25f;
-    private static final float HOLD_DELAY = 0.35f; // delay before hold-spawn starts
+    private static final float HOLD_DELAY = 0.35f;
 
-    // References
     private final EventManager eventManager;
     private final Viewport viewport;
 
-    // Grid layout info
+    // Grid layout
     private float gridStartX;
     private float gridStartY;
     private float cellSize;
@@ -55,18 +38,21 @@ public class GridInputHandler extends InputAdapter {
     private final Vector2 touchStart = new Vector2();
     private final Vector2 dragPos = new Vector2();
 
-    // Selection state
+    // Selection state — persists across touches until something else is selected
     private int selectedCellX = -1;
     private int selectedCellY = -1;
     private String selectedObjectId = null;
 
-    // Hold-to-spawn state
+    // Tracks if the facility was already selected before this touch
+    // (so we know to spawn on tap-up rather than just selecting)
+    private boolean wasAlreadySelected = false;
+
+    // Hold-to-spawn state (facilities only)
     private boolean holding = false;
     private float holdTimer = 0f;
     private float holdDelay = 0f;
     private String holdFacilityId = null;
 
-    // Temp vector
     private final Vector2 worldPos = new Vector2();
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
@@ -85,15 +71,12 @@ public class GridInputHandler extends InputAdapter {
         this.gridRows = gridRows;
     }
 
-    // ── Must be called every frame from render() for hold-to-spawn ──
-
     /**
-     * Called every frame. Handles hold-to-spawn timing.
+     * Called every frame from render(). Handles hold-to-spawn timing.
      */
     public void update(float delta) {
         if (!holding || holdFacilityId == null) return;
 
-        // Wait for initial delay before starting auto-spawn
         holdDelay += delta;
         if (holdDelay < HOLD_DELAY) return;
 
@@ -114,7 +97,6 @@ public class GridInputHandler extends InputAdapter {
 
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
-            // Touched outside grid — deselect
             clearSelection();
             return false;
         }
@@ -129,6 +111,14 @@ public class GridInputHandler extends InputAdapter {
 
         String objectId = gridCell.getOccupant();
         GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(objectId);
+
+        // ── Select immediately on touch ──
+        // Check if this object was already selected (for facility tap-to-spawn)
+        wasAlreadySelected = objectId.equals(selectedObjectId);
+
+        selectedCellX = cell[0];
+        selectedCellY = cell[1];
+        selectedObjectId = objectId;
 
         // Start tracking touch
         touching = true;
@@ -159,9 +149,8 @@ public class GridInputHandler extends InputAdapter {
 
         if (!dragging && touchStart.dst(worldPos) > DRAG_THRESHOLD) {
             dragging = true;
-            // Dragging cancels hold-to-spawn and selection
+            // Dragging cancels hold-to-spawn but NOT selection
             stopHolding();
-            clearSelection();
             Gdx.app.log(TAG, "Drag started from [" + originCellX + "," + originCellY + "]");
         }
 
@@ -173,19 +162,14 @@ public class GridInputHandler extends InputAdapter {
         if (!touching || pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
-
-        // Stop hold-to-spawn
         stopHolding();
 
         if (!dragging) {
-            // ── TAP ──
             handleTap();
         } else {
-            // ── DROP ──
             handleDrop();
         }
 
-        // Reset touch state (but NOT selection — that persists)
         touching = false;
         dragging = false;
         originCellX = -1;
@@ -194,7 +178,7 @@ public class GridInputHandler extends InputAdapter {
         return true;
     }
 
-    // ── Tap handling with facility selection ──
+    // ── Tap handling ──
 
     private void handleTap() {
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
@@ -202,25 +186,20 @@ public class GridInputHandler extends InputAdapter {
         if (obj == null) return;
 
         if (isFacility(obj.getType())) {
-            handleFacilityTap(obj);
+            handleFacilityTap();
         } else {
-            // Non-facility tap — deselect any facility, do normal tap
-            clearSelection();
+            // Non-facility: normal tap (token collect, chest open, etc.)
             eventManager.tap(draggedObjectId);
         }
     }
 
-    private void handleFacilityTap(GameObject facility) {
-        // Check if this facility is already selected
-        if (draggedObjectId.equals(selectedObjectId)) {
-            // Already selected — spawn a unit
+    private void handleFacilityTap() {
+        if (wasAlreadySelected) {
+            // Second tap on same facility — spawn a unit
             eventManager.spawnFromFacility(draggedObjectId);
             Gdx.app.log(TAG, "Spawning from selected facility: " + draggedObjectId);
         } else {
-            // Not selected — select it
-            selectedCellX = originCellX;
-            selectedCellY = originCellY;
-            selectedObjectId = draggedObjectId;
+            // First tap — just selected (already done in touchDown)
             Gdx.app.log(TAG, "Selected facility at [" + selectedCellX + "," + selectedCellY + "]");
         }
     }
@@ -236,7 +215,6 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (targetCell[0] == originCellX && targetCell[1] == originCellY) {
-            // Dropped on same cell — treat as cancelled
             return;
         }
 
@@ -245,13 +223,25 @@ public class GridInputHandler extends InputAdapter {
 
         if (target.isEmpty()) {
             moveToEmptyCell(targetCell[0], targetCell[1]);
+            // Update selection to new position
+            selectedCellX = targetCell[0];
+            selectedCellY = targetCell[1];
         } else {
             String targetId = target.getOccupant();
             eventManager.swapOrMerge(draggedObjectId, targetId);
+            // After merge/swap, update selection to where the object ended up
+            GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(draggedObjectId);
+            if (obj != null) {
+                selectedCellX = obj.getxPos();
+                selectedCellY = obj.getyPos();
+            } else {
+                // Object was consumed (merge or combat) — clear selection
+                clearSelection();
+            }
         }
     }
 
-    // ── Public getters for rendering ──
+    // ── Public getters ──
 
     public boolean isDragging() { return dragging; }
     public String getDraggedObjectId() { return draggedObjectId; }
@@ -264,6 +254,32 @@ public class GridInputHandler extends InputAdapter {
     public int getSelectedCellX() { return selectedCellX; }
     public int getSelectedCellY() { return selectedCellY; }
     public String getSelectedObjectId() { return selectedObjectId; }
+
+    /**
+     * Returns the description of the currently selected object, or null.
+     */
+    public String getSelectedDescription() {
+        if (selectedObjectId == null) return null;
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(selectedObjectId);
+        if (obj == null) return null;
+        return obj.getDescription();
+    }
+
+    /**
+     * Returns a display name for the selected object (type + level).
+     */
+    public String getSelectedDisplayName() {
+        if (selectedObjectId == null) return null;
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(selectedObjectId);
+        if (obj == null) return null;
+
+        String type = obj.getType();
+        // Capitalize first letter
+        String name = type.substring(0, 1).toUpperCase() + type.substring(1);
+        return name + " (Lv." + obj.getLvl() + ")";
+    }
 
     // ── Private helpers ──
 
