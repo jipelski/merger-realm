@@ -1,0 +1,30 @@
+{
+  "wood_chest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "wheat_chest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "stone_chest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ],
+  "fire_chest": [
+    {
+      "token_lvl1": 60,
+      "token_lvl2": 30,
+      "token_lvl3": 10
+    }
+  ]
+}

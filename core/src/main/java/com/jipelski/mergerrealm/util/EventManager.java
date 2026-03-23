@@ -1,0 +1,556 @@
+package com.jipelski.mergerrealm.util;
+
+import com.badlogic.gdx.Gdx;
+
+import com.jipelski.mergerrealm.data.ChestData;
+import com.jipelski.mergerrealm.data.FacilityData;
+import com.jipelski.mergerrealm.data.MonsterData;
+import com.jipelski.mergerrealm.data.PrinceData;
+import com.jipelski.mergerrealm.data.StorageData;
+import com.jipelski.mergerrealm.data.TokenData;
+import com.jipelski.mergerrealm.data.UnitData;
+import com.jipelski.mergerrealm.database.JsonManager;
+import com.jipelski.mergerrealm.grid.Cell;
+import com.jipelski.mergerrealm.grid.Grid;
+import com.jipelski.mergerrealm.model.Chest;
+import com.jipelski.mergerrealm.model.Facility;
+import com.jipelski.mergerrealm.model.GameObject;
+import com.jipelski.mergerrealm.model.Monster;
+import com.jipelski.mergerrealm.model.Prince;
+import com.jipelski.mergerrealm.model.Storage;
+import com.jipelski.mergerrealm.model.Token;
+import com.jipelski.mergerrealm.model.Unit;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+
+public class EventManager {
+
+    private static final String TAG = "EventManager";
+
+    // Used for type checks — avoids the broken string.contains() pattern
+    private static final Set<String> UNIT_TYPES = new HashSet<>(Arrays.asList(
+            "archer", "farmer", "spearman", "griffin", "eldergriffin", "monk", "swordsman"
+    ));
+
+    private final Grid               gridInstance;
+    private final GameDataLoader     GDLInstance;
+    private final UUIDGenerator      idGenerator = UUIDGenerator.getInstance();
+    private final JsonManager        jsonInstance;
+    private final ResourceManager    resourceManager;
+    private final GridObjectManager  GRID_OBJECT_MANAGER;
+    private final BattleFieldManager BATTLE_FIELD_MANAGER;
+
+    public EventManager(JsonManager jsonManager) {
+        this.jsonInstance        = jsonManager;
+        this.gridInstance        = new Grid(jsonInstance);
+        this.GDLInstance         = new GameDataLoader(jsonInstance);
+        this.resourceManager     = new ResourceManager(jsonManager);
+        this.GRID_OBJECT_MANAGER = new GridObjectManager(jsonManager);
+        this.BATTLE_FIELD_MANAGER = new BattleFieldManager(this, jsonManager, gridInstance, GRID_OBJECT_MANAGER);
+
+        // Only spawn the default starting objects on a completely fresh grid.
+        // If the saved grid already has objects, spawnInitialObjects() does nothing.
+        spawnInitialObjectsIfNeeded();
+    }
+
+    /**
+     * Spawns the starting set of objects only when the saved grid is fully empty.
+     * On every subsequent launch the saved grid is used instead, preventing duplicates.
+     */
+    private void spawnInitialObjectsIfNeeded() {
+        boolean gridIsEmpty = true;
+        for (Cell[] row : gridInstance.getCells()) {
+            for (Cell cell : row) {
+                if (!cell.isEmpty()) {
+                    gridIsEmpty = false;
+                    break;
+                }
+            }
+            if (!gridIsEmpty) break;
+        }
+
+        if (gridIsEmpty) {
+            Gdx.app.log(TAG, "Fresh grid detected — spawning initial objects");
+
+            // Prince
+            spawnObject("prince", 1, 0, 0);
+
+            // One of each facility for testing
+            spawnObject("archeryrange", 3, 1, 0);
+            spawnObject("farmhouse",    3, 2, 0);
+            spawnObject("barracks",     3, 3, 0);
+            spawnObject("griffinnest",  3, 0, 1);
+            spawnObject("monastery",    3, 1, 1);
+
+            // One of each storage
+            spawnObject("sawmill",  3, 2, 1);
+            spawnObject("quarry",   3, 3, 1);
+            spawnObject("ironmine", 3, 0, 2);
+
+            // A couple units to test merging
+            spawnObject("archer", 1, 1, 2);
+            spawnObject("archer", 1, 2, 2);
+
+        } else {
+            Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");
+        }
+    }
+
+    // GETTERS
+
+    public Grid getGridInstance() {
+        return gridInstance;
+    }
+
+    public GridObjectManager getGRID_OBJECT_MANAGER() {
+        return GRID_OBJECT_MANAGER;
+    }
+
+    public ResourceManager getResourceManager() {
+        return resourceManager;
+    }
+
+    // METHODS
+
+    public void spawnObject(String type, int level, int x, int y) {
+        int[] XoY = gridInstance.getClosestEmptyCell(x, y);
+        if (XoY == null) {
+            Gdx.app.log(TAG, "spawnObject: grid full, cannot spawn " + type + " lvl " + level);
+            // TODO: add to reward queue when full
+            return;
+        }
+
+        String id = idGenerator.generateFormattedID(type, level);
+        Gdx.app.log(TAG, "Spawning " + type + " lvl=" + level + " id=" + id
+                + " at [" + XoY[0] + "," + XoY[1] + "]");
+
+        switch (type) {
+            case "archer": case "farmer": case "spearman":
+            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+                UnitData unitData = (UnitData) GDLInstance.getGameData(type, level);
+                if (unitData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no UnitData for " + type + " lvl " + level);
+                    return;
+                }
+                Unit unit = new Unit(unitData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, unit);
+                resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), true);
+                //BATTLE_FIELD_MANAGER.increaseCounter(unitData.getNemesis(), unitData.getNemesis_Rate());
+                break;
+            }
+            case "sawmill": case "quarry": case "ironmine": {
+                StorageData storageData = (StorageData) GDLInstance.getGameData(type, level);
+                if (storageData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no StorageData for " + type + " lvl " + level);
+                    return;
+                }
+                Storage storage = new Storage(storageData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, storage);
+                resourceManager.modifyResourcePoolSize(type, storageData.getStorage_size(), true);
+                break;
+            }
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery": {
+                FacilityData facilityData = (FacilityData) GDLInstance.getGameData(type, level);
+                if (facilityData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no FacilityData for " + type + " lvl " + level);
+                    return;
+                }
+                Facility facility = new Facility(facilityData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, facility);
+                break;
+            }
+            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+                MonsterData monsterData = (MonsterData) GDLInstance.getGameData(type, level);
+                if (monsterData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no MonsterData for " + type + " lvl " + level);
+                    return;
+                }
+                Monster monster = new Monster(monsterData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, monster);
+                break;
+            }
+            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+                ChestData chestData = (ChestData) GDLInstance.getGameData(type, level);
+                if (chestData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no ChestData for " + type + " lvl " + level);
+                    return;
+                }
+                Chest chest = new Chest(chestData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, chest);
+                break;
+            }
+            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+                TokenData tokenData = (TokenData) GDLInstance.getGameData(type, level);
+                if (tokenData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no TokenData for " + type + " lvl " + level);
+                    return;
+                }
+                Token token = new Token(tokenData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, token);
+                break;
+            }
+            case "prince": {
+                PrinceData princeData = (PrinceData) GDLInstance.getGameData(type, level);
+                if (princeData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no PrinceData for " + type + " lvl " + level);
+                    return;
+                }
+                Prince prince = new Prince(princeData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, prince);
+                Gdx.app.log(TAG, "Prince spawned at [" + XoY[0] + "," + XoY[1] + "]");
+                break;
+            }
+            default:
+                Gdx.app.log(TAG, "spawnObject: unknown type '" + type + "'");
+        }
+    }
+
+    private void autoSave() {
+        jsonInstance.saveGridObjects("object_map", GRID_OBJECT_MANAGER.getObjectMap());
+        jsonInstance.saveArrayList("grid_array", gridInstance.getArr());
+        jsonInstance.saveResources("consumable_map", resourceManager.getConsumableMap());
+        jsonInstance.saveCounterMap("counter_map", BATTLE_FIELD_MANAGER.getGlobalCounter());
+        jsonInstance.saveArray("progression", new int[]{
+            BATTLE_FIELD_MANAGER.getLevel(),
+            BATTLE_FIELD_MANAGER.getCurrent_xp(),
+            BATTLE_FIELD_MANAGER.getXp_required()
+        });
+    }
+
+    public void removeObject(String id) {
+        // Fetch the object BEFORE removing it — the switch needs it after removal
+        GameObject object = GRID_OBJECT_MANAGER.getObject(id);
+        if (object == null) {
+            Gdx.app.log(TAG, "removeObject: no object found for id=" + id);
+            return;
+        }
+
+        int x = object.getxPos();
+        int y = object.getyPos();
+
+        gridInstance.setOnCell("default_tile", x, y);
+        GRID_OBJECT_MANAGER.removeObject(id);
+
+        switch (object.getType()) {
+            case "archer": case "farmer": case "spearman":
+            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+                UnitData unitData = (UnitData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                if (unitData != null) {
+                    resourceManager.modifyResourceRate(unitData.getResource(), unitData.getGen_rate(), false);
+                    BATTLE_FIELD_MANAGER.increaseXP(unitData.getXP_Rate());
+                }
+                break;
+            }
+            case "sawmill": case "quarry": case "ironmine": {
+                StorageData storageData = (StorageData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                if (storageData != null) {
+                    resourceManager.modifyResourcePoolSize(object.getType(), storageData.getStorage_size(), false);
+                }
+                break;
+            }
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery": {
+                // TODO: implement counter for facility removal rewards
+                break;
+            }
+            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+                // object is already fetched above — cast directly, no second lookup
+                Monster monster = (Monster) object;
+                if (monster.getHp() <= 0) {
+                    MonsterData monsterData = (MonsterData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                    if (monsterData != null) {
+                        spawnObject(monsterData.getReward(), 1, x, y);
+                    }
+                }
+                break;
+            }
+            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+                // TODO: implement chest removal reward
+                break;
+            }
+            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+                //TokenData tokenData = (TokenData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                //if (tokenData != null) {
+                //resourceManager.increaseToken(tokenData.getTokenType(), tokenData.getValue());
+                //}
+                break;
+            }
+            case "prince": {
+                // Prince cannot be removed — put it back where it was
+                PrinceData princeData = (PrinceData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                if (princeData != null) {
+                    Prince prince = new Prince(princeData, object.getType(), id, object.getLvl(), x, y);
+                    gridInstance.setOnCell(id, x, y);
+                    GRID_OBJECT_MANAGER.addObject(id, prince);
+                    Gdx.app.log(TAG, "Prince removal blocked — restored at [" + x + "," + y + "]");
+                }
+                break;
+            }
+        }
+    }
+
+    public void tap(String id) {
+        GameObject object = GRID_OBJECT_MANAGER.getObject(id);
+        if (object == null) {
+            Gdx.app.log(TAG, "tap: no object found for id=" + id);
+            return;
+        }
+        Gdx.app.log(TAG, "tap: " + id + " type=" + object.getType());
+
+        switch (object.getType()) {
+            case "archer": case "farmer": case "spearman":
+            case "griffin": case "eldergriffin": case "monk": case "swordsman":
+            case "sawmill": case "quarry": case "ironmine":
+            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+                // No tap action for these types
+                break;
+            }
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery": {
+                Facility facility = (Facility) object;
+                if (!gridInstance.hasEmptyCell()) {
+                    Gdx.app.log(TAG, "tap: grid full — cannot spawn unit");
+                    break;
+                }
+                if (resourceManager.reduceResource(
+                        facility.getTapCost1(), facility.getTapCost2(), facility.getTapCost3())) {
+                    String[] unitString = facility.spawn(
+                            GDLInstance.getSpawnConfiguration(facility.getType() + "_" + facility.getLvl()));
+                    if (unitString != null) {
+                        spawnObject(unitString[0], Integer.parseInt(unitString[1]),
+                                facility.getxPos(), facility.getyPos());
+                    }
+                }
+                break;
+            }
+            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+                if (!gridInstance.hasEmptyCell()) {
+                    Gdx.app.log(TAG, "tap: grid full — cannot open chest");
+                    break;
+                }
+                Chest chest = (Chest) object;
+                if (chest.getTap_count() > 0) {
+                    String[] tokenString = chest.spawn(
+                            GDLInstance.getSpawnConfiguration(chest.getType()));
+                    if (chest.decreaseTap_Count()) {
+                        removeObject(chest.getId());
+                    }
+                    if (tokenString != null) {
+                        spawnObject(tokenString[0], Integer.parseInt(tokenString[1]),
+                                chest.getxPos(), chest.getyPos());
+                    }
+                }
+                break;
+            }
+            //case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+                // Award resources then remove the token from the grid
+            //    TokenData tokenData = (TokenData) GDLInstance.getGameData(object.getType(), object.getLvl());
+            //    if (tokenData != null) {
+            //        resourceManager.increaseToken(tokenData.getTokenType(), tokenData.getValue());
+            //    }
+            //    removeObject(id);
+            //    break;
+            //}
+        }
+    }
+
+    public void swapOrMerge(String originId, String targetId) {
+        GameObject originGO = GRID_OBJECT_MANAGER.getObject(originId);
+        GameObject targetGO = GRID_OBJECT_MANAGER.getObject(targetId);
+
+        if (originGO == null || targetGO == null) {
+            Gdx.app.log(TAG, "swapOrMerge: null object — origin=" + originId + " target=" + targetId);
+            return;
+        }
+
+        // ── Prince being dragged → always just swap (he's being repositioned) ──
+        if ("prince".equals(originGO.getType())) {
+            swapPositions(originGO, targetGO, originId, targetId);
+            return;
+        }
+
+        // ── Merge check: same type, same level, below max ──
+        boolean canMerge = Objects.equals(originGO.getType(), targetGO.getType())
+            && originGO.getLvl() == targetGO.getLvl()
+            && originGO.getLvl() < originGO.getMaxLVL();
+
+        if (canMerge) {
+            int x = targetGO.getxPos();
+            int y = targetGO.getyPos();
+            String mergedType = targetGO.getType();
+            int mergedLvl = targetGO.getLvl() + 1;
+
+            // Increase nemesis counter if merging units
+            if (UNIT_TYPES.contains(mergedType)) {
+                Unit unit = (Unit) originGO;
+                //int contribution = 1 << mergedLvl - 1; // 2^level (both units combined)
+                BATTLE_FIELD_MANAGER.increaseCounter(unit.getNemesis(), unit.getNemesis_rate());
+                Gdx.app.log(TAG, "Merge " + mergedType + ": +" + unit.getNemesis_rate()
+                    + " to " + unit.getNemesis() + " counter");
+            }
+
+            removeObject(originId);
+            removeObject(targetId);
+            spawnObject(mergedType, mergedLvl, x, y);
+            return;
+        }
+
+        // ── Unit dropped on its nemesis → combat ──
+        if (UNIT_TYPES.contains(originGO.getType()) && isMonster(targetGO.getType())) {
+            Unit originUnit = (Unit) originGO;
+            Monster monster = (Monster) targetGO;
+            if (monster.reduceHp(originUnit.getDamage())) {
+                removeObject(targetId);
+            }
+            removeObject(originId);
+            BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate());
+            Gdx.app.log(TAG, originUnit.getType() + " attacked " + monster.getType()
+                + " for " + originUnit.getDamage() + " dmg — hp remaining: " + monster.getHp());
+            return;
+        }
+
+        // ── Monster dropped on Prince → invaders can't be dismissed, just swap ──
+        if ("prince".equals(targetGO.getType()) && isMonster(originGO.getType())) {
+            Gdx.app.log(TAG, "Monster " + originGO.getType()
+                + " swaps with Prince — invaders cannot be dismissed");
+            swapPositions(originGO, targetGO, originId, targetId);
+            return;
+        }
+
+        // ── Anything else dropped on Prince → dismiss to the Prince ──
+        if ("prince".equals(targetGO.getType())) {
+            dismissToPrince(originGO, originId);
+            return;
+        }
+
+        // ── Default → swap positions ──
+        swapPositions(originGO, targetGO, originId, targetId);
+    }
+
+    private void dismissToPrince(GameObject object, String objectId) {
+        String type = object.getType();
+
+        switch (type) {
+            // ── Units: dismissed from service, Prince gains leadership XP ──
+            case "archer": case "farmer": case "spearman":
+            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+                UnitData unitData = (UnitData) GDLInstance.getGameData(type, object.getLvl());
+                if (unitData != null) {
+                    int xpGain = unitData.getXP_Rate();
+                    BATTLE_FIELD_MANAGER.increaseXP(xpGain);
+                    Gdx.app.log(TAG, "Prince dismissed " + type + " lvl " + object.getLvl()
+                        + " — gained " + xpGain + " leadership XP");
+                }
+                removeObject(objectId);
+                break;
+            }
+
+            // ── Facilities: torn down, land reclaimed, partial resources returned ──
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery": {
+                FacilityData facilityData = (FacilityData) GDLInstance.getGameData(type, object.getLvl());
+                if (facilityData != null) {
+                    // Return half the build cost (rounded down) as a refund
+                    int refund1 = facilityData.getBuildCost1() / 2;
+                    int refund2 = facilityData.getBuildCost2() / 2;
+                    int refund3 = facilityData.getBuildCost3() / 2;
+                    resourceManager.addAmount("timber", refund1);
+                    resourceManager.addAmount("quarrystone", refund2);
+                    resourceManager.addAmount("iron", refund3);
+                    Gdx.app.log(TAG, "Prince reclaimed " + type + " lvl " + object.getLvl()
+                        + " — refunded [" + refund1 + "," + refund2 + "," + refund3 + "]");
+                }
+                removeObject(objectId);
+                break;
+            }
+
+            // ── Storage: torn down, pool size reduced ──
+            case "sawmill": case "quarry": case "ironmine": {
+                // removeObject already handles pool size reduction
+                removeObject(objectId);
+                Gdx.app.log(TAG, "Prince reclaimed storage: " + type);
+                break;
+            }
+
+            // ── Tokens: collected into the royal treasury ──
+            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+                TokenData tokenData = (TokenData) GDLInstance.getGameData(type, object.getLvl());
+                if (tokenData != null) {
+                    resourceManager.increaseToken(tokenData.getTokenType(), tokenData.getValue());
+                    Gdx.app.log(TAG, "Prince collected " + type + " lvl " + object.getLvl()
+                        + " — +" + tokenData.getValue() + " " + tokenData.getTokenType());
+                }
+                removeObject(objectId);
+                break;
+            }
+
+            // ── Chests: opened by royal decree ──
+            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+                removeObject(objectId);
+                Gdx.app.log(TAG, "Prince dismissed chest: " + type);
+                break;
+            }
+
+            // ── Monsters: should never reach here (handled in swapOrMerge) ──
+            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+                Gdx.app.log(TAG, "dismissToPrince: monster " + type
+                    + " should not reach here — this is a bug");
+                break;
+            }
+
+            default: {
+                Gdx.app.log(TAG, "dismissToPrince: unhandled type " + type + " — removing");
+                removeObject(objectId);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Returns true if the given type is a monster/invader.
+     */
+    private boolean isMonster(String type) {
+        switch (type) {
+            case "imp": case "scarecrow": case "stonegolem":
+            case "gargoyle": case "efreet":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Swaps the grid cell occupants and updates GridObjectManager positions
+     * for both objects. Previously the GridObjectManager update was missing
+     * in the non-unit swap branch, leaving stored positions out of sync.
+     */
+    private void swapPositions(GameObject originGO, GameObject targetGO,
+                               String originId, String targetId) {
+        int ox = originGO.getxPos(), oy = originGO.getyPos();
+        int tx = targetGO.getxPos(), ty = targetGO.getyPos();
+
+        // Update the grid cells
+        gridInstance.getCell(ox, oy).setOccupant(targetId);
+        gridInstance.getCell(ox, oy).setX(ox);
+        gridInstance.getCell(ox, oy).setY(oy);
+
+        gridInstance.getCell(tx, ty).setOccupant(originId);
+        gridInstance.getCell(tx, ty).setX(tx);
+        gridInstance.getCell(tx, ty).setY(ty);
+
+        // Update the object manager so stored positions stay in sync
+        GRID_OBJECT_MANAGER.update(originId, tx, ty);
+        GRID_OBJECT_MANAGER.update(targetId, ox, oy);
+    }
+}

@@ -1,0 +1,42 @@
+{
+  "wood_chest": [
+    {
+      "level": 1,
+      "sprite_path": "/pathwood_chest",
+      "description": "Weakest chest",
+      "maxLVL" : 1,
+      "token_type": "wood_token",
+      "tap_count": 5
+    }
+  ],
+  "wheat_chest": [
+    {
+      "level": 1,
+      "sprite_path": "/pathwheat_chest",
+      "description": "How is this stronger than wood?",
+      "maxLVL" : 1,
+      "token_type": "wheat_token",
+      "tap_count": 5
+    }
+  ],
+  "stone_chest": [
+    {
+      "level": 1,
+      "sprite_path": "/pathstone_chest",
+      "description": "Good luck moving it",
+      "maxLVL" : 1,
+      "token_type": "stone_token",
+      "tap_count": 5
+    }
+  ],
+  "fire_chest": [
+    {
+      "level": 1,
+      "sprite_path": "/pathfire_chest",
+      "description": "Warning: Hot content",
+      "maxLVL" : 1,
+      "token_type": "fire_token",
+      "tap_count": 5
+    }
+  ]
+}

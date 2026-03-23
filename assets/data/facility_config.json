@@ -1,0 +1,256 @@
+{
+  "archeryrange_1": [
+    {
+      "unitType": "archer",
+      "level": 1,
+      "spawnProbability": 1
+    }
+  ],
+  "archeryrange_2": [
+    {
+      "unitType": "archer",
+      "level": 1,
+      "spawnProbability": 0.8
+    },
+    {
+      "unitType": "archer",
+      "level": 2,
+      "spawnProbability": 0.2
+    }
+  ],
+  "archeryrange_3": [
+    {
+      "unitType": "archer",
+      "level": 1,
+      "spawnProbability": 0.6
+    },
+    {
+      "unitType": "archer",
+      "level": 2,
+      "spawnProbability": 0.4
+    }
+  ],
+  "archeryrange_4": [
+    {
+      "unitType": "archer",
+      "level": 1,
+      "spawnProbability": 0.4
+    },
+    {
+      "unitType": "archer",
+      "level": 2,
+      "spawnProbability": 0.6
+    }
+  ],
+  "farmhouse_1": [
+    {
+      "unitType": "farmer",
+      "level": 1,
+      "spawnProbability": 1
+    }
+  ],
+  "farmhouse_2": [
+    {
+      "unitType": "farmer",
+      "level": 1,
+      "spawnProbability": 0.8
+    },
+    {
+      "unitType": "farmer",
+      "level": 2,
+      "spawnProbability": 0.2
+    }
+  ],
+  "farmhouse_3": [
+    {
+      "unitType": "farmer",
+      "level": 1,
+      "spawnProbability": 0.6
+    },
+    {
+      "unitType": "farmer",
+      "level": 2,
+      "spawnProbability": 0.2
+    },
+    {
+      "unitType": "spearman",
+      "level": 1,
+      "spawnProbability": 0.2
+    }
+  ],
+  "farmhouse_4": [
+    {
+      "unitType": "farmer",
+      "level": 1,
+      "spawnProbability": 0.4
+    },
+    {
+      "unitType": "farmer",
+      "level": 2,
+      "spawnProbability": 0.3
+    },
+    {
+      "unitType": "spearman",
+      "level": 1,
+      "spawnProbability": 0.3
+    }
+  ],
+  "farmhouse_5": [
+    {
+      "unitType": "farmer",
+      "level": 1,
+      "spawnProbability": 0.2
+    },
+    {
+      "unitType": "farmer",
+      "level": 2,
+      "spawnProbability": 0.4
+    },
+    {
+      "unitType": "spearman",
+      "level": 1,
+      "spawnProbability": 0.4
+    }
+  ],
+  "barracks_1": [
+    {
+      "unitType": "swordsman",
+      "level": 1,
+      "spawnProbability": 1
+    }
+  ],
+  "barracks_2": [
+    {
+      "unitType": "swordsman",
+      "level": 1,
+      "spawnProbability": 0.8
+    },
+    {
+      "unitType": "swordsman",
+      "level": 2,
+      "spawnProbability": 0.2
+    }
+  ],
+  "barracks_3": [
+    {
+      "unitType": "swordsman",
+      "level": 1,
+      "spawnProbability": 0.6
+    },
+    {
+      "unitType": "swordsman",
+      "level": 2,
+      "spawnProbability": 0.4
+    }
+  ],
+  "barracks_4": [
+    {
+      "unitType": "swordsman",
+      "level": 1,
+      "spawnProbability": 0.4
+    },
+    {
+      "unitType": "swordsman",
+      "level": 2,
+      "spawnProbability": 0.6
+    }
+  ],
+  "griffinnest_1": [
+    {
+      "unitType": "griffin",
+      "level": 1,
+      "spawnProbability": 1
+    }
+  ],
+  "griffinnest_2": [
+    {
+      "unitType": "griffin",
+      "level": 1,
+      "spawnProbability": 0.8
+    },
+    {
+      "unitType": "eldergriffin",
+      "level": 1,
+      "spawnProbability": 0.2
+    }
+  ],
+  "griffinnest_3": [
+    {
+      "unitType": "griffin",
+      "level": 1,
+      "spawnProbability": 0.6
+    },
+    {
+      "unitType": "eldergriffin",
+      "level": 1,
+      "spawnProbability": 0.4
+    }
+  ],
+  "griffinnest_4": [
+    {
+      "unitType": "griffin",
+      "level": 1,
+      "spawnProbability": 0.5
+    },
+    {
+      "unitType": "eldergriffin",
+      "level": 1,
+      "spawnProbability": 0.5
+    }
+  ],
+  "griffinnest_5": [
+    {
+      "unitType": "griffin",
+      "level": 1,
+      "spawnProbability": 0.2
+    },
+    {
+      "unitType": "eldergriffin",
+      "level": 1,
+      "spawnProbability": 0.8
+    }
+  ],
+  "monastery_1": [
+    {
+      "unitType": "monk",
+      "level": 1,
+      "spawnProbability": 1
+    }
+  ],
+  "monastery_2": [
+    {
+      "unitType": "monk",
+      "level": 1,
+      "spawnProbability": 0.8
+    },
+    {
+      "unitType": "monk",
+      "level": 2,
+      "spawnProbability": 0.2
+    }
+  ],
+  "monastery_3": [
+    {
+      "unitType": "monk",
+      "level": 1,
+      "spawnProbability": 0.6
+    },
+    {
+      "unitType": "monk",
+      "level": 2,
+      "spawnProbability": 0.4
+    }
+  ],
+  "monastery_4": [
+    {
+      "unitType": "monk",
+      "level": 1,
+      "spawnProbability": 0.4
+    },
+    {
+      "unitType": "monk",
+      "level": 2,
+      "spawnProbability": 0.6
+    }
+  ]
+}
