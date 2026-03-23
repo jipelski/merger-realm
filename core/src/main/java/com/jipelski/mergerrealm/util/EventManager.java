@@ -115,6 +115,60 @@ public class EventManager {
 
     // METHODS
 
+    /**
+     * Attempts to spawn a unit from the given facility.
+     * Checks for grid space and resources before spawning.
+     * Used by both tap-to-spawn and hold-to-spawn.
+     *
+     * @return true if a unit was spawned, false if blocked (no space, no resources)
+     */
+    public boolean spawnFromFacility(String facilityId) {
+        GameObject object = GRID_OBJECT_MANAGER.getObject(facilityId);
+        if (object == null) {
+            Gdx.app.log(TAG, "spawnFromFacility: object not found id=" + facilityId);
+            return false;
+        }
+
+        if (!isFacilityType(object.getType())) {
+            Gdx.app.log(TAG, "spawnFromFacility: not a facility type=" + object.getType());
+            return false;
+        }
+
+        if (!gridInstance.hasEmptyCell()) {
+            Gdx.app.log(TAG, "spawnFromFacility: grid full");
+            return false;
+        }
+
+        Facility facility = (Facility) object;
+
+        if (!resourceManager.reduceResource(
+            facility.getTapCost1(), facility.getTapCost2(), facility.getTapCost3())) {
+            Gdx.app.log(TAG, "spawnFromFacility: not enough resources");
+            return false;
+        }
+
+        String[] unitString = facility.spawn(
+            GDLInstance.getSpawnConfiguration(facility.getType() + "_" + facility.getLvl()));
+        if (unitString != null) {
+            spawnObject(unitString[0], Integer.parseInt(unitString[1]),
+                facility.getxPos(), facility.getyPos());
+            Gdx.app.log(TAG, "spawnFromFacility: spawned " + unitString[0]
+                + " lvl " + unitString[1] + " from " + facility.getType());
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isFacilityType(String type) {
+        switch (type) {
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public void spawnObject(String type, int level, int x, int y) {
         int[] XoY = gridInstance.getClosestEmptyCell(x, y);
         if (XoY == null) {
@@ -318,7 +372,8 @@ public class EventManager {
             }
             case "archeryrange": case "farmhouse": case "barracks":
             case "griffinnest": case "monastery": {
-                Facility facility = (Facility) object;
+                break;
+                /*Facility facility = (Facility) object;
                 if (!gridInstance.hasEmptyCell()) {
                     Gdx.app.log(TAG, "tap: grid full — cannot spawn unit");
                     break;
@@ -332,7 +387,7 @@ public class EventManager {
                                 facility.getxPos(), facility.getyPos());
                     }
                 }
-                break;
+                break;*/
             }
             case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
                 if (!gridInstance.hasEmptyCell()) {

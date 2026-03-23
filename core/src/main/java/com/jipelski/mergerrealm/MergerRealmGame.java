@@ -199,6 +199,9 @@ public class MergerRealmGame extends ApplicationAdapter {
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
 
+        // ── 0. Input update (hold-to-spawn timer) ──
+        inputHandler.update(delta);
+
         // ── 1. Animation time (every frame, ~60fps) ──
         animationTime += delta;
 
@@ -227,6 +230,7 @@ public class MergerRealmGame extends ApplicationAdapter {
         shapeRenderer.setProjectionMatrix(camera.combined);
 
         drawGridBackground();
+        drawSelectionOutline();
 
         batch.begin();
         drawGrid();
@@ -360,6 +364,37 @@ public class MergerRealmGame extends ApplicationAdapter {
         float hudY3 = hudY2 - 25f;
         font.draw(batch, "Stone T: " + rm.getAmount("stone"), col1, hudY3);
         font.draw(batch, "Fire: " + rm.getAmount("fire"), col2, hudY3);
+    }
+
+    /**
+     * Draws a thick green outline around the selected facility cell.
+     */
+    private void drawSelectionOutline() {
+        if (!inputHandler.hasSelection()) return;
+
+        int selX = inputHandler.getSelectedCellX();
+        int selY = inputHandler.getSelectedCellY();
+
+        Grid grid = eventManager.getGridInstance();
+        int rows = grid.getHeight();
+
+        float drawX = gridStartX + selX * (cellSize + CELL_GAP);
+        float drawY = gridStartY + (rows - 1 - selY) * (cellSize + CELL_GAP);
+        float thickness = 3f;
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f); // bright green
+
+        // Top
+        shapeRenderer.rect(drawX - thickness, drawY + cellSize, cellSize + thickness * 2, thickness);
+        // Bottom
+        shapeRenderer.rect(drawX - thickness, drawY - thickness, cellSize + thickness * 2, thickness);
+        // Left
+        shapeRenderer.rect(drawX - thickness, drawY - thickness, thickness, cellSize + thickness * 2);
+        // Right
+        shapeRenderer.rect(drawX + cellSize, drawY - thickness, thickness, cellSize + thickness * 2);
+
+        shapeRenderer.end();
     }
 
     // ══════════════════════════════════════════════════════════════

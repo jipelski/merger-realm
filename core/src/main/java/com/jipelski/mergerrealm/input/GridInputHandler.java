@@ -12,26 +12,33 @@ import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
 /**
- * Handles all grid touch input: tap, drag-and-drop, merge, swap.
+ * Handles all grid touch input: tap, drag-and-drop, merge, swap,
+ * facility selection, and hold-to-spawn.
  *
- * Touch logic:
- *   - Touch down on an occupied cell → starts a potential drag
- *   - If finger moves beyond DRAG_THRESHOLD → enters drag mode
- *   - Touch up without dragging → tap (facility spawn, chest open, token collect)
- *   - Touch up while dragging on a different occupied cell → merge or swap
- *   - Touch up while dragging on an empty cell → move object there
- *   - Touch up while dragging outside grid → cancel, object returns
+ * Facility interaction:
+ *   - First tap on a facility → select it (green outline)
+ *   - Tap on a selected facility → spawn one unit
+ *   - Hold down on any facility → auto-spawn every 0.25s
+ *   - Tap elsewhere or drag → deselect
+ *
+ * General touch:
+ *   - Touch down on occupied cell → starts potential drag
+ *   - Finger moves beyond threshold → enters drag mode, deselects
+ *   - Touch up without drag on non-facility → normal tap action
+ *   - Touch up while dragging → merge, swap, or move
  */
 public class GridInputHandler extends InputAdapter {
 
     private static final String TAG = "GridInputHandler";
-    private static final float DRAG_THRESHOLD = 8f; // world units before drag activates
+    private static final float DRAG_THRESHOLD = 8f;
+    private static final float HOLD_SPAWN_INTERVAL = 0.25f;
+    private static final float HOLD_DELAY = 0.35f; // delay before hold-spawn starts
 
     // References
     private final EventManager eventManager;
     private final Viewport viewport;
 
-    // Grid layout info (set by MergerRealmGame after layout calculation)
+    // Grid layout info
     private float gridStartX;
     private float gridStartY;
     private float cellSize;
@@ -46,9 +53,20 @@ public class GridInputHandler extends InputAdapter {
     private int originCellY = -1;
     private String draggedObjectId = null;
     private final Vector2 touchStart = new Vector2();
-    private final Vector2 dragPos = new Vector2(); // current finger position in world coords
+    private final Vector2 dragPos = new Vector2();
 
-    // Temp vector to avoid allocations
+    // Selection state
+    private int selectedCellX = -1;
+    private int selectedCellY = -1;
+    private String selectedObjectId = null;
+
+    // Hold-to-spawn state
+    private boolean holding = false;
+    private float holdTimer = 0f;
+    private float holdDelay = 0f;
+    private String holdFacilityId = null;
+
+    // Temp vector
     private final Vector2 worldPos = new Vector2();
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
@@ -56,10 +74,6 @@ public class GridInputHandler extends InputAdapter {
         this.viewport = viewport;
     }
 
-    /**
-     * Must be called after grid layout is calculated so we know
-     * where cells are on screen.
-     */
     public void setGridLayout(float gridStartX, float gridStartY,
                               float cellSize, float cellGap,
                               int gridCols, int gridRows) {
@@ -71,33 +85,68 @@ public class GridInputHandler extends InputAdapter {
         this.gridRows = gridRows;
     }
 
+    // ── Must be called every frame from render() for hold-to-spawn ──
+
+    /**
+     * Called every frame. Handles hold-to-spawn timing.
+     */
+    public void update(float delta) {
+        if (!holding || holdFacilityId == null) return;
+
+        // Wait for initial delay before starting auto-spawn
+        holdDelay += delta;
+        if (holdDelay < HOLD_DELAY) return;
+
+        holdTimer += delta;
+        if (holdTimer >= HOLD_SPAWN_INTERVAL) {
+            holdTimer -= HOLD_SPAWN_INTERVAL;
+            eventManager.spawnFromFacility(holdFacilityId);
+        }
+    }
+
     // ── InputAdapter overrides ──
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        if (pointer != 0) return false; // only handle first finger
+        if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
 
         int[] cell = worldToCell(worldPos.x, worldPos.y);
-        if (cell == null) return false; // touched outside grid
+        if (cell == null) {
+            // Touched outside grid — deselect
+            clearSelection();
+            return false;
+        }
 
         Grid grid = eventManager.getGridInstance();
         Cell gridCell = grid.getCell(cell[0], cell[1]);
 
-        if (gridCell.isEmpty()) return false; // nothing to interact with
+        if (gridCell.isEmpty()) {
+            clearSelection();
+            return false;
+        }
 
-        // Start tracking this touch
+        String objectId = gridCell.getOccupant();
+        GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(objectId);
+
+        // Start tracking touch
         touching = true;
         dragging = false;
         originCellX = cell[0];
         originCellY = cell[1];
-        draggedObjectId = gridCell.getOccupant();
+        draggedObjectId = objectId;
         touchStart.set(worldPos);
         dragPos.set(worldPos);
 
-        Gdx.app.log(TAG, "Touch down on cell [" + cell[0] + "," + cell[1]
-            + "] id=" + draggedObjectId);
+        // Start hold timer if touching a facility
+        if (obj != null && isFacility(obj.getType())) {
+            holding = true;
+            holdTimer = 0f;
+            holdDelay = 0f;
+            holdFacilityId = objectId;
+        }
+
         return true;
     }
 
@@ -108,10 +157,12 @@ public class GridInputHandler extends InputAdapter {
         toWorldCoords(screenX, screenY);
         dragPos.set(worldPos);
 
-        // Check if we've moved enough to start dragging
         if (!dragging && touchStart.dst(worldPos) > DRAG_THRESHOLD) {
             dragging = true;
-            Gdx.app.log(TAG, "Drag started from cell [" + originCellX + "," + originCellY + "]");
+            // Dragging cancels hold-to-spawn and selection
+            stopHolding();
+            clearSelection();
+            Gdx.app.log(TAG, "Drag started from [" + originCellX + "," + originCellY + "]");
         }
 
         return true;
@@ -123,139 +174,157 @@ public class GridInputHandler extends InputAdapter {
 
         toWorldCoords(screenX, screenY);
 
+        // Stop hold-to-spawn
+        stopHolding();
+
         if (!dragging) {
             // ── TAP ──
-            Gdx.app.log(TAG, "Tap on cell [" + originCellX + "," + originCellY
-                + "] id=" + draggedObjectId);
-            eventManager.tap(draggedObjectId);
+            handleTap();
         } else {
             // ── DROP ──
-            int[] targetCell = worldToCell(worldPos.x, worldPos.y);
-
-            if (targetCell == null) {
-                // Dropped outside grid — cancel
-                Gdx.app.log(TAG, "Drop outside grid — cancelled");
-            } else if (targetCell[0] == originCellX && targetCell[1] == originCellY) {
-                // Dropped back on same cell — treat as tap
-                Gdx.app.log(TAG, "Dropped on same cell — not treating as tap");
-                //eventManager.tap(draggedObjectId);
-            } else {
-                Grid grid = eventManager.getGridInstance();
-                Cell target = grid.getCell(targetCell[0], targetCell[1]);
-
-                if (target.isEmpty()) {
-                    // ── MOVE to empty cell ──
-                    moveToEmptyCell(targetCell[0], targetCell[1]);
-                } else {
-                    // ── MERGE or SWAP ──
-                    String targetId = target.getOccupant();
-                    Gdx.app.log(TAG, "Drop on occupied cell [" + targetCell[0] + ","
-                        + targetCell[1] + "] targetId=" + targetId);
-                    eventManager.swapOrMerge(draggedObjectId, targetId);
-                }
-            }
+            handleDrop();
         }
 
-        // Reset state
-        resetDragState();
+        // Reset touch state (but NOT selection — that persists)
+        touching = false;
+        dragging = false;
+        originCellX = -1;
+        originCellY = -1;
+        draggedObjectId = null;
         return true;
     }
 
-    // ── Public getters for rendering the drag visual ──
+    // ── Tap handling with facility selection ──
 
-    public boolean isDragging() {
-        return dragging;
+    private void handleTap() {
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(draggedObjectId);
+        if (obj == null) return;
+
+        if (isFacility(obj.getType())) {
+            handleFacilityTap(obj);
+        } else {
+            // Non-facility tap — deselect any facility, do normal tap
+            clearSelection();
+            eventManager.tap(draggedObjectId);
+        }
     }
 
-    public String getDraggedObjectId() {
-        return draggedObjectId;
+    private void handleFacilityTap(GameObject facility) {
+        // Check if this facility is already selected
+        if (draggedObjectId.equals(selectedObjectId)) {
+            // Already selected — spawn a unit
+            eventManager.spawnFromFacility(draggedObjectId);
+            Gdx.app.log(TAG, "Spawning from selected facility: " + draggedObjectId);
+        } else {
+            // Not selected — select it
+            selectedCellX = originCellX;
+            selectedCellY = originCellY;
+            selectedObjectId = draggedObjectId;
+            Gdx.app.log(TAG, "Selected facility at [" + selectedCellX + "," + selectedCellY + "]");
+        }
     }
 
-    public float getDragX() {
-        return dragPos.x;
+    // ── Drop handling ──
+
+    private void handleDrop() {
+        int[] targetCell = worldToCell(worldPos.x, worldPos.y);
+
+        if (targetCell == null) {
+            Gdx.app.log(TAG, "Drop outside grid — cancelled");
+            return;
+        }
+
+        if (targetCell[0] == originCellX && targetCell[1] == originCellY) {
+            // Dropped on same cell — treat as cancelled
+            return;
+        }
+
+        Grid grid = eventManager.getGridInstance();
+        Cell target = grid.getCell(targetCell[0], targetCell[1]);
+
+        if (target.isEmpty()) {
+            moveToEmptyCell(targetCell[0], targetCell[1]);
+        } else {
+            String targetId = target.getOccupant();
+            eventManager.swapOrMerge(draggedObjectId, targetId);
+        }
     }
 
-    public float getDragY() {
-        return dragPos.y;
-    }
+    // ── Public getters for rendering ──
 
-    public int getOriginCellX() {
-        return originCellX;
-    }
+    public boolean isDragging() { return dragging; }
+    public String getDraggedObjectId() { return draggedObjectId; }
+    public float getDragX() { return dragPos.x; }
+    public float getDragY() { return dragPos.y; }
+    public int getOriginCellX() { return originCellX; }
+    public int getOriginCellY() { return originCellY; }
 
-    public int getOriginCellY() {
-        return originCellY;
-    }
+    public boolean hasSelection() { return selectedObjectId != null; }
+    public int getSelectedCellX() { return selectedCellX; }
+    public int getSelectedCellY() { return selectedCellY; }
+    public String getSelectedObjectId() { return selectedObjectId; }
 
     // ── Private helpers ──
 
-    /**
-     * Moves the dragged object to an empty cell.
-     */
+    public void clearSelection() {
+        selectedCellX = -1;
+        selectedCellY = -1;
+        selectedObjectId = null;
+    }
+
+    private void stopHolding() {
+        holding = false;
+        holdTimer = 0f;
+        holdDelay = 0f;
+        holdFacilityId = null;
+    }
+
+    private boolean isFacility(String type) {
+        switch (type) {
+            case "archeryrange": case "farmhouse": case "barracks":
+            case "griffinnest": case "monastery":
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private void moveToEmptyCell(int targetX, int targetY) {
         Grid grid = eventManager.getGridInstance();
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
 
-        Gdx.app.log(TAG, "Moving " + draggedObjectId + " to empty cell ["
-            + targetX + "," + targetY + "]");
-
-        // Clear origin cell
         grid.getCell(originCellX, originCellY).setOccupant("default_tile");
-
-        // Set target cell
         grid.setOnCell(draggedObjectId, targetX, targetY);
-
-        // Update object position in the manager
         gom.update(draggedObjectId, targetX, targetY);
     }
 
-    /**
-     * Converts screen coordinates to world coordinates using the viewport.
-     */
     private void toWorldCoords(int screenX, int screenY) {
         worldPos.set(screenX, screenY);
         viewport.unproject(worldPos);
     }
 
-    /**
-     * Converts world coordinates to grid cell indices.
-     * Returns null if the position is outside the grid.
-     */
     private int[] worldToCell(float wx, float wy) {
-        // Check if within grid bounds
         float totalGridWidth = (cellSize * gridCols) + (cellGap * (gridCols - 1));
         float totalGridHeight = (cellSize * gridRows) + (cellGap * (gridRows - 1));
 
         if (wx < gridStartX || wx > gridStartX + totalGridWidth) return null;
         if (wy < gridStartY || wy > gridStartY + totalGridHeight) return null;
 
-        // Calculate which cell
         float relX = wx - gridStartX;
         float relY = wy - gridStartY;
 
         int col = (int) (relX / (cellSize + cellGap));
         int row = (int) (relY / (cellSize + cellGap));
 
-        // Check we're actually on a cell, not in a gap
         float cellLocalX = relX - col * (cellSize + cellGap);
         float cellLocalY = relY - row * (cellSize + cellGap);
         if (cellLocalX > cellSize || cellLocalY > cellSize) return null;
 
-        // Flip Y: screen row 0 is at the top, but we draw row 0 at the top
-        // using (rows - 1 - y) in rendering, so reverse it here
         int gridY = (gridRows - 1) - row;
 
-        // Bounds check
         if (col < 0 || col >= gridCols || gridY < 0 || gridY >= gridRows) return null;
 
         return new int[]{col, gridY};
-    }
-
-    private void resetDragState() {
-        touching = false;
-        dragging = false;
-        originCellX = -1;
-        originCellY = -1;
-        draggedObjectId = null;
     }
 }
