@@ -97,7 +97,6 @@ public class GridInputHandler extends InputAdapter {
 
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
-            clearSelection();
             return false;
         }
 
@@ -105,7 +104,6 @@ public class GridInputHandler extends InputAdapter {
         Cell gridCell = grid.getCell(cell[0], cell[1]);
 
         if (gridCell.isEmpty()) {
-            clearSelection();
             return false;
         }
 

@@ -76,17 +76,15 @@ public class ResourceManager {
     // METHODS
 
     /**
-     * Ticks resource generation — called once per game loop tick.
-     * Adds each resource's gen rate to its current amount, capped at pool size.
+     * Ticks resource generation. Adds gen rate to amount, capped at pool size.
+     * Only applies to timber, quarrystone, and iron.
      */
     public void updateResources() {
         for (String t : consumableMap.keySet()) {
             if (t.equals("timber") || t.equals("quarrystone") || t.equals("iron")) {
                 int[] value = consumableMap.get(t);
                 if (value == null) continue;
-                if (value[0] + value[1] <= value[2]) {
-                    value[0] += value[1];
-                }
+                value[0] = Math.min(value[0] + value[1], value[2]);
             }
         }
     }
@@ -114,10 +112,22 @@ public class ResourceManager {
         return false;
     }
 
+    /**
+     * Modifies the resource pool size. If the pool shrinks,
+     * clamps the current amount to the new cap.
+     */
     public void modifyResourcePoolSize(String resource, int amount, boolean increase) {
         int[] value = consumableMap.get(resource);
-        if (value == null) { Gdx.app.log(TAG, "modifyResourcePoolSize: unknown resource=" + resource); return; }
+        if (value == null) {
+            Gdx.app.log(TAG, "modifyResourcePoolSize: unknown resource=" + resource);
+            return;
+        }
         value[2] = increase ? value[2] + amount : value[2] - amount;
+        // Clamp current amount if it now exceeds the new cap
+        if (value[2] > 0 && value[0] > value[2]) {
+            value[0] = value[2];
+            Gdx.app.log(TAG, resource + " clamped to new cap: " + value[2]);
+        }
     }
 
     public void modifyResourceRate(String resource, int amount, boolean increase) {

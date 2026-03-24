@@ -240,4 +240,8 @@ public class JsonManager {
     public void saveCounterMap(String filename, Map<String, int[]> objMap) {
         writeJson(filename, objMap);
     }
+
+    public void saveStatus(String filename, Map<String, Boolean> statusMap) {
+        writeJson(filename, statusMap);
+    }
 }
