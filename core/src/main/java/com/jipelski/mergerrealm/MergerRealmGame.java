@@ -31,13 +31,14 @@ import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameDataLoader;
+import com.jipelski.mergerrealm.util.GameEventListener;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import java.util.Map;
 
-public class MergerRealmGame extends ApplicationAdapter {
+public class MergerRealmGame extends ApplicationAdapter implements GameEventListener {
 
     private static final String TAG = "MergerRealmGame";
 
@@ -122,6 +123,8 @@ public class MergerRealmGame extends ApplicationAdapter {
 
         jsonManager = new JsonManager();
         eventManager = new EventManager(jsonManager);
+
+        eventManager.getBattleFieldManager().setGameEventListener(this);
 
         calculateGridLayout();
 
@@ -794,6 +797,18 @@ public class MergerRealmGame extends ApplicationAdapter {
         GameObject obj = gom.getObject(inputHandler.getSelectedObjectId());
         return obj != null ? obj.getType() : null;
     }
+
+    @Override
+    public void onGridExpanded() {
+        Gdx.app.log(TAG, "Grid expanded — recalculating layout");
+        calculateGridLayout();
+
+        // Update input handler with new layout
+        Grid grid = eventManager.getGridInstance();
+        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, CELL_GAP,
+            grid.getWidth(), grid.getHeight());
+    }
+
     // ══════════════════════════════════════════════════════════════
     // LIFECYCLE
     // ══════════════════════════════════════════════════════════════

@@ -24,6 +24,17 @@ public class BattleFieldManager {
     private final EventManager eventManager;
     private final Grid         grid;
     private final GridObjectManager gridObjectManager;
+    private GameEventListener listener;
+
+
+    private static final int[][] GRID_SIZES_BY_PRINCE_LEVEL = {
+        {4, 5},  // Prince Lv.1: 4x5
+        {4, 6},  // Prince Lv.2: 4x6
+        {5, 6},  // Prince Lv.3: 5x6
+        {5, 7},  // Prince Lv.4: 5x7
+        {6, 7},  // Prince Lv.5: 6x7
+        {6, 8},  // Prince Lv.6: 6x8
+    };
 
     public Map<String, int[]> getGlobalCounter() { return globalCounter; }
 
@@ -36,7 +47,13 @@ public class BattleFieldManager {
         initialiseProgression(jsonManager);
         initialiseLockedStatus(jsonManager);
         initialiseGlobalCounter(jsonManager);
+        expandGridForLevel(this.level);
     }
+
+    public void setGameEventListener(GameEventListener listener) {
+        this.listener = listener;
+    }
+
     private void initialiseQueue(JsonManager jsonManager) {
         rewardQueue = jsonManager.loadRewardQueue("reward_queue");
         if (rewardQueue == null) {
@@ -114,14 +131,79 @@ public class BattleFieldManager {
 
     /**
      * Awards XP and levels up if the threshold is reached.
-     * Carries over any excess XP rather than discarding it.
+     * On level up:
+     *   - Expands grid if applicable
+     *   - Unlocks new facilities with a reward chest
+     *   - Scales XP requirement for next level
+     * Returns true if a level up occurred.
      */
-    public void increaseXP(int xp) {
+    public boolean increaseXP(int xp) {
         current_xp += xp;
         if (current_xp >= xp_required) {
-            current_xp -= xp_required; // carry over excess instead of resetting to 0
-            level      += 1;
-            Gdx.app.log(TAG, "Level up! Now level " + level + " with " + current_xp + " carry-over XP");
+            current_xp -= xp_required;
+            level += 1;
+
+            // Scale XP for next level
+            xp_required = PrinceLevelConfig.getXpRequired(level);
+
+            Gdx.app.log(TAG, "Level up! Now level " + level
+                + " (next: " + xp_required + " XP)");
+
+            // Check for grid expansion
+            if (PrinceLevelConfig.hasGridExpansion(level)) {
+                int[] newSize = PrinceLevelConfig.getGridSizeAtLevel(level);
+                if (newSize != null) {
+                    grid.expandGrid(newSize[0], newSize[1]);
+                    Gdx.app.log(TAG, "Grid expanded to " + newSize[0] + "x" + newSize[1]);
+                    if (listener != null) {
+                        listener.onGridExpanded();
+                    }
+                }
+            }
+
+            // Check for facility unlock
+            String unlockedFacility = PrinceLevelConfig.getFacilityUnlockAtLevel(level);
+            if (unlockedFacility != null) {
+                Gdx.app.log(TAG, "Unlocked facility: " + unlockedFacility);
+
+                // Spawn a reward chest with tokens for building it
+                String chestType = PrinceLevelConfig.getRewardChest(unlockedFacility);
+                if (chestType != null) {
+                    // Try to spawn on the board, or add to reward queue
+                    int[] emptyCell = grid.getClosestEmptyCell(0, 0);
+                    if (emptyCell != null) {
+                        eventManager.spawnObject(chestType, 1, emptyCell[0], emptyCell[1]);
+                        Gdx.app.log(TAG, "Reward chest spawned: " + chestType);
+                    } else {
+                        rewardQueue.addLast(new GenData(chestType, "Reward for unlocking " + unlockedFacility, 1));
+                        Gdx.app.log(TAG, "Board full — reward chest queued: " + chestType);
+                    }
+                }
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Expands the grid to match the given Prince level.
+     * Called on level up and on game load to ensure grid matches saved level.
+     */
+    public void expandGridForLevel(int princeLvl) {
+        int index = Math.min(princeLvl, GRID_SIZES_BY_PRINCE_LEVEL.length) - 1;
+        if (index < 0) return;
+
+        int targetWidth = GRID_SIZES_BY_PRINCE_LEVEL[index][0];
+        int targetHeight = GRID_SIZES_BY_PRINCE_LEVEL[index][1];
+
+        if (targetWidth > grid.getWidth() || targetHeight > grid.getHeight()) {
+            grid.expandGrid(targetWidth, targetHeight);
+            Gdx.app.log(TAG, "Grid expanded to " + targetWidth + "x" + targetHeight
+                + " for Prince level " + princeLvl);
+            if (listener != null) {
+                listener.onGridExpanded();
+            }
         }
     }
 

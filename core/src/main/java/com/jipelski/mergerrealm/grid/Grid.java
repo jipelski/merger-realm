@@ -164,4 +164,39 @@ public class Grid {
         }
         return false;
     }
+
+    /**
+     * Expands the grid to a new width and height.
+     * Preserves all existing cell contents.
+     */
+    public void expandGrid(int newWidth, int newHeight) {
+        if (newWidth < width || newHeight < height) {
+            Gdx.app.log("GRID", "Cannot shrink grid — ignoring");
+            return;
+        }
+        if (newWidth == width && newHeight == height) return;
+
+        Gdx.app.log("GRID", "Expanding grid from " + width + "x" + height
+            + " to " + newWidth + "x" + newHeight);
+
+        Cell[][] newCells = new Cell[newWidth][newHeight];
+
+        // Copy existing cells
+        for (int x = 0; x < newWidth; x++) {
+            for (int y = 0; y < newHeight; y++) {
+                if (x < width && y < height) {
+                    newCells[x][y] = cells[x][y];
+                } else {
+                    newCells[x][y] = new Cell();
+                    newCells[x][y].setX(x);
+                    newCells[x][y].setY(y);
+                }
+            }
+        }
+
+        cells = newCells;
+        width = newWidth;
+        height = newHeight;
+        XoY = new int[]{width, height};
+    }
 }

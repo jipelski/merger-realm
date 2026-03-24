@@ -20,6 +20,7 @@ import com.jipelski.mergerrealm.model.Prince;
 import com.jipelski.mergerrealm.model.Storage;
 import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -63,7 +64,7 @@ public class EventManager {
      * Spawns the starting set of objects only when the saved grid is fully empty.
      * On every subsequent launch the saved grid is used instead, preventing duplicates.
      */
-    private void spawnInitialObjectsIfNeeded() {
+    /*private void spawnInitialObjectsIfNeeded() {
         boolean gridIsEmpty = true;
         for (Cell[] row : gridInstance.getCells()) {
             for (Cell cell : row) {
@@ -101,7 +102,37 @@ public class EventManager {
             Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");
         }
     }
+    */
 
+    private void spawnInitialObjectsIfNeeded() {
+        boolean gridIsEmpty = true;
+        for (Cell[] row : gridInstance.getCells()) {
+            for (Cell cell : row) {
+                if (!cell.isEmpty()) {
+                    gridIsEmpty = false;
+                    break;
+                }
+            }
+            if (!gridIsEmpty) break;
+        }
+
+        if (gridIsEmpty) {
+            Gdx.app.log(TAG, "Fresh grid detected — spawning starting objects");
+
+            // Prince always starts at position 0,0
+            spawnObject("prince", 1, 0, 0);
+
+            // Starting archery range (only facility unlocked at level 1)
+            spawnObject("archeryrange", 1, 1, 0);
+
+            // Two starting archers so the player can immediately merge
+            spawnObject("archer", 1, 0, 1);
+            spawnObject("archer", 1, 1, 1);
+
+        } else {
+            Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");
+        }
+    }
     // GETTERS
 
     public Grid getGridInstance() {
@@ -134,6 +165,14 @@ public class EventManager {
 
         if (!isFacilityType(object.getType())) {
             Gdx.app.log(TAG, "spawnFromFacility: not a facility type=" + object.getType());
+            return false;
+        }
+
+        // Check if this facility type is unlocked
+        int princeLvl = BATTLE_FIELD_MANAGER.getLevel();
+        if (!PrinceLevelConfig.isFacilityUnlocked(object.getType(), princeLvl)) {
+            Gdx.app.log(TAG, "spawnFromFacility: " + object.getType()
+                + " not yet unlocked (prince lvl " + princeLvl + ")");
             return false;
         }
 
@@ -208,7 +247,7 @@ public class EventManager {
                 Storage storage = new Storage(storageData, type, id, level, XoY[0], XoY[1]);
                 gridInstance.setOnCell(id, XoY[0], XoY[1]);
                 GRID_OBJECT_MANAGER.addObject(id, storage);
-                resourceManager.modifyResourcePoolSize(type, storageData.getStorage_size(), true);
+                resourceManager.modifyResourcePoolSize(storageData.getStorage_type(), storageData.getStorage_size(), true);
                 break;
             }
             case "archeryrange": case "farmhouse": case "barracks":
@@ -312,7 +351,7 @@ public class EventManager {
             case "sawmill": case "quarry": case "ironmine": {
                 StorageData storageData = (StorageData) GDLInstance.getGameData(object.getType(), object.getLvl());
                 if (storageData != null) {
-                    resourceManager.modifyResourcePoolSize(object.getType(), storageData.getStorage_size(), false);
+                    resourceManager.modifyResourcePoolSize(storageData.getStorage_type(), storageData.getStorage_size(), false);
                 }
                 break;
             }
