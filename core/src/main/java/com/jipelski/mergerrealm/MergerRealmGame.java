@@ -36,6 +36,8 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
+import com.jipelski.mergerrealm.ui.BuildMenu;
+
 import java.util.Map;
 
 public class MergerRealmGame extends ApplicationAdapter implements GameEventListener {
@@ -99,6 +101,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     // ── Animation ──
     private float animationTime = 0f;
 
+    // ── Menus ──
+    private BuildMenu buildMenu;
+
+    private static final float BUILD_BTN_WIDTH = 100f;
+    private static final float BUILD_BTN_HEIGHT = 36f;
+    private float buildBtnX;
+    private float buildBtnY;
+
     @Override
     public void create() {
         Gdx.app.log(TAG, "=== MergerRealm starting ===");
@@ -133,6 +143,16 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, CELL_GAP,
             grid.getWidth(), grid.getHeight());
         Gdx.input.setInputProcessor(inputHandler);
+
+
+        buildMenu = new BuildMenu(eventManager, spriteManager, viewport, WORLD_WIDTH, WORLD_HEIGHT);
+
+        // Position build button at bottom center
+        buildBtnX = (WORLD_WIDTH - BUILD_BTN_WIDTH) / 2f;
+        buildBtnY = 10f;
+
+        inputHandler.setBuildMenu(buildMenu);
+        inputHandler.setBuildButtonBounds(buildBtnX, buildBtnY, BUILD_BTN_WIDTH, BUILD_BTN_HEIGHT);
 
         processOfflineProgress();
 
@@ -240,6 +260,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     @Override
     public void render() {
+        // TODO: REMOVE THIS TESTING buildMenu Check
+        Gdx.app.log(TAG, "render: buildMenu visible=" + buildMenu.isVisible());
         float delta = Gdx.graphics.getDeltaTime();
 
         inputHandler.update(delta);
@@ -270,6 +292,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         drawSelectionOutline();
         drawInfoBarBackground();
 
+        drawBuildButton();
+
         // Sprite/text pass
         batch.begin();
         drawGrid();
@@ -277,7 +301,22 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         drawHUD();
         drawInfoBarContent();
         drawOfflineMessage(delta);
+
+        font.setColor(Color.WHITE);
+        glyphLayout.setText(font, "Build");
+        font.draw(batch, "Build",
+            buildBtnX + (BUILD_BTN_WIDTH - glyphLayout.width) / 2f,
+            buildBtnY + BUILD_BTN_HEIGHT - 10f);
+
+
         batch.end();
+
+        if (buildMenu.isVisible()) {
+            buildMenu.drawBackground(shapeRenderer);
+            batch.begin();
+            buildMenu.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
     }
 
     private void gameTick() {
@@ -585,6 +624,15 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 com.badlogic.gdx.utils.Align.left, false);
         }
     }
+
+    // ── Draw Build Button  ──
+    private void drawBuildButton() {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0.25f, 0.5f, 0.25f, 1f);
+        shapeRenderer.rect(buildBtnX, buildBtnY, BUILD_BTN_WIDTH, BUILD_BTN_HEIGHT);
+        shapeRenderer.end();
+    }
+
 
     /**
      * Returns type-specific stats string for the info bar.

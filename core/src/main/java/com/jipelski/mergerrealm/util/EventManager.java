@@ -126,8 +126,8 @@ public class EventManager {
             spawnObject("archeryrange", 1, 1, 0);
 
             // Two starting archers so the player can immediately merge
-            spawnObject("archer", 1, 0, 1);
-            spawnObject("archer", 1, 1, 1);
+            spawnObject("archer", 2, 0, 1);
+            spawnObject("archer", 2, 1, 1);
 
         } else {
             Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");

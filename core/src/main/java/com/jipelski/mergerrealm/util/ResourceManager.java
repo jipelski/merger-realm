@@ -84,7 +84,15 @@ public class ResourceManager {
             if (t.equals("timber") || t.equals("quarrystone") || t.equals("iron")) {
                 int[] value = consumableMap.get(t);
                 if (value == null) continue;
-                value[0] = Math.min(value[0] + value[1], value[2]);
+                if (value[1] <= 0) continue; // no gen rate, skip
+
+                if (value[2] > 0) {
+                    // Has a pool cap — clamp to it
+                    value[0] = Math.min(value[0] + value[1], value[2]);
+                } else {
+                    // No storage built yet — still generate but with a base cap
+                    value[0] = Math.min(value[0] + value[1], 1000);
+                }
             }
         }
     }

@@ -8,6 +8,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.jipelski.mergerrealm.grid.Cell;
 import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.GameObject;
+import com.jipelski.mergerrealm.ui.BuildMenu;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
@@ -55,6 +56,10 @@ public class GridInputHandler extends InputAdapter {
 
     private final Vector2 worldPos = new Vector2();
 
+    private BuildMenu buildMenu;
+
+    private float buildBtnX, buildBtnY, buildBtnW, buildBtnH;
+
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
         this.eventManager = eventManager;
         this.viewport = viewport;
@@ -69,6 +74,10 @@ public class GridInputHandler extends InputAdapter {
         this.cellGap = cellGap;
         this.gridCols = gridCols;
         this.gridRows = gridRows;
+    }
+
+    public void setBuildMenu(BuildMenu buildMenu) {
+        this.buildMenu = buildMenu;
     }
 
     /**
@@ -93,7 +102,18 @@ public class GridInputHandler extends InputAdapter {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
 
+        // Build menu intercepts all input when visible
+        if (buildMenu != null && buildMenu.isVisible()) {
+            buildMenu.handleTouch(screenX, screenY);
+            return true;
+        }
+
         toWorldCoords(screenX, screenY);
+
+        if (buildMenu != null && isBuildButtonTap(worldPos.x, worldPos.y)) {
+            buildMenu.toggle();
+            return true;
+        }
 
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
@@ -340,5 +360,17 @@ public class GridInputHandler extends InputAdapter {
         if (col < 0 || col >= gridCols || gridY < 0 || gridY >= gridRows) return null;
 
         return new int[]{col, gridY};
+    }
+
+    public void setBuildButtonBounds(float x, float y, float w, float h) {
+        this.buildBtnX = x;
+        this.buildBtnY = y;
+        this.buildBtnW = w;
+        this.buildBtnH = h;
+    }
+
+    private boolean isBuildButtonTap(float wx, float wy) {
+        return wx >= buildBtnX && wx <= buildBtnX + buildBtnW
+            && wy >= buildBtnY && wy <= buildBtnY + buildBtnH;
     }
 }
