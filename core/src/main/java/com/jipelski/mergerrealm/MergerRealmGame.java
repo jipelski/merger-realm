@@ -159,14 +159,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         inputHandler.setOfflinePopup(offlinePopup);
 
-        float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
-        float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
+        float lockBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
+        float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        /*float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
+        float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
+        inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);*/
 
         inputHandler.setWallGate(wallGate);
 
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
-        calculateGridLayout();
+        // calculateGridLayout();
         processOfflineProgress();
 
         Gdx.app.log(TAG, "=== Init complete ===");
@@ -750,7 +754,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     /**
      * Draws the lock/unlock button below the info bar when an object is selected.
      */
-    private void drawLockButton() {
+    /*private void drawLockButton() {
         if (!inputHandler.hasSelection()) return;
 
         String selId = inputHandler.getSelectedObjectId();
@@ -770,6 +774,29 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         // Lock text/icon
         font.setColor(Color.WHITE);
+        String lockText = isLocked ? "U" : "L";
+        glyphLayout.setText(font, lockText);
+        font.draw(batch, lockText,
+            btnX + (LOCK_BTN_SIZE - glyphLayout.width) / 2f,
+            btnY + LOCK_BTN_SIZE / 2f + glyphLayout.height / 2f);
+    }*/
+    private void drawLockButton() {
+        if (!inputHandler.hasSelection()) return;
+
+        String selId = inputHandler.getSelectedObjectId();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        boolean isLocked = gom.isLocked(selId);
+
+        float btnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
+        float btnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
+
+        if (isLocked) {
+            uiTex.drawPanel(batch, uiTex.btnActive, btnX, btnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+        } else {
+            uiTex.drawPanel(batch, uiTex.btnNormal, btnX, btnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+        }
+
+        font.setColor(Color.PINK);
         String lockText = isLocked ? "U" : "L";
         glyphLayout.setText(font, lockText);
         font.draw(batch, lockText,
@@ -1114,6 +1141,16 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         Grid grid = eventManager.getGridInstance();
         inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
             grid.getWidth(), grid.getHeight());
+
+        // Recalculate lock button bounds with correct actualHeight
+        float lockBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
+        float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
+        inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        // Also recalculate bottom bar button bounds
+        inputHandler.setBuildButtonBounds(
+            LayoutConfig.getButtonX(0), LayoutConfig.getBtnY(),
+            LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
     }
 
     @Override

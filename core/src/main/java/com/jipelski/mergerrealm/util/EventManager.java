@@ -364,7 +364,7 @@ public class EventManager {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(object.getType(), object.getLvl());
                 if (unitData != null) {
                     resourceManager.modifyResourceRate(unitData.getResource(), unitData.getGen_rate(), false);
-                    BATTLE_FIELD_MANAGER.increaseXP(unitData.getXP_Rate());
+                    // BATTLE_FIELD_MANAGER.increaseXP(unitData.getXP_Rate()); // XP already added when dismissing to prince, no xp when leveling up the individual units.
                 }
                 break;
             }
@@ -528,12 +528,20 @@ public class EventManager {
         // ── Unit dropped on its nemesis → combat ──
         if (UNIT_TYPES.contains(originGO.getType()) && isMonster(targetGO.getType())) {
             Unit originUnit = (Unit) originGO;
+
+            if (originUnit.getDamage() <= 0) {
+                // No attack power — just swap positions
+                Gdx.app.log(TAG, originUnit.getType() + " has no damage — swapping instead");
+                swapPositions(originGO, targetGO, originId, targetId);
+                return;
+            }
+
             Monster monster = (Monster) targetGO;
             if (monster.reduceHp(originUnit.getDamage())) {
                 removeObject(targetId);
             }
             removeObject(originId);
-            BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate());
+            BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2); // Only half the xp for units lost in battle
             Gdx.app.log(TAG, originUnit.getType() + " attacked " + monster.getType()
                 + " for " + originUnit.getDamage() + " dmg — hp remaining: " + monster.getHp());
             return;

@@ -15,6 +15,8 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 
+import java.util.Objects;
+
 public class GridInputHandler extends InputAdapter {
 
     private static final String TAG = "GridInputHandler";
@@ -161,12 +163,15 @@ public class GridInputHandler extends InputAdapter {
 
         if (selectedObjectId != null && isLockButtonTap(worldPos.x, worldPos.y)) {
             eventManager.getGRID_OBJECT_MANAGER().toggleLock(selectedObjectId);
+            //Gdx.app.log(TAG, "Lock toggled for: " + selectedObjectId);
             return true;
         }
 
         // Normal grid input from here
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
+            // TODO: remove selection
+            clearSelection();
             return false;
         }
 
@@ -174,6 +179,8 @@ public class GridInputHandler extends InputAdapter {
         Cell gridCell = grid.getCell(cell[0], cell[1]);
 
         if (gridCell.isEmpty()) {
+            // TODO: remove selection
+            clearSelection();
             return false;
         }
 
@@ -330,7 +337,7 @@ public class GridInputHandler extends InputAdapter {
             String targetId = target.getOccupant();
 
             // Block merge/swap if target is locked
-            if (eventManager.getGRID_OBJECT_MANAGER().isLocked(targetId)) {
+            if (eventManager.getGRID_OBJECT_MANAGER().isLocked(targetId) && !Objects.equals(eventManager.getGRID_OBJECT_MANAGER().getObject(targetId).getType(), "prince")) {
                 Gdx.app.log(TAG, "Target is locked — cannot merge or swap");
                 return; // object snaps back to origin
             }
