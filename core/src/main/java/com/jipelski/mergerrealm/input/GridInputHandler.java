@@ -9,8 +9,11 @@ import com.jipelski.mergerrealm.grid.Cell;
 import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.ui.BuildMenu;
+import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
+
+import com.jipelski.mergerrealm.ui.OfflinePopup;
 
 public class GridInputHandler extends InputAdapter {
 
@@ -60,6 +63,12 @@ public class GridInputHandler extends InputAdapter {
 
     private float buildBtnX, buildBtnY, buildBtnW, buildBtnH;
 
+    private float lockBtnX, lockBtnY, lockBtnW, lockBtnH;
+
+    private OfflinePopup offlinePopup;
+
+    private WallGate wallGate;
+
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
         this.eventManager = eventManager;
         this.viewport = viewport;
@@ -78,6 +87,26 @@ public class GridInputHandler extends InputAdapter {
 
     public void setBuildMenu(BuildMenu buildMenu) {
         this.buildMenu = buildMenu;
+    }
+
+    public void setOfflinePopup(OfflinePopup popup) {
+        this.offlinePopup = popup;
+    }
+
+    public void setLockButtonBounds(float x, float y, float w, float h) {
+        this.lockBtnX = x;
+        this.lockBtnY = y;
+        this.lockBtnW = w;
+        this.lockBtnH = h;
+    }
+
+    private boolean isLockButtonTap(float wx, float wy) {
+        return wx >= lockBtnX && wx <= lockBtnX + lockBtnW
+            && wy >= lockBtnY && wy <= lockBtnY + lockBtnH;
+    }
+
+    public void setWallGate(WallGate wallGate) {
+        this.wallGate = wallGate;
     }
 
     /**
@@ -104,6 +133,11 @@ public class GridInputHandler extends InputAdapter {
 
         toWorldCoords(screenX, screenY);
 
+        if (offlinePopup != null && offlinePopup.isVisible()) {
+            offlinePopup.handleTouch(worldPos.x, worldPos.y);
+            return true;
+        }
+
         // Build menu intercepts touches in its area
         if (buildMenu != null && buildMenu.isVisible()) {
             if (buildMenu.touchDown(worldPos.x, worldPos.y)) {
@@ -117,6 +151,16 @@ public class GridInputHandler extends InputAdapter {
         // Check build button tap
         if (buildMenu != null && !buildMenu.isVisible() && isBuildButtonTap(worldPos.x, worldPos.y)) {
             buildMenu.toggle();
+            return true;
+        }
+
+        if (wallGate != null && wallGate.isInWallArea(worldPos.y)) {
+            wallGate.handleTouch(worldPos.x, worldPos.y);
+            return true;
+        }
+
+        if (selectedObjectId != null && isLockButtonTap(worldPos.x, worldPos.y)) {
+            eventManager.getGRID_OBJECT_MANAGER().toggleLock(selectedObjectId);
             return true;
         }
 
@@ -151,8 +195,19 @@ public class GridInputHandler extends InputAdapter {
         touchStart.set(worldPos);
         dragPos.set(worldPos);
 
-        // Start hold timer if touching a facility
-        if (obj != null && isFacility(obj.getType())) {
+        // Check if object is locked — if so, allow tap but prevent drag
+        boolean isLocked = eventManager.getGRID_OBJECT_MANAGER().isLocked(objectId);
+
+
+        // Start hold timer if touching an UNLOCKED facility
+        if (obj != null && isFacility(obj.getType()) && !isLocked) {
+            holding = true;
+            holdTimer = 0f;
+            holdDelay = 0f;
+            holdFacilityId = objectId;
+        }
+        // Allow hold-to-spawn even if locked (tapping still works)
+        if (obj != null && isFacility(obj.getType()) && isLocked) {
             holding = true;
             holdTimer = 0f;
             holdDelay = 0f;
@@ -180,6 +235,10 @@ public class GridInputHandler extends InputAdapter {
         dragPos.set(worldPos);
 
         if (!dragging && touchStart.dst(worldPos) > DRAG_THRESHOLD) {
+            // Don't allow dragging locked objects
+            if (eventManager.getGRID_OBJECT_MANAGER().isLocked(draggedObjectId)) {
+                return true; // consume event but don't start drag
+            }
             dragging = true;
             stopHolding();
             Gdx.app.log(TAG, "Drag started from [" + originCellX + "," + originCellY + "]");
@@ -269,9 +328,17 @@ public class GridInputHandler extends InputAdapter {
             selectedCellY = targetCell[1];
         } else {
             String targetId = target.getOccupant();
+
+            // Block merge/swap if target is locked
+            if (eventManager.getGRID_OBJECT_MANAGER().isLocked(targetId)) {
+                Gdx.app.log(TAG, "Target is locked — cannot merge or swap");
+                return; // object snaps back to origin
+            }
+
             eventManager.swapOrMerge(draggedObjectId, targetId);
             // After merge/swap, update selection to where the object ended up
             GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(draggedObjectId);
+
             if (obj != null) {
                 selectedCellX = obj.getxPos();
                 selectedCellY = obj.getyPos();

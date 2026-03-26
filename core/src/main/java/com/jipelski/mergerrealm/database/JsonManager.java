@@ -215,6 +215,14 @@ public class JsonManager {
         return gson.fromJson(json, new TypeToken<Map<String, int[]>>() {}.getType());
     }
 
+    public java.util.Set<String> loadLockedObjects(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        java.util.List<String> list = gson.fromJson(json,
+            new TypeToken<java.util.List<String>>() {}.getType());
+        return list != null ? new java.util.HashSet<>(list) : null;
+    }
+
     // ── SAVER METHODS ──
 
     public void saveResources(String filename, Map<String, int[]> resMap) {
@@ -243,5 +251,9 @@ public class JsonManager {
 
     public void saveStatus(String filename, Map<String, Boolean> statusMap) {
         writeJson(filename, statusMap);
+    }
+
+    public void saveLockedObjects(String filename, java.util.Set<String> locks) {
+        writeJson(filename, new java.util.ArrayList<>(locks));
     }
 }

@@ -53,7 +53,14 @@ public class EventManager {
         this.GDLInstance         = new GameDataLoader(jsonInstance);
         this.resourceManager     = new ResourceManager(jsonManager);
         this.GRID_OBJECT_MANAGER = new GridObjectManager(jsonManager);
+
+        java.util.Set<String> savedLocks = jsonManager.loadLockedObjects("locked_objects");
+        if (savedLocks != null) {
+            GRID_OBJECT_MANAGER.setLockedObjects(savedLocks);
+        }
+
         this.BATTLE_FIELD_MANAGER = new BattleFieldManager(this, jsonManager, gridInstance, GRID_OBJECT_MANAGER);
+
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.

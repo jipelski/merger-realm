@@ -28,6 +28,7 @@ import com.jipelski.mergerrealm.model.Chest;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameDataLoader;
@@ -38,6 +39,8 @@ import com.jipelski.mergerrealm.util.SpriteManager;
 
 import com.jipelski.mergerrealm.ui.BuildMenu;
 import com.jipelski.mergerrealm.ui.LayoutConfig;
+import com.jipelski.mergerrealm.ui.UITextureManager;
+import com.jipelski.mergerrealm.ui.OfflinePopup;
 
 import java.util.Map;
 
@@ -80,13 +83,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private float saveTimer = 0f;
     private static final float SAVE_INTERVAL = 5f;
 
+    private static final float LOCK_BTN_SIZE = 30f;
+
     // ── Offline tracking ──
     private static final String TIMESTAMP_KEY = "last_active_timestamp";
     private static final long MAX_OFFLINE_SECONDS = 8 * 60 * 60;
-
-    private String offlineMessage = null;
-    private float offlineMessageTimer = 0f;
-    private static final float OFFLINE_MESSAGE_DURATION = 5f;
 
     // ── Animation ──
     private float animationTime = 0f;
@@ -96,6 +97,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private boolean buildMenuOpen = false;
 
     private float gridStartYShifted;
+
+    private UITextureManager uiTex;
+    private OfflinePopup offlinePopup;
+
+    private WallGate wallGate;
 
     @Override
     public void create() {
@@ -116,6 +122,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         viewport = new ExtendViewport(LayoutConfig.WORLD_WIDTH , LayoutConfig.WORLD_HEIGHT , camera);
         viewport.apply(true);
 
+        uiTex = new UITextureManager();
+        uiTex.load();
+
         spriteManager = new SpriteManager();
         spriteManager.loadFallback();
 
@@ -123,6 +132,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         eventManager = new EventManager(jsonManager);
 
         eventManager.getBattleFieldManager().setGameEventListener(this);
+
+        wallGate = new WallGate(eventManager, spriteManager, uiTex);
+        wallGate.updateLayout();
+
+        inputHandler.setWallGate(wallGate);
 
         calculateGridLayout();
 
@@ -136,12 +150,20 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         buildMenu = new BuildMenu(eventManager, spriteManager, viewport, LayoutConfig.WORLD_WIDTH , LayoutConfig.WORLD_HEIGHT );
         inputHandler.setBuildMenu(buildMenu);
 
+        offlinePopup = new OfflinePopup(uiTex);
+
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
 
         inputHandler.setBuildMenu(buildMenu);
         inputHandler.setBuildButtonBounds(
             LayoutConfig.getButtonX(0), LayoutConfig.getBtnY(),
             LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
+
+        inputHandler.setOfflinePopup(offlinePopup);
+
+        float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
+        float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
+        inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
 
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         calculateGridLayout();
@@ -168,7 +190,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         long ticks = cappedSeconds / 15;
 
-        // Snapshot before
         ResourceManager rm = eventManager.getResourceManager();
         int timberBefore = rm.getAmount("timber");
         int stoneBefore = rm.getAmount("quarrystone");
@@ -178,40 +199,16 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             rm.updateResources();
         }
 
-        // Calculate earnings
         int timberGained = rm.getAmount("timber") - timberBefore;
         int stoneGained = rm.getAmount("quarrystone") - stoneBefore;
         int ironGained = rm.getAmount("iron") - ironBefore;
 
-        // Build message
-        long hours = cappedSeconds / 3600;
-        long minutes = (cappedSeconds % 3600) / 60;
-        StringBuilder sb = new StringBuilder("Welcome back! (");
-        if (hours > 0) sb.append(hours).append("h ");
-        sb.append(minutes).append("m) ");
-
-        boolean anyGained = false;
-        if (timberGained > 0) {
-            sb.append("+").append(timberGained).append(" timber ");
-            anyGained = true;
-        }
-        if (stoneGained > 0) {
-            sb.append("+").append(stoneGained).append(" stone ");
-            anyGained = true;
-        }
-        if (ironGained > 0) {
-            sb.append("+").append(ironGained).append(" iron");
-            anyGained = true;
-        }
-        if (!anyGained) {
-            sb.append("No resources generated");
-        }
-
-        offlineMessage = sb.toString();
-        offlineMessageTimer = OFFLINE_MESSAGE_DURATION;
+        // Show popup instead of timed message
+        offlinePopup.show(cappedSeconds, timberGained, stoneGained, ironGained);
 
         saveDirty = true;
-        Gdx.app.log(TAG, offlineMessage);
+        Gdx.app.log(TAG, "Offline: " + cappedSeconds + "s, timber+"
+            + timberGained + " stone+" + stoneGained + " iron+" + ironGained);
     }
 
     private void saveTimestamp() {
@@ -245,24 +242,27 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
 
-        inputHandler.update(delta);
-        animationTime += delta;
+        // Don't process input/ticks while popup is visible
+        if (!offlinePopup.isVisible()) {
+            inputHandler.update(delta);
 
-        tickTimer += delta;
-        if (tickTimer >= TICK_INTERVAL) {
-            tickTimer -= TICK_INTERVAL;
-            gameTick();
-        }
+            tickTimer += delta;
+            if (tickTimer >= TICK_INTERVAL) {
+                tickTimer -= TICK_INTERVAL;
+                gameTick();
+            }
 
-        if (saveDirty) {
-            saveTimer += delta;
-            if (saveTimer >= SAVE_INTERVAL) {
-                saveGame();
-                saveDirty = false;
-                saveTimer = 0f;
+            if (saveDirty) {
+                saveTimer += delta;
+                if (saveTimer >= SAVE_INTERVAL) {
+                    saveGame();
+                    saveDirty = false;
+                    saveTimer = 0f;
+                }
             }
         }
 
+        animationTime += delta;
         buildMenuOpen = buildMenu.isVisible();
 
         ScreenUtils.clear(0.12f, 0.12f, 0.18f, 1f);
@@ -271,9 +271,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         shapeRenderer.setProjectionMatrix(camera.combined);
 
         if (buildMenuOpen) {
-            // Build menu mode — grid shifts up, menu at bottom
             drawGridBackgroundShifted();
             drawSelectionOutlineShifted();
+            drawHighlightsShifted();
+            drawLockIndicatorsShifted();
             buildMenu.drawBackground(shapeRenderer);
 
             batch.begin();
@@ -282,23 +283,62 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             buildMenu.drawContent(batch, font, fontSmall);
             batch.end();
         } else {
-            // Normal mode — all zones visible
-            // Shape pass
-            drawInfoBarBackground();
-            drawWallBackground();
+            // Shape pass (only for things not yet converted to textures)
             drawGridBackground();
             drawSelectionOutline();
-            drawBottomBarBackground();
+            drawHighlights();
+            drawLockIndicators();
+            wallGate.drawBackground(shapeRenderer);
 
-            // Text/sprite pass
+            // Sprite/text pass
             batch.begin();
+
+            // Top bar panels
+            uiTex.drawPanel(batch, uiTex.panelMedium,
+                LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
+                LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
+
+            uiTex.drawPanel(batch, uiTex.panelDark,
+                LayoutConfig.getInfoTextX(), LayoutConfig.getLevelBoxY(),
+                LayoutConfig.getInfoTextWidth(), LayoutConfig.LEVEL_BOX_SIZE);
+
+            uiTex.drawPanel(batch, uiTex.panelMedium,
+                LayoutConfig.getNemesisBoxX(), LayoutConfig.getNemesisBoxY(),
+                LayoutConfig.NEMESIS_BOX_SIZE, LayoutConfig.NEMESIS_BOX_SIZE);
+
+
+            // XP progress bar
+            BattleFieldManager bfm = eventManager.getBattleFieldManager();
+            float xpRatio = (float) bfm.getCurrent_xp() / Math.max(1, bfm.getXp_required());
+            float barWidth = LayoutConfig.LEVEL_BOX_SIZE - 8f;
+            float barX = LayoutConfig.LEVEL_BOX_X + 4f;
+            float barY = LayoutConfig.getLevelBoxY() + 4f;
+            uiTex.drawProgressBar(batch, uiTex.barXpBg, uiTex.barXpFill,
+                barX, barY, barWidth, 8f, xpRatio);
+
+            // Nemesis progress bar
+            drawMonsterCounterBarTextured();
+
             drawHUD();
-            drawInfoBarContent();
-            drawWallContent();
+            drawInfoBarContentTextured();
+            drawLockButton();
+
+            uiTex.drawPanel(batch, uiTex.panelDark,
+                0, LayoutConfig.getWallY(),
+                LayoutConfig.WORLD_WIDTH, LayoutConfig.getWallHeight());
+            wallGate.drawContent(batch, font, fontSmall);
+
             drawGrid();
             drawDraggedObject();
-            drawBottomBarContent();
-            drawOfflineMessage(delta);
+            drawBottomBarTextured();
+
+            batch.end();
+        }
+
+        // Popup always draws on top of everything
+        if (offlinePopup.isVisible()) {
+            batch.begin();
+            offlinePopup.draw(batch, font, fontSmall);
             batch.end();
         }
     }
@@ -438,52 +478,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         fontSmall.setColor(Color.WHITE);
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // INFO BAR (between HUD and grid)
-    // ══════════════════════════════════════════════════════════════
-    private void drawInfoBarBackground() {
-        float boxY = LayoutConfig.getLevelBoxY();
-        float boxSize = LayoutConfig.LEVEL_BOX_SIZE;
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // Left box (Level/XP)
-        shapeRenderer.setColor(0.18f, 0.18f, 0.26f, 1f);
-        shapeRenderer.rect(LayoutConfig.LEVEL_BOX_X, boxY, boxSize, boxSize);
-
-        // Center area (description) — spans between the two boxes
-        shapeRenderer.setColor(0.16f, 0.16f, 0.22f, 1f);
-        shapeRenderer.rect(LayoutConfig.getInfoTextX(), boxY,
-            LayoutConfig.getInfoTextWidth(), boxSize);
-
-        // Right box (nemesis counter)
-        shapeRenderer.setColor(0.18f, 0.18f, 0.26f, 1f);
-        shapeRenderer.rect(LayoutConfig.getNemesisBoxX(), boxY, boxSize, boxSize);
-
-        // XP progress bar in left box
-        BattleFieldManager bfm = eventManager.getBattleFieldManager();
-        float xpRatio = (float) bfm.getCurrent_xp() / Math.max(1, bfm.getXp_required());
-        float barWidth = boxSize - 8f;
-        float barHeight = 8f;
-        float barX = LayoutConfig.LEVEL_BOX_X + 4f;
-        float barY = boxY + 4f;
-
-        shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 1f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        shapeRenderer.setColor(0.3f, 0.7f, 0.3f, 1f);
-        shapeRenderer.rect(barX, barY, barWidth * xpRatio, barHeight);
-
-        // Monster counter bar in right box
-        drawMonsterCounterBar(boxY);
-
-        shapeRenderer.end();
-    }
-
     /**
      * Draws monster counter progress bar in the right box.
      * Only visible when a unit is selected, showing its nemesis counter.
      */
-    private void drawMonsterCounterBar(float boxY) {
+    private void drawMonsterCounterBarTextured() {
         if (displayedNemesis == null) return;
 
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
@@ -493,25 +492,21 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         float ratio = (float) counter[0] / Math.max(1, counter[1]);
         float barWidth = LayoutConfig.NEMESIS_BOX_SIZE - 8f;
-        float barHeight = 8f;
         float barX = LayoutConfig.getNemesisBoxX() + 4f;
-        float barY = boxY + 4f;
+        float barY = LayoutConfig.getNemesisBoxY() + 4f;
 
-        shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 1f);
-        shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        shapeRenderer.setColor(0.8f, 0.25f, 0.25f, 1f);
-        shapeRenderer.rect(barX, barY, barWidth * ratio, barHeight);
+        uiTex.drawProgressBar(batch, uiTex.barNemesisBg, uiTex.barNemesisFill,
+            barX, barY, barWidth, 8f, ratio);
     }
 
     /**
      * Draws all text content of the info bar (called inside batch.begin/end).
      */
-    private void drawInfoBarContent() {
+    private void drawInfoBarContentTextured() {
         float boxY = LayoutConfig.getLevelBoxY();
         float boxSize = LayoutConfig.LEVEL_BOX_SIZE;
         float boxTop = boxY + boxSize;
 
-        // ── Left box: Level and XP ──
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
 
         fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
@@ -526,12 +521,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         drawCenteredText(fontSmall, bfm.getCurrent_xp() + "/" + bfm.getXp_required(),
             LayoutConfig.LEVEL_BOX_X + boxSize / 2f, boxTop - 48f);
 
-        // ── Center: selected object info ──
         if (inputHandler.hasSelection()) {
             drawSelectedObjectInfo(boxTop);
         }
 
-        // ── Right box: monster counter ──
+        // Update nemesis display
+        String selectedType = getSelectedType();
+        if (selectedType != null) {
+            String currentNemesis = getNemesisForType(selectedType);
+            if (currentNemesis != null) {
+                displayedNemesis = currentNemesis;
+            }
+        }
+
         drawMonsterCounterText(boxTop);
 
         font.setColor(Color.WHITE);
@@ -584,54 +586,225 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     }
 
     // ── Draw Bottom Area  ──
-    private void drawBottomBarBackground() {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+    private void drawBottomBarTextured() {
+        float barY = LayoutConfig.getBottomBarY();
+        float barH = LayoutConfig.getBottomBarHeight();
 
         // Bar background
-        shapeRenderer.setColor(0.12f, 0.12f, 0.18f, 1f);
-        shapeRenderer.rect(0, LayoutConfig.getBottomBarY(),
-            LayoutConfig.WORLD_WIDTH , LayoutConfig.getBottomBarHeight());
-
-        // Top border
-        shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
-        shapeRenderer.rect(0, LayoutConfig.getBottomBarHeight() - 2f, LayoutConfig.WORLD_WIDTH , 2f);
+        uiTex.drawPanel(batch, uiTex.panelDark, 0, barY, LayoutConfig.WORLD_WIDTH, barH);
 
         // Buttons
         String[] labels = {"Build", "Shop", "Spells", "Quests"};
         for (int i = 0; i < labels.length; i++) {
             float btnX = LayoutConfig.getButtonX(i);
+            float btnBY = LayoutConfig.getBtnY();
+
+            // Use appropriate button style
             if (i == 0) {
-                // Build button — green
-                shapeRenderer.setColor(0.2f, 0.5f, 0.2f, 1f);
+                uiTex.drawPanel(batch, uiTex.btnNormal,
+                    btnX, btnBY, LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
+                fontSmall.setColor(Color.WHITE);
             } else {
-                // Future buttons — greyed out
-                shapeRenderer.setColor(0.25f, 0.25f, 0.3f, 1f);
+                uiTex.drawPanel(batch, uiTex.btnDisabled,
+                    btnX, btnBY, LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
+                fontSmall.setColor(0.5f, 0.5f, 0.5f, 1f);
             }
-            shapeRenderer.rect(btnX, LayoutConfig.getBtnY(),
-                LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
+
+            float centerX = btnX + LayoutConfig.BTN_WIDTH / 2f;
+            glyphLayout.setText(fontSmall, labels[i]);
+            fontSmall.draw(batch, labels[i],
+                centerX - glyphLayout.width / 2f,
+                btnBY + LayoutConfig.BTN_HEIGHT - 12f);
+        }
+        fontSmall.setColor(Color.WHITE);
+    }
+
+
+    /**
+     * Draws merge (blue) and combat (red) outlines on eligible objects
+     * based on the currently selected object.
+     * Only highlights unlocked objects when the selected object is also unlocked.
+     */
+    private void drawHighlights() {
+        drawHighlightsAtY(gridStartY);
+    }
+
+    private void drawHighlightsShifted() {
+        drawHighlightsAtY(gridStartYShifted);
+    }
+
+    private void drawHighlightsAtY(float baseY) {
+        if (!inputHandler.hasSelection()) return;
+
+        String selId = inputHandler.getSelectedObjectId();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject selObj = gom.getObject(selId);
+        if (selObj == null) return;
+
+        // Don't highlight if selected object is locked
+        if (gom.isLocked(selId)) return;
+
+        Grid grid = eventManager.getGridInstance();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+
+        boolean selIsUnit = isUnitType(selObj.getType());
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+
+                String cellId = cell.getOccupant();
+                if (cellId.equals(selId)) continue; // skip self
+
+                // Don't highlight locked objects
+                if (gom.isLocked(cellId)) continue;
+
+                GameObject cellObj = gom.getObject(cellId);
+                if (cellObj == null) continue;
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+                float t = 2.5f;
+
+                // Check for merge compatibility
+                boolean canMerge = selObj.getType().equals(cellObj.getType())
+                    && selObj.getLvl() == cellObj.getLvl()
+                    && selObj.getLvl() < selObj.getMaxLVL();
+
+                if (canMerge) {
+                    // Dark blue outline for mergeable
+                    shapeRenderer.setColor(0.2f, 0.3f, 0.8f, 1f);
+                    drawOutlineRect(drawX, drawY, cellSize, t);
+                    continue;
+                }
+
+                // Check for combat — unit selected, target is a monster
+                if (selIsUnit && isMonsterType(cellObj.getType())) {
+                    // Bright red outline for fightable
+                    shapeRenderer.setColor(0.9f, 0.15f, 0.15f, 1f);
+                    drawOutlineRect(drawX, drawY, cellSize, t);
+                }
+            }
         }
 
         shapeRenderer.end();
     }
 
-    private void drawBottomBarContent() {
-        String[] labels = {"Build", "Shop", "Spells", "Quests"};
-        for (int i = 0; i < labels.length; i++) {
-            float btnX = LayoutConfig.getButtonX(i);
-            float centerX = btnX + LayoutConfig.BTN_WIDTH / 2f;
+    /**
+     * Draws lock indicators (small lock icon/marker) on all locked objects.
+     */
+    private void drawLockIndicators() {
+        drawLockIndicatorsAtY(gridStartY);
+    }
 
-            if (i == 0) {
-                fontSmall.setColor(Color.WHITE);
-            } else {
-                fontSmall.setColor(0.5f, 0.5f, 0.5f, 1f);
+    private void drawLockIndicatorsShifted() {
+        drawLockIndicatorsAtY(gridStartYShifted);
+    }
+
+    private void drawLockIndicatorsAtY(float baseY) {
+        Grid grid = eventManager.getGridInstance();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+
+        boolean anyLocked = false;
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+                if (!gom.isLocked(cell.getOccupant())) continue;
+
+                if (!anyLocked) {
+                    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+                    anyLocked = true;
+                }
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+                // Small lock indicator in top-right corner
+                float indicatorSize = cellSize * 0.2f;
+                float ix = drawX + cellSize - indicatorSize - 2f;
+                float iy = drawY + cellSize - indicatorSize - 2f;
+
+                // Lock background
+                shapeRenderer.setColor(0.8f, 0.6f, 0.1f, 0.9f);
+                shapeRenderer.rect(ix, iy, indicatorSize, indicatorSize);
+
+                // Lock inner (keyhole look)
+                shapeRenderer.setColor(0.3f, 0.2f, 0.05f, 1f);
+                float inner = indicatorSize * 0.4f;
+                shapeRenderer.rect(ix + (indicatorSize - inner) / 2f,
+                    iy + (indicatorSize - inner) / 2f, inner, inner);
             }
-
-            glyphLayout.setText(fontSmall, labels[i]);
-            fontSmall.draw(batch, labels[i],
-                centerX - glyphLayout.width / 2f,
-                LayoutConfig.getBtnY() + LayoutConfig.BTN_HEIGHT - 12f);
         }
-        fontSmall.setColor(Color.WHITE);
+        if (anyLocked) {
+            shapeRenderer.end();
+        }
+    }
+
+    /**
+     * Draws the lock/unlock button below the info bar when an object is selected.
+     */
+    private void drawLockButton() {
+        if (!inputHandler.hasSelection()) return;
+
+        String selId = inputHandler.getSelectedObjectId();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        boolean isLocked = gom.isLocked(selId);
+
+        float btnX = LayoutConfig.getNemesisBoxX()
+            + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
+        float btnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
+
+        // Button background
+        if (isLocked) {
+            uiTex.drawPanel(batch, uiTex.btnActive, btnX, btnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+        } else {
+            uiTex.drawPanel(batch, uiTex.btnNormal, btnX, btnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+        }
+
+        // Lock text/icon
+        font.setColor(Color.WHITE);
+        String lockText = isLocked ? "U" : "L";
+        glyphLayout.setText(font, lockText);
+        font.draw(batch, lockText,
+            btnX + (LOCK_BTN_SIZE - glyphLayout.width) / 2f,
+            btnY + LOCK_BTN_SIZE / 2f + glyphLayout.height / 2f);
+    }
+
+    private void drawOutlineRect(float x, float y, float size, float thickness) {
+        // Top
+        shapeRenderer.rect(x - thickness, y + size, size + thickness * 2, thickness);
+        // Bottom
+        shapeRenderer.rect(x - thickness, y - thickness, size + thickness * 2, thickness);
+        // Left
+        shapeRenderer.rect(x - thickness, y - thickness, thickness, size + thickness * 2);
+        // Right
+        shapeRenderer.rect(x + size, y - thickness, thickness, size + thickness * 2);
+    }
+
+    private boolean isUnitType(String type) {
+        switch (type) {
+            case "archer": case "farmer": case "spearman":
+            case "griffin": case "eldergriffin": case "monk": case "swordsman":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean isMonsterType(String type) {
+        switch (type) {
+            case "imp": case "scarecrow": case "gargoyle": case "efreet":
+                return true;
+            default:
+                return false;
+        }
     }
 
 
@@ -793,33 +966,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
     }
 
-    // ═══════════════════════════
-    // New method for the wall area:
-    // ═══════════════════════════
-
-    private void drawWallBackground() {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0.14f, 0.14f, 0.2f, 1f);
-        shapeRenderer.rect(0, LayoutConfig.getWallY(), LayoutConfig.WORLD_WIDTH , LayoutConfig.getWallHeight());
-
-        // Border lines
-        shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
-        shapeRenderer.rect(0, LayoutConfig.getWallY(), LayoutConfig.WORLD_WIDTH , 2f);
-        shapeRenderer.rect(0, LayoutConfig.getWallY() + LayoutConfig.getWallHeight() - 2f,
-            LayoutConfig.WORLD_WIDTH , 2f);
-        shapeRenderer.end();
-    }
-
-    private void drawWallContent() {
-        // Placeholder text for future features
-        fontSmall.setColor(0.4f, 0.4f, 0.5f, 1f);
-        float centerY = LayoutConfig.getWallY() + LayoutConfig.getWallHeight() / 2f + 5f;
-        drawCenteredText(fontSmall, "— The Wall —", LayoutConfig.WORLD_WIDTH  / 2f, centerY);
-        drawCenteredText(fontSmall, "Exploration & Raids coming soon",
-            LayoutConfig.WORLD_WIDTH  / 2f, centerY - 18f);
-        fontSmall.setColor(Color.WHITE);
-    }
-
     private float getCurrentGridStartY() {
         return buildMenuOpen ? gridStartYShifted : gridStartY;
     }
@@ -935,26 +1081,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         f.draw(batch, text, centerX - glyphLayout.width / 2f, y);
     }
 
-    private void drawOfflineMessage(float delta) {
-        if (offlineMessage == null) return;
-
-        offlineMessageTimer -= delta;
-        if (offlineMessageTimer <= 0) {
-            offlineMessage = null;
-            return;
-        }
-
-        // Fade out in the last second
-        float alpha = Math.min(1f, offlineMessageTimer);
-
-        fontSmall.setColor(0.9f, 0.85f, 0.4f, alpha);
-        glyphLayout.setText(fontSmall, offlineMessage);
-        float msgX = (LayoutConfig.WORLD_WIDTH  - glyphLayout.width) / 2f;
-        float msgY = gridStartY - 10f;
-        fontSmall.draw(batch, offlineMessage, msgX, msgY);
-        fontSmall.setColor(Color.WHITE);
-    }
-
     private String getSelectedType() {
         if (!inputHandler.hasSelection()) return null;
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
@@ -966,6 +1092,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     public void onGridExpanded() {
         Gdx.app.log(TAG, "Grid expanded — recalculating layout");
         calculateGridLayout();
+        wallGate.updateLayout();
 
         // Update input handler with new layout
         Grid grid = eventManager.getGridInstance();
@@ -981,6 +1108,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     public void resize(int width, int height) {
         viewport.update(width, height, true);
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
+        wallGate.updateLayout();
         calculateGridLayout();
 
         Grid grid = eventManager.getGridInstance();
@@ -1013,6 +1141,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         font.dispose();
         fontSmall.dispose();
         spriteManager.dispose();
+        uiTex.dispose();
     }
 
     private void saveGame() {
@@ -1047,6 +1176,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
             // Reward queue
             jsonManager.saveArray("reward_queue", bfm.getRewardQueue());
+
+            // Locked objects
+            jsonManager.saveLockedObjects("locked_objects",
+                eventManager.getGRID_OBJECT_MANAGER().getLockedObjects());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

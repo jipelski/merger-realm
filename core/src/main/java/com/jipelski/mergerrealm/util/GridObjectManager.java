@@ -12,6 +12,9 @@ public class GridObjectManager {
 
     private static final String TAG = "GridObjectManager";
 
+    private final java.util.Set<String> lockedObjects = new java.util.HashSet<>();
+
+
     private final Map<String, GameObject> objectMap; // Key: ID | Value: GameObject
 
     public GridObjectManager(JsonManager jsonManager) {
@@ -45,6 +48,33 @@ public class GridObjectManager {
 
     // METHODS
 
+    public boolean isLocked(String id) {
+        return lockedObjects.contains(id);
+    }
+
+    public void toggleLock(String id) {
+        if (lockedObjects.contains(id)) {
+            lockedObjects.remove(id);
+            Gdx.app.log(TAG, "Unlocked: " + id);
+        } else {
+            lockedObjects.add(id);
+            Gdx.app.log(TAG, "Locked: " + id);
+        }
+    }
+
+    public void removeLock(String id) {
+        lockedObjects.remove(id);
+    }
+
+    public java.util.Set<String> getLockedObjects() {
+        return lockedObjects;
+    }
+
+    public void setLockedObjects(java.util.Set<String> locks) {
+        lockedObjects.clear();
+        if (locks != null) lockedObjects.addAll(locks);
+    }
+
     public void addObject(String id, GameObject gameObject) {
         if (id == null || gameObject == null) {
             Gdx.app.log(TAG, "addObject: null id or object — skipping");
@@ -62,6 +92,7 @@ public class GridObjectManager {
         }
         Gdx.app.log(TAG, "Removed: id=" + id + " type=" + g.getType());
         objectMap.remove(id);
+        lockedObjects.remove(id);
     }
 
     /**
