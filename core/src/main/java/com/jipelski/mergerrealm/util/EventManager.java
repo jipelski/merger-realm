@@ -282,7 +282,7 @@ public class EventManager {
                 GRID_OBJECT_MANAGER.addObject(id, facility);
                 break;
             }
-            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
                 MonsterData monsterData = (MonsterData) GDLInstance.getGameData(type, level);
                 if (monsterData == null) {
                     Gdx.app.error(TAG, "spawnObject: no MonsterData for " + type + " lvl " + level);
@@ -380,7 +380,7 @@ public class EventManager {
                 // TODO: implement counter for facility removal rewards
                 break;
             }
-            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
                 // object is already fetched above — cast directly, no second lookup
                 Monster monster = (Monster) object;
                 if (monster.getHp() <= 0) {
@@ -428,7 +428,7 @@ public class EventManager {
             case "archer": case "farmer": case "spearman":
             case "griffin": case "eldergriffin": case "monk": case "swordsman":
             case "sawmill": case "quarry": case "ironmine":
-            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
                 // No tap action for these types
                 break;
             }
@@ -630,7 +630,7 @@ public class EventManager {
             }
 
             // ── Monsters: should never reach here (handled in swapOrMerge) ──
-            case "imp": case "scarecrow": case "stonegolem": case "efreet": {
+            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
                 Gdx.app.log(TAG, "dismissToPrince: monster " + type
                     + " should not reach here — this is a bug");
                 break;
@@ -649,8 +649,7 @@ public class EventManager {
      */
     private boolean isMonster(String type) {
         switch (type) {
-            case "imp": case "scarecrow": case "stonegolem":
-            case "gargoyle": case "efreet":
+            case "imp": case "scarecrow": case "gargoyle": case "efreet":
                 return true;
             default:
                 return false;
