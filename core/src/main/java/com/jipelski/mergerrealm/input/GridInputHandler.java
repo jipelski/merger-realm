@@ -102,19 +102,25 @@ public class GridInputHandler extends InputAdapter {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
 
-        // Build menu intercepts all input when visible
+        toWorldCoords(screenX, screenY);
+
+        // Build menu intercepts touches in its area
         if (buildMenu != null && buildMenu.isVisible()) {
-            buildMenu.handleTouch(screenX, screenY);
+            if (buildMenu.touchDown(worldPos.x, worldPos.y)) {
+                return true;
+            }
+            // Touch was above the menu — close it
+            buildMenu.hide();
             return true;
         }
 
-        toWorldCoords(screenX, screenY);
-
-        if (buildMenu != null && isBuildButtonTap(worldPos.x, worldPos.y)) {
+        // Check build button tap
+        if (buildMenu != null && !buildMenu.isVisible() && isBuildButtonTap(worldPos.x, worldPos.y)) {
             buildMenu.toggle();
             return true;
         }
 
+        // Normal grid input from here
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
             return false;
@@ -130,10 +136,8 @@ public class GridInputHandler extends InputAdapter {
         String objectId = gridCell.getOccupant();
         GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(objectId);
 
-        // ── Select immediately on touch ──
-        // Check if this object was already selected (for facility tap-to-spawn)
+        // Select immediately on touch
         wasAlreadySelected = objectId.equals(selectedObjectId);
-
         selectedCellX = cell[0];
         selectedCellY = cell[1];
         selectedObjectId = objectId;
@@ -160,14 +164,23 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        if (!touching || pointer != 0) return false;
+        if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
+
+        // Forward to build menu if it's handling a scroll
+        if (buildMenu != null && buildMenu.isVisible()) {
+            if (buildMenu.touchDragged(worldPos.x, worldPos.y)) {
+                return true;
+            }
+        }
+
+        if (!touching) return false;
+
         dragPos.set(worldPos);
 
         if (!dragging && touchStart.dst(worldPos) > DRAG_THRESHOLD) {
             dragging = true;
-            // Dragging cancels hold-to-spawn but NOT selection
             stopHolding();
             Gdx.app.log(TAG, "Drag started from [" + originCellX + "," + originCellY + "]");
         }
@@ -177,9 +190,19 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        if (!touching || pointer != 0) return false;
+        if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
+
+        // Forward to build menu
+        if (buildMenu != null && buildMenu.isVisible()) {
+            if (buildMenu.touchUp(worldPos.x, worldPos.y)) {
+                return true;
+            }
+        }
+
+        if (!touching) return false;
+
         stopHolding();
 
         if (!dragging) {

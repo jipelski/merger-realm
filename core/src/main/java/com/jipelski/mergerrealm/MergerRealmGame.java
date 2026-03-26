@@ -10,7 +10,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 import com.jipelski.mergerrealm.database.JsonManager;
 import com.jipelski.mergerrealm.data.FacilityData;
@@ -37,6 +37,7 @@ import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import com.jipelski.mergerrealm.ui.BuildMenu;
+import com.jipelski.mergerrealm.ui.LayoutConfig;
 
 import java.util.Map;
 
@@ -51,26 +52,15 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private BitmapFont fontSmall;
     private GlyphLayout glyphLayout;
     private OrthographicCamera camera;
-    private FitViewport viewport;
+    private ExtendViewport viewport;
 
     // ── Persistent nemesis display ──
     private String displayedNemesis = null;
 
     // ── World constants ──
-    private static final float WORLD_WIDTH = 480f;
-    private static final float WORLD_HEIGHT = 800f;
-
-    // Grid rendering
-    private static final float GRID_PADDING = 16f;
-    private static final float CELL_GAP = 4f;
     private float cellSize;
     private float gridStartX;
     private float gridStartY;
-
-    // Layout areas
-    private static final float HUD_HEIGHT = 80f;        // resource bar at top
-    private static final float INFO_BAR_HEIGHT = 90f;    // object info panel
-    private static final float INFO_BOX_SIZE = 70f;      // left/right square boxes
 
     // ── Game systems ──
     private JsonManager jsonManager;
@@ -103,11 +93,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     // ── Menus ──
     private BuildMenu buildMenu;
+    private boolean buildMenuOpen = false;
 
-    private static final float BUILD_BTN_WIDTH = 100f;
-    private static final float BUILD_BTN_HEIGHT = 36f;
-    private float buildBtnX;
-    private float buildBtnY;
+    private float gridStartYShifted;
 
     @Override
     public void create() {
@@ -125,7 +113,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         fontSmall.setColor(Color.WHITE);
 
         camera = new OrthographicCamera();
-        viewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, camera);
+        viewport = new ExtendViewport(LayoutConfig.WORLD_WIDTH , LayoutConfig.WORLD_HEIGHT , camera);
         viewport.apply(true);
 
         spriteManager = new SpriteManager();
@@ -140,20 +128,23 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         inputHandler = new GridInputHandler(eventManager, viewport);
         Grid grid = eventManager.getGridInstance();
-        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, CELL_GAP,
+        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
             grid.getWidth(), grid.getHeight());
         Gdx.input.setInputProcessor(inputHandler);
 
 
-        buildMenu = new BuildMenu(eventManager, spriteManager, viewport, WORLD_WIDTH, WORLD_HEIGHT);
+        buildMenu = new BuildMenu(eventManager, spriteManager, viewport, LayoutConfig.WORLD_WIDTH , LayoutConfig.WORLD_HEIGHT );
+        inputHandler.setBuildMenu(buildMenu);
 
-        // Position build button at bottom center
-        buildBtnX = (WORLD_WIDTH - BUILD_BTN_WIDTH) / 2f;
-        buildBtnY = 10f;
+        gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
 
         inputHandler.setBuildMenu(buildMenu);
-        inputHandler.setBuildButtonBounds(buildBtnX, buildBtnY, BUILD_BTN_WIDTH, BUILD_BTN_HEIGHT);
+        inputHandler.setBuildButtonBounds(
+            LayoutConfig.getButtonX(0), LayoutConfig.getBtnY(),
+            LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
 
+        LayoutConfig.setActualHeight(viewport.getWorldHeight());
+        calculateGridLayout();
         processOfflineProgress();
 
         Gdx.app.log(TAG, "=== Init complete ===");
@@ -237,20 +228,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int cols = grid.getWidth();
         int rows = grid.getHeight();
 
-        float availableWidth = WORLD_WIDTH - (GRID_PADDING * 2);
-        float availableHeight = WORLD_HEIGHT - HUD_HEIGHT - INFO_BAR_HEIGHT - (GRID_PADDING * 2);
-
-        float maxCellWidth = (availableWidth - (CELL_GAP * (cols - 1))) / cols;
-        float maxCellHeight = (availableHeight - (CELL_GAP * (rows - 1))) / rows;
-        cellSize = Math.min(maxCellWidth, maxCellHeight);
-
-        float totalGridWidth = (cellSize * cols) + (CELL_GAP * (cols - 1));
-        gridStartX = (WORLD_WIDTH - totalGridWidth) / 2f;
-
-        float totalGridHeight = (cellSize * rows) + (CELL_GAP * (rows - 1));
-        gridStartY = WORLD_HEIGHT - HUD_HEIGHT - INFO_BAR_HEIGHT - GRID_PADDING - totalGridHeight;
+        cellSize = LayoutConfig.calculateCellSize(cols, rows);
+        gridStartX = LayoutConfig.calculateGridStartX(cols, cellSize);
+        gridStartY = LayoutConfig.calculateGridStartY(rows, cellSize);
 
         Gdx.app.log(TAG, "Grid layout: cellSize=" + cellSize
+            + " startX=" + gridStartX + " startY=" + gridStartY
             + " cols=" + cols + " rows=" + rows);
     }
 
@@ -260,8 +243,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     @Override
     public void render() {
-        // TODO: REMOVE THIS TESTING buildMenu Check
-        Gdx.app.log(TAG, "render: buildMenu visible=" + buildMenu.isVisible());
         float delta = Gdx.graphics.getDeltaTime();
 
         inputHandler.update(delta);
@@ -282,39 +263,42 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             }
         }
 
+        buildMenuOpen = buildMenu.isVisible();
+
         ScreenUtils.clear(0.12f, 0.12f, 0.18f, 1f);
         camera.update();
         batch.setProjectionMatrix(camera.combined);
         shapeRenderer.setProjectionMatrix(camera.combined);
 
-        // Shape pass (backgrounds, outlines, progress bars)
-        drawGridBackground();
-        drawSelectionOutline();
-        drawInfoBarBackground();
-
-        drawBuildButton();
-
-        // Sprite/text pass
-        batch.begin();
-        drawGrid();
-        drawDraggedObject();
-        drawHUD();
-        drawInfoBarContent();
-        drawOfflineMessage(delta);
-
-        font.setColor(Color.WHITE);
-        glyphLayout.setText(font, "Build");
-        font.draw(batch, "Build",
-            buildBtnX + (BUILD_BTN_WIDTH - glyphLayout.width) / 2f,
-            buildBtnY + BUILD_BTN_HEIGHT - 10f);
-
-
-        batch.end();
-
-        if (buildMenu.isVisible()) {
+        if (buildMenuOpen) {
+            // Build menu mode — grid shifts up, menu at bottom
+            drawGridBackgroundShifted();
+            drawSelectionOutlineShifted();
             buildMenu.drawBackground(shapeRenderer);
+
             batch.begin();
+            drawGridShifted();
+            drawDraggedObject();
             buildMenu.drawContent(batch, font, fontSmall);
+            batch.end();
+        } else {
+            // Normal mode — all zones visible
+            // Shape pass
+            drawInfoBarBackground();
+            drawWallBackground();
+            drawGridBackground();
+            drawSelectionOutline();
+            drawBottomBarBackground();
+
+            // Text/sprite pass
+            batch.begin();
+            drawHUD();
+            drawInfoBarContent();
+            drawWallContent();
+            drawGrid();
+            drawDraggedObject();
+            drawBottomBarContent();
+            drawOfflineMessage(delta);
             batch.end();
         }
     }
@@ -345,8 +329,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
-                float drawX = gridStartX + x * (cellSize + CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + CELL_GAP);
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
                 Cell cell = grid.getCell(x, y);
 
                 if (inputHandler.isDragging()
@@ -372,8 +356,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         Grid grid = eventManager.getGridInstance();
         int rows = grid.getHeight();
 
-        float drawX = gridStartX + selX * (cellSize + CELL_GAP);
-        float drawY = gridStartY + (rows - 1 - selY) * (cellSize + CELL_GAP);
+        float drawX = gridStartX + selX * (cellSize + LayoutConfig.CELL_GAP);
+        float drawY = gridStartY + (rows - 1 - selY) * (cellSize + LayoutConfig.CELL_GAP);
         float t = 3f;
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
@@ -402,8 +386,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     continue;
                 }
 
-                float drawX = gridStartX + x * (cellSize + CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + CELL_GAP);
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
 
                 String objectId = cell.getOccupant();
                 GameObject obj = gom.getObject(objectId);
@@ -438,77 +422,59 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     // ══════════════════════════════════════════════════════════════
     // HUD (top resource bar)
     // ══════════════════════════════════════════════════════════════
-
     private void drawHUD() {
         ResourceManager rm = eventManager.getResourceManager();
-        float hudY = WORLD_HEIGHT - 16f;
 
         font.setColor(Color.WHITE);
-        font.draw(batch, "Timber: " + rm.getAmount("timber"), 20f, hudY);
-        font.draw(batch, "Stone: " + rm.getAmount("quarrystone"), 170f, hudY);
-        font.draw(batch, "Iron: " + rm.getAmount("iron"), 320f, hudY);
+        font.draw(batch, "Timber: " + rm.getAmount("timber"), 20f, LayoutConfig.getResourcesY());
+        font.draw(batch, "Stone: " + rm.getAmount("quarrystone"), 170f, LayoutConfig.getResourcesY());
+        font.draw(batch, "Iron: " + rm.getAmount("iron"), 320f, LayoutConfig.getResourcesY());
 
-        float hudY2 = hudY - 22f;
         fontSmall.setColor(0.7f, 0.8f, 0.7f, 1f);
-        fontSmall.draw(batch, "Wood: " + rm.getAmount("wood"), 20f, hudY2);
-        fontSmall.draw(batch, "Wheat: " + rm.getAmount("wheat"), 130f, hudY2);
-        fontSmall.draw(batch, "Stone: " + rm.getAmount("stone"), 240f, hudY2);
-        fontSmall.draw(batch, "Fire: " + rm.getAmount("fire"), 350f, hudY2);
+        fontSmall.draw(batch, "Wood: " + rm.getAmount("wood"), 20f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Wheat: " + rm.getAmount("wheat"), 130f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Stone: " + rm.getAmount("stone"), 240f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Fire: " + rm.getAmount("fire"), 350f, LayoutConfig.getResourcesRow2Y());
         fontSmall.setColor(Color.WHITE);
     }
 
     // ══════════════════════════════════════════════════════════════
     // INFO BAR (between HUD and grid)
     // ══════════════════════════════════════════════════════════════
-
-    /**
-     * Layout:
-     * +----------+------------------------------+----------+
-     * |  LEVEL   |   Name (Lv.X)                |  MONSTER |
-     * |    3     |   "Description text"         |   IMP    |
-     * |  ██████  |   Stats: DMG: 5 | +2 wood/s |  24/128  |
-     * |   XP     |                              |  ██████  |
-     * +----------+------------------------------+----------+
-     */
     private void drawInfoBarBackground() {
-        float barTop = WORLD_HEIGHT - HUD_HEIGHT;
-        float barBottom = barTop - INFO_BAR_HEIGHT;
-        float padding = 4f;
+        float boxY = LayoutConfig.getLevelBoxY();
+        float boxSize = LayoutConfig.LEVEL_BOX_SIZE;
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         // Left box (Level/XP)
         shapeRenderer.setColor(0.18f, 0.18f, 0.26f, 1f);
-        shapeRenderer.rect(padding, barBottom + padding,
-            INFO_BOX_SIZE - padding, INFO_BAR_HEIGHT - padding * 2);
+        shapeRenderer.rect(LayoutConfig.LEVEL_BOX_X, boxY, boxSize, boxSize);
 
-        // Center area (description)
+        // Center area (description) — spans between the two boxes
         shapeRenderer.setColor(0.16f, 0.16f, 0.22f, 1f);
-        shapeRenderer.rect(INFO_BOX_SIZE + padding, barBottom + padding,
-            WORLD_WIDTH - INFO_BOX_SIZE * 2 - padding * 2, INFO_BAR_HEIGHT - padding * 2);
+        shapeRenderer.rect(LayoutConfig.getInfoTextX(), boxY,
+            LayoutConfig.getInfoTextWidth(), boxSize);
 
-        // Right box (monster counter)
+        // Right box (nemesis counter)
         shapeRenderer.setColor(0.18f, 0.18f, 0.26f, 1f);
-        shapeRenderer.rect(WORLD_WIDTH - INFO_BOX_SIZE, barBottom + padding,
-            INFO_BOX_SIZE - padding, INFO_BAR_HEIGHT - padding * 2);
+        shapeRenderer.rect(LayoutConfig.getNemesisBoxX(), boxY, boxSize, boxSize);
 
         // XP progress bar in left box
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
         float xpRatio = (float) bfm.getCurrent_xp() / Math.max(1, bfm.getXp_required());
-        float barWidth = INFO_BOX_SIZE - padding * 4;
+        float barWidth = boxSize - 8f;
         float barHeight = 8f;
-        float barX = padding * 2;
-        float barY = barBottom + padding + 8f;
+        float barX = LayoutConfig.LEVEL_BOX_X + 4f;
+        float barY = boxY + 4f;
 
-        // Background
         shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 1f);
         shapeRenderer.rect(barX, barY, barWidth, barHeight);
-        // Fill
         shapeRenderer.setColor(0.3f, 0.7f, 0.3f, 1f);
         shapeRenderer.rect(barX, barY, barWidth * xpRatio, barHeight);
 
-        // Monster counter progress bar in right box (only if a unit is selected)
-        drawMonsterCounterBar(barBottom + padding);
+        // Monster counter bar in right box
+        drawMonsterCounterBar(boxY);
 
         shapeRenderer.end();
     }
@@ -517,7 +483,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
      * Draws monster counter progress bar in the right box.
      * Only visible when a unit is selected, showing its nemesis counter.
      */
-    private void drawMonsterCounterBar(float boxBottom) {
+    private void drawMonsterCounterBar(float boxY) {
         if (displayedNemesis == null) return;
 
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
@@ -526,11 +492,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (counter == null || counter.length < 2) return;
 
         float ratio = (float) counter[0] / Math.max(1, counter[1]);
-        float padding = 4f;
-        float barWidth = INFO_BOX_SIZE - padding * 4;
+        float barWidth = LayoutConfig.NEMESIS_BOX_SIZE - 8f;
         float barHeight = 8f;
-        float barX = WORLD_WIDTH - INFO_BOX_SIZE + padding;
-        float barY = boxBottom + 8f;
+        float barX = LayoutConfig.getNemesisBoxX() + 4f;
+        float barY = boxY + 4f;
 
         shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 1f);
         shapeRenderer.rect(barX, barY, barWidth, barHeight);
@@ -542,40 +507,33 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
      * Draws all text content of the info bar (called inside batch.begin/end).
      */
     private void drawInfoBarContent() {
-        float barTop = WORLD_HEIGHT - HUD_HEIGHT;
-        float padding = 4f;
+        float boxY = LayoutConfig.getLevelBoxY();
+        float boxSize = LayoutConfig.LEVEL_BOX_SIZE;
+        float boxTop = boxY + boxSize;
 
         // ── Left box: Level and XP ──
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
 
         fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
-        drawCenteredText(fontSmall, "LEVEL", INFO_BOX_SIZE / 2f,
-            barTop - 14f);
+        drawCenteredText(fontSmall, "LEVEL",
+            LayoutConfig.LEVEL_BOX_X + boxSize / 2f, boxTop - 14f);
 
         font.setColor(Color.WHITE);
-        drawCenteredText(font, String.valueOf(bfm.getLevel()), INFO_BOX_SIZE / 2f,
-            barTop - 32f);
+        drawCenteredText(font, String.valueOf(bfm.getLevel()),
+            LayoutConfig.LEVEL_BOX_X + boxSize / 2f, boxTop - 32f);
 
         fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
         drawCenteredText(fontSmall, bfm.getCurrent_xp() + "/" + bfm.getXp_required(),
-            INFO_BOX_SIZE / 2f, barTop - 48f);
+            LayoutConfig.LEVEL_BOX_X + boxSize / 2f, boxTop - 48f);
 
         // ── Center: selected object info ──
         if (inputHandler.hasSelection()) {
-            drawSelectedObjectInfo(barTop);
+            drawSelectedObjectInfo(boxTop);
         }
 
         // ── Right box: monster counter ──
-        String selectedType = getSelectedType();
-        if (selectedType != null) {
-            String currentNemesis = getNemesisForType(selectedType);
-            if (currentNemesis != null) {
-                displayedNemesis = currentNemesis;
-            }
-        }
-        drawMonsterCounterText(barTop);
+        drawMonsterCounterText(boxTop);
 
-        // Reset font color
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
     }
@@ -592,8 +550,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         GameDataLoader gdl = eventManager.getGameDataLoader();
         GenData data = gdl.getGameData(obj.getType(), obj.getLvl());
 
-        float textX = INFO_BOX_SIZE + 12f;
-        float maxWidth = WORLD_WIDTH - INFO_BOX_SIZE * 2 - 24f;
+        float textX = LayoutConfig.getInfoTextX() + 4f;
+        float maxWidth = LayoutConfig.getInfoTextWidth() - 8f;
 
         // Line 1: Name
         String name = capitalize(obj.getType()) + " (Lv." + obj.getLvl() + ")";
@@ -625,12 +583,55 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
     }
 
-    // ── Draw Build Button  ──
-    private void drawBuildButton() {
+    // ── Draw Bottom Area  ──
+    private void drawBottomBarBackground() {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0.25f, 0.5f, 0.25f, 1f);
-        shapeRenderer.rect(buildBtnX, buildBtnY, BUILD_BTN_WIDTH, BUILD_BTN_HEIGHT);
+
+        // Bar background
+        shapeRenderer.setColor(0.12f, 0.12f, 0.18f, 1f);
+        shapeRenderer.rect(0, LayoutConfig.getBottomBarY(),
+            LayoutConfig.WORLD_WIDTH , LayoutConfig.getBottomBarHeight());
+
+        // Top border
+        shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
+        shapeRenderer.rect(0, LayoutConfig.getBottomBarHeight() - 2f, LayoutConfig.WORLD_WIDTH , 2f);
+
+        // Buttons
+        String[] labels = {"Build", "Shop", "Spells", "Quests"};
+        for (int i = 0; i < labels.length; i++) {
+            float btnX = LayoutConfig.getButtonX(i);
+            if (i == 0) {
+                // Build button — green
+                shapeRenderer.setColor(0.2f, 0.5f, 0.2f, 1f);
+            } else {
+                // Future buttons — greyed out
+                shapeRenderer.setColor(0.25f, 0.25f, 0.3f, 1f);
+            }
+            shapeRenderer.rect(btnX, LayoutConfig.getBtnY(),
+                LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
+        }
+
         shapeRenderer.end();
+    }
+
+    private void drawBottomBarContent() {
+        String[] labels = {"Build", "Shop", "Spells", "Quests"};
+        for (int i = 0; i < labels.length; i++) {
+            float btnX = LayoutConfig.getButtonX(i);
+            float centerX = btnX + LayoutConfig.BTN_WIDTH / 2f;
+
+            if (i == 0) {
+                fontSmall.setColor(Color.WHITE);
+            } else {
+                fontSmall.setColor(0.5f, 0.5f, 0.5f, 1f);
+            }
+
+            glyphLayout.setText(fontSmall, labels[i]);
+            fontSmall.draw(batch, labels[i],
+                centerX - glyphLayout.width / 2f,
+                LayoutConfig.getBtnY() + LayoutConfig.BTN_HEIGHT - 12f);
+        }
+        fontSmall.setColor(Color.WHITE);
     }
 
 
@@ -775,7 +776,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int[] counter = counters.get(displayedNemesis);
         if (counter == null || counter.length < 2) return;
 
-        float boxCenterX = WORLD_WIDTH - INFO_BOX_SIZE / 2f;
+        float boxCenterX = LayoutConfig.getNemesisBoxX() + LayoutConfig.NEMESIS_BOX_SIZE / 2f;
 
         fontSmall.setColor(0.8f, 0.4f, 0.4f, 1f);
         drawCenteredText(fontSmall, capitalize(displayedNemesis), boxCenterX, barTop - 14f);
@@ -789,6 +790,121 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         } else {
             fontSmall.setColor(0.5f, 0.5f, 0.5f, 1f);
             drawCenteredText(fontSmall, "Dormant", boxCenterX, barTop - 48f);
+        }
+    }
+
+    // ═══════════════════════════
+    // New method for the wall area:
+    // ═══════════════════════════
+
+    private void drawWallBackground() {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0.14f, 0.14f, 0.2f, 1f);
+        shapeRenderer.rect(0, LayoutConfig.getWallY(), LayoutConfig.WORLD_WIDTH , LayoutConfig.getWallHeight());
+
+        // Border lines
+        shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
+        shapeRenderer.rect(0, LayoutConfig.getWallY(), LayoutConfig.WORLD_WIDTH , 2f);
+        shapeRenderer.rect(0, LayoutConfig.getWallY() + LayoutConfig.getWallHeight() - 2f,
+            LayoutConfig.WORLD_WIDTH , 2f);
+        shapeRenderer.end();
+    }
+
+    private void drawWallContent() {
+        // Placeholder text for future features
+        fontSmall.setColor(0.4f, 0.4f, 0.5f, 1f);
+        float centerY = LayoutConfig.getWallY() + LayoutConfig.getWallHeight() / 2f + 5f;
+        drawCenteredText(fontSmall, "— The Wall —", LayoutConfig.WORLD_WIDTH  / 2f, centerY);
+        drawCenteredText(fontSmall, "Exploration & Raids coming soon",
+            LayoutConfig.WORLD_WIDTH  / 2f, centerY - 18f);
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    private float getCurrentGridStartY() {
+        return buildMenuOpen ? gridStartYShifted : gridStartY;
+    }
+
+    private void drawGridBackgroundShifted() {
+        Grid grid = eventManager.getGridInstance();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+        float currentY = gridStartYShifted;
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = currentY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+                Cell cell = grid.getCell(x, y);
+
+                if (inputHandler.isDragging()
+                    && x == inputHandler.getOriginCellX()
+                    && y == inputHandler.getOriginCellY()) {
+                    shapeRenderer.setColor(0.35f, 0.35f, 0.15f, 1f);
+                } else if (cell.isEmpty()) {
+                    shapeRenderer.setColor(0.2f, 0.2f, 0.28f, 1f);
+                } else {
+                    shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
+                }
+                shapeRenderer.rect(drawX, drawY, cellSize, cellSize);
+            }
+        }
+        shapeRenderer.end();
+    }
+
+    private void drawSelectionOutlineShifted() {
+        if (!inputHandler.hasSelection()) return;
+
+        int selX = inputHandler.getSelectedCellX();
+        int selY = inputHandler.getSelectedCellY();
+        Grid grid = eventManager.getGridInstance();
+        int rows = grid.getHeight();
+        float currentY = gridStartYShifted;
+
+        float drawX = gridStartX + selX * (cellSize + LayoutConfig.CELL_GAP);
+        float drawY = currentY + (rows - 1 - selY) * (cellSize + LayoutConfig.CELL_GAP);
+        float t = 3f;
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
+        shapeRenderer.rect(drawX - t, drawY + cellSize, cellSize + t * 2, t);
+        shapeRenderer.rect(drawX - t, drawY - t, cellSize + t * 2, t);
+        shapeRenderer.rect(drawX - t, drawY - t, t, cellSize + t * 2);
+        shapeRenderer.rect(drawX + cellSize, drawY - t, t, cellSize + t * 2);
+        shapeRenderer.end();
+    }
+
+    private void drawGridShifted() {
+        Grid grid = eventManager.getGridInstance();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+        float currentY = gridStartYShifted;
+
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+
+                if (inputHandler.isDragging()
+                    && x == inputHandler.getOriginCellX()
+                    && y == inputHandler.getOriginCellY()) {
+                    continue;
+                }
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = currentY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+                String objectId = cell.getOccupant();
+                GameObject obj = gom.getObject(objectId);
+                Texture tex = (obj != null)
+                    ? spriteManager.getTextureForObject(obj.getType(), obj.getLvl())
+                    : spriteManager.getDefaultTile();
+
+                float margin = cellSize * 0.05f;
+                batch.draw(tex, drawX + margin, drawY + margin,
+                    cellSize - margin * 2, cellSize - margin * 2);
+            }
         }
     }
 
@@ -833,7 +949,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         fontSmall.setColor(0.9f, 0.85f, 0.4f, alpha);
         glyphLayout.setText(fontSmall, offlineMessage);
-        float msgX = (WORLD_WIDTH - glyphLayout.width) / 2f;
+        float msgX = (LayoutConfig.WORLD_WIDTH  - glyphLayout.width) / 2f;
         float msgY = gridStartY - 10f;
         fontSmall.draw(batch, offlineMessage, msgX, msgY);
         fontSmall.setColor(Color.WHITE);
@@ -853,7 +969,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         // Update input handler with new layout
         Grid grid = eventManager.getGridInstance();
-        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, CELL_GAP,
+        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
             grid.getWidth(), grid.getHeight());
     }
 
@@ -864,6 +980,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
+        LayoutConfig.setActualHeight(viewport.getWorldHeight());
+        calculateGridLayout();
+
+        Grid grid = eventManager.getGridInstance();
+        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
+            grid.getWidth(), grid.getHeight());
     }
 
     @Override

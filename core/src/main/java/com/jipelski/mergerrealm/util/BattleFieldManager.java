@@ -27,15 +27,6 @@ public class BattleFieldManager {
     private GameEventListener listener;
 
 
-    private static final int[][] GRID_SIZES_BY_PRINCE_LEVEL = {
-        {4, 5},  // Prince Lv.1: 4x5
-        {4, 6},  // Prince Lv.2: 4x6
-        {5, 6},  // Prince Lv.3: 5x6
-        {5, 7},  // Prince Lv.4: 5x7
-        {6, 7},  // Prince Lv.5: 6x7
-        {6, 8},  // Prince Lv.6: 6x8
-    };
-
     public Map<String, int[]> getGlobalCounter() { return globalCounter; }
 
     public BattleFieldManager(EventManager eventManager, JsonManager jsonManager,
@@ -47,7 +38,12 @@ public class BattleFieldManager {
         initialiseProgression(jsonManager);
         initialiseLockedStatus(jsonManager);
         initialiseGlobalCounter(jsonManager);
-        expandGridForLevel(this.level);
+        if (this.level > 1) {
+            int[] targetSize = PrinceLevelConfig.getGridSizeForLevel(this.level);
+            if (targetSize[0] > grid.getWidth() || targetSize[1] > grid.getHeight()) {
+                grid.expandGrid(targetSize[0], targetSize[1]);
+            }
+        }
     }
 
     public void setGameEventListener(GameEventListener listener) {
@@ -184,27 +180,6 @@ public class BattleFieldManager {
             return true;
         }
         return false;
-    }
-
-    /**
-     * Expands the grid to match the given Prince level.
-     * Called on level up and on game load to ensure grid matches saved level.
-     */
-    public void expandGridForLevel(int princeLvl) {
-        int index = Math.min(princeLvl, GRID_SIZES_BY_PRINCE_LEVEL.length) - 1;
-        if (index < 0) return;
-
-        int targetWidth = GRID_SIZES_BY_PRINCE_LEVEL[index][0];
-        int targetHeight = GRID_SIZES_BY_PRINCE_LEVEL[index][1];
-
-        if (targetWidth > grid.getWidth() || targetHeight > grid.getHeight()) {
-            grid.expandGrid(targetWidth, targetHeight);
-            Gdx.app.log(TAG, "Grid expanded to " + targetWidth + "x" + targetHeight
-                + " for Prince level " + princeLvl);
-            if (listener != null) {
-                listener.onGridExpanded();
-            }
-        }
     }
 
     public boolean checkStatus(String type) {

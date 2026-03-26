@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -23,14 +24,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Build menu overlay. Shows unlocked facilities and storage buildings
- * that the player can build by spending tokens.
+ * Horizontal scrollable build menu that slides up from the bottom.
+ * Shows building cards in a strip. Swipe left/right to scroll.
  *
- * Build costs use the token system:
- *   build_cost1 = wood tokens
- *   build_cost2 = wheat tokens
- *   build_cost3 = stone tokens
- *   build_cost4 = fire tokens
+ * Layout of each card:
+ * +------------------+
+ * |    [ICON 48x48]  |
+ * |    Archery Range  |
+ * |   25 wood tokens  |
+ * |    [ BUILD ]      |
+ * +------------------+
  */
 public class BuildMenu {
 
@@ -38,30 +41,41 @@ public class BuildMenu {
 
     private boolean visible = false;
 
-    // Layout constants
+    // Layout
     private final float worldWidth;
     private final float worldHeight;
-    private static final float MENU_MARGIN = 24f;
-    private static final float ROW_HEIGHT = 70f;
-    private static final float ICON_SIZE = 50f;
-    private static final float BUTTON_WIDTH = 60f;
-    private static final float BUTTON_HEIGHT = 30f;
-    private static final float PADDING = 10f;
+    public static final float MENU_HEIGHT = 160f;
+    private static final float CARD_WIDTH = 110f;
+    private static final float CARD_HEIGHT = 140f;
+    private static final float CARD_GAP = 8f;
+    private static final float CARD_PADDING = 6f;
+    private static final float ICON_SIZE = 44f;
+    private static final float BTN_WIDTH = 60f;
+    private static final float BTN_HEIGHT = 24f;
+    private static final float MENU_PADDING = 8f;
 
+    // References
     private final EventManager eventManager;
     private final SpriteManager spriteManager;
     private final Viewport viewport;
     private final GlyphLayout glyphLayout;
 
-    // Cached list of buildable items for the current prince level
+    // Scroll state
+    private float scrollX = 0f;
+    private float maxScrollX = 0f;
+    private boolean scrolling = false;
+    private float scrollTouchStartX = 0f;
+    private float scrollStartOffset = 0f;
+
+    // Cached items
     private final List<BuildableItem> items = new ArrayList<>();
     private int princeLevelCache = -1;
 
-    // Temp vector
+    // Touch
     private final Vector2 touchPos = new Vector2();
 
     // All buildable types in display order
-    private static final String[] ALL_FACILITIES = {
+    private static final String[] ALL_BUILDABLES = {
         "archeryrange", "sawmill", "farmhouse", "quarry",
         "barracks", "ironmine", "griffinnest", "monastery"
     };
@@ -76,29 +90,31 @@ public class BuildMenu {
         this.glyphLayout = new GlyphLayout();
     }
 
-    public boolean isVisible() {
-        return visible;
-    }
+    public boolean isVisible() { return visible; }
 
     public void toggle() {
         visible = !visible;
         if (visible) {
             refreshItems();
+            scrollX = 0f;
         }
     }
 
     public void show() {
         visible = true;
         refreshItems();
+        scrollX = 0f;
     }
 
     public void hide() {
         visible = false;
+        scrolling = false;
     }
 
-    /**
-     * Rebuilds the list of buildable items based on current prince level.
-     */
+    public float getMenuHeight() {
+        return MENU_HEIGHT;
+    }
+
     private void refreshItems() {
         int princeLvl = eventManager.getBattleFieldManager().getLevel();
         if (princeLvl == princeLevelCache && !items.isEmpty()) return;
@@ -108,14 +124,13 @@ public class BuildMenu {
 
         GameDataLoader gdl = eventManager.getGameDataLoader();
 
-        for (String type : ALL_FACILITIES) {
-            boolean unlocked = PrinceLevelConfig.isFacilityUnlocked(type, princeLvl);
+        for (String type : ALL_BUILDABLES) {
             GenData data = gdl.getGameData(type, 1);
             if (data == null) continue;
 
             BuildableItem item = new BuildableItem();
             item.type = type;
-            item.unlocked = unlocked;
+            item.unlocked = PrinceLevelConfig.isFacilityUnlocked(type, princeLvl);
 
             if (data instanceof FacilityData) {
                 FacilityData fd = (FacilityData) data;
@@ -123,193 +138,240 @@ public class BuildMenu {
                 item.costWheat = fd.getBuildCost2();
                 item.costStone = fd.getBuildCost3();
                 item.costFire = fd.getBuildCost4();
-                item.description = fd.getDescription();
             } else if (data instanceof StorageData) {
                 StorageData sd = (StorageData) data;
                 item.costWood = sd.getBuild_cost1();
                 item.costWheat = sd.getBuild_cost2();
                 item.costStone = sd.getBuild_cost3();
                 item.costFire = 0;
-                item.description = sd.getDescription();
             }
 
             items.add(item);
         }
+
+        // Calculate max scroll
+        float totalWidth = items.size() * (CARD_WIDTH + CARD_GAP) - CARD_GAP + MENU_PADDING * 2;
+        maxScrollX = Math.max(0, totalWidth - worldWidth);
     }
 
     /**
-     * Draws the menu background. Call outside batch.begin/end.
+     * Draws card backgrounds and buttons. Call OUTSIDE batch.begin/end.
      */
-    public void drawBackground(ShapeRenderer shapeRenderer) {
+    public void drawBackground(ShapeRenderer sr) {
         if (!visible) return;
 
-        float menuX = MENU_MARGIN;
-        float menuWidth = worldWidth - MENU_MARGIN * 2;
-        float menuHeight = PADDING * 2 + ROW_HEIGHT * items.size() + 40f; // +40 for header
-        float menuY = (worldHeight - menuHeight) / 2f;
+        float menuY = 0;
 
-        // Dim background
-        Gdx.gl.glEnable(Gdx.gl.GL_BLEND);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0f, 0f, 0f, 0.7f);
-        shapeRenderer.rect(0, 0, worldWidth, worldHeight);
+        sr.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Menu panel
-        shapeRenderer.setColor(0.14f, 0.14f, 0.2f, 1f);
-        shapeRenderer.rect(menuX, menuY, menuWidth, menuHeight);
+        // Menu background
+        sr.setColor(0.1f, 0.1f, 0.16f, 1f);
+        sr.rect(0, menuY, worldWidth, MENU_HEIGHT);
 
-        // Draw build buttons and row backgrounds
-        float rowY = menuY + menuHeight - 40f - PADDING;
+        // Top border line
+        sr.setColor(0.3f, 0.3f, 0.4f, 1f);
+        sr.rect(0, menuY + MENU_HEIGHT - 2f, worldWidth, 2f);
+
+        // Draw each card
         ResourceManager rm = eventManager.getResourceManager();
+        float startX = MENU_PADDING - scrollX;
+        float cardY = menuY + MENU_PADDING;
 
         for (BuildableItem item : items) {
-            float rowBottom = rowY - ROW_HEIGHT + PADDING;
+            float cardX = startX;
+
+            // Skip if fully off screen
+            if (cardX + CARD_WIDTH < 0 || cardX > worldWidth) {
+                startX += CARD_WIDTH + CARD_GAP;
+                continue;
+            }
 
             if (item.unlocked) {
-                // Row background
-                shapeRenderer.setColor(0.18f, 0.18f, 0.26f, 1f);
-                shapeRenderer.rect(menuX + PADDING, rowBottom, menuWidth - PADDING * 2, ROW_HEIGHT - 4f);
+                // Card background
+                sr.setColor(0.18f, 0.18f, 0.26f, 1f);
+                sr.rect(cardX, cardY, CARD_WIDTH, CARD_HEIGHT);
 
                 // Build button
+                float btnX = cardX + (CARD_WIDTH - BTN_WIDTH) / 2f;
+                float btnY = cardY + CARD_PADDING;
+
                 boolean canAfford = canAfford(item, rm);
                 boolean hasSpace = eventManager.getGridInstance().hasEmptyCell();
 
-                float btnX = menuX + menuWidth - PADDING - BUTTON_WIDTH - 4f;
-                float btnY = rowBottom + (ROW_HEIGHT - BUTTON_HEIGHT) / 2f - 2f;
-
                 if (canAfford && hasSpace) {
-                    shapeRenderer.setColor(0.2f, 0.7f, 0.2f, 1f); // green
+                    sr.setColor(0.2f, 0.65f, 0.2f, 1f);
                 } else {
-                    shapeRenderer.setColor(0.4f, 0.4f, 0.4f, 1f); // grey
+                    sr.setColor(0.35f, 0.35f, 0.35f, 1f);
                 }
-                shapeRenderer.rect(btnX, btnY, BUTTON_WIDTH, BUTTON_HEIGHT);
+                sr.rect(btnX, btnY, BTN_WIDTH, BTN_HEIGHT);
             } else {
-                // Locked row — darker
-                shapeRenderer.setColor(0.12f, 0.12f, 0.16f, 1f);
-                shapeRenderer.rect(menuX + PADDING, rowBottom, menuWidth - PADDING * 2, ROW_HEIGHT - 4f);
+                // Locked card
+                sr.setColor(0.12f, 0.12f, 0.16f, 1f);
+                sr.rect(cardX, cardY, CARD_WIDTH, CARD_HEIGHT);
             }
 
-            rowY -= ROW_HEIGHT;
+            startX += CARD_WIDTH + CARD_GAP;
         }
 
-        shapeRenderer.end();
-        Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
+        sr.end();
     }
 
     /**
-     * Draws menu text and icons. Call inside batch.begin/end.
+     * Draws card text and icons. Call INSIDE batch.begin/end.
      */
     public void drawContent(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
         if (!visible) return;
 
-        float menuX = MENU_MARGIN;
-        float menuWidth = worldWidth - MENU_MARGIN * 2;
-        float menuHeight = PADDING * 2 + ROW_HEIGHT * items.size() + 40f;
-        float menuY = (worldHeight - menuHeight) / 2f;
-
-        // Header
-        font.setColor(Color.WHITE);
-        font.draw(batch, "Build", menuX + PADDING, menuY + menuHeight - 12f);
-
-        // Close X
-        font.draw(batch, "X", menuX + menuWidth - 24f, menuY + menuHeight - 12f);
-
-        // Rows
-        float rowY = menuY + menuHeight - 40f - PADDING;
-        ResourceManager rm = eventManager.getResourceManager();
+        float menuY = 0;
+        float startX = MENU_PADDING - scrollX;
+        float cardY = menuY + MENU_PADDING;
 
         for (BuildableItem item : items) {
-            float rowBottom = rowY - ROW_HEIGHT + PADDING;
+            float cardX = startX;
+
+            // Skip if off screen
+            if (cardX + CARD_WIDTH < 0 || cardX > worldWidth) {
+                startX += CARD_WIDTH + CARD_GAP;
+                continue;
+            }
+
+            float centerX = cardX + CARD_WIDTH / 2f;
 
             if (item.unlocked) {
                 // Icon
                 Texture tex = spriteManager.getTexture(item.type, 1);
-                batch.draw(tex, menuX + PADDING + 4f, rowBottom + 8f, ICON_SIZE, ICON_SIZE);
+                float iconX = centerX - ICON_SIZE / 2f;
+                float iconY = cardY + CARD_HEIGHT - CARD_PADDING - ICON_SIZE;
+                batch.draw(tex, iconX, iconY, ICON_SIZE, ICON_SIZE);
 
                 // Name
                 font.setColor(Color.WHITE);
                 String name = capitalize(item.type);
-                font.draw(batch, name, menuX + PADDING + ICON_SIZE + 12f, rowY - 4f);
+                glyphLayout.setText(fontSmall, name);
+                fontSmall.setColor(Color.WHITE);
+                fontSmall.draw(batch, name, centerX - glyphLayout.width / 2f,
+                    iconY - 4f);
 
                 // Cost
+                String cost = shortCostString(item);
                 fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-                String cost = buildCostString(item);
-                fontSmall.draw(batch, cost, menuX + PADDING + ICON_SIZE + 12f, rowY - 22f);
+                glyphLayout.setText(fontSmall, cost);
+                fontSmall.draw(batch, cost, centerX - glyphLayout.width / 2f,
+                    iconY - 20f);
 
                 // Build button text
-                float btnX = menuX + menuWidth - PADDING - BUTTON_WIDTH - 4f;
-                float btnY = rowBottom + (ROW_HEIGHT - BUTTON_HEIGHT) / 2f - 2f;
+                float btnX = cardX + (CARD_WIDTH - BTN_WIDTH) / 2f;
+                float btnY = cardY + CARD_PADDING;
                 fontSmall.setColor(Color.WHITE);
                 glyphLayout.setText(fontSmall, "Build");
                 fontSmall.draw(batch, "Build",
-                    btnX + (BUTTON_WIDTH - glyphLayout.width) / 2f,
-                    btnY + BUTTON_HEIGHT - 8f);
+                    btnX + (BTN_WIDTH - glyphLayout.width) / 2f,
+                    btnY + BTN_HEIGHT - 6f);
             } else {
-                // Locked
-                font.setColor(0.4f, 0.4f, 0.5f, 1f);
-                font.draw(batch, capitalize(item.type) + " — LOCKED",
-                    menuX + PADDING + 8f, rowY - 12f);
+                // Locked icon (use fallback/default)
+                Texture tex = spriteManager.getDefaultTile();
+                float iconX = centerX - ICON_SIZE / 2f;
+                float iconY = cardY + CARD_HEIGHT - CARD_PADDING - ICON_SIZE;
+
+                batch.setColor(0.3f, 0.3f, 0.3f, 0.5f);
+                batch.draw(tex, iconX, iconY, ICON_SIZE, ICON_SIZE);
+                batch.setColor(1f, 1f, 1f, 1f);
+
+                // Name
+                fontSmall.setColor(0.4f, 0.4f, 0.5f, 1f);
+                String name = capitalize(item.type);
+                glyphLayout.setText(fontSmall, name);
+                fontSmall.draw(batch, name, centerX - glyphLayout.width / 2f,
+                    iconY - 4f);
+
+                // Locked label
+                fontSmall.setColor(0.5f, 0.3f, 0.3f, 1f);
+                glyphLayout.setText(fontSmall, "LOCKED");
+                fontSmall.draw(batch, "LOCKED", centerX - glyphLayout.width / 2f,
+                    iconY - 20f);
             }
 
-            rowY -= ROW_HEIGHT;
+            startX += CARD_WIDTH + CARD_GAP;
         }
 
-        // Reset colors
+        // Reset
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
     }
 
+    // ── Touch handling ──
+
     /**
-     * Handles touch input on the menu. Returns true if the touch was consumed.
+     * Handles touch down on the menu. Returns true if consumed.
      */
-    public boolean handleTouch(int screenX, int screenY) {
+    public boolean touchDown(float worldX, float worldY) {
         if (!visible) return false;
+        if (worldY > MENU_HEIGHT) return false;
 
-        touchPos.set(screenX, screenY);
-        viewport.unproject(touchPos);
+        scrolling = true;
+        scrollTouchStartX = worldX;
+        scrollStartOffset = scrollX;
+        return true;
+    }
 
-        float menuX = MENU_MARGIN;
-        float menuWidth = worldWidth - MENU_MARGIN * 2;
-        float menuHeight = PADDING * 2 + ROW_HEIGHT * items.size() + 40f;
-        float menuY = (worldHeight - menuHeight) / 2f;
+    /**
+     * Handles drag for horizontal scrolling. Returns true if consumed.
+     */
+    public boolean touchDragged(float worldX, float worldY) {
+        if (!scrolling) return false;
 
-        // Check if inside menu at all
-        if (touchPos.x < menuX || touchPos.x > menuX + menuWidth
-            || touchPos.y < menuY || touchPos.y > menuY + menuHeight) {
-            hide();
-            return true;
-        }
+        float dx = scrollTouchStartX - worldX;
+        scrollX = MathUtils.clamp(scrollStartOffset + dx, 0, maxScrollX);
+        return true;
+    }
 
-        // Check close button (top-right area)
-        if (touchPos.y > menuY + menuHeight - 40f
-            && touchPos.x > menuX + menuWidth - 40f) {
-            hide();
-            return true;
-        }
+    /**
+     * Handles touch up — checks if a build button was tapped.
+     * Returns true if consumed.
+     */
+    public boolean touchUp(float worldX, float worldY) {
+        if (!scrolling) return false;
+        scrolling = false;
 
-        // Check build buttons
-        float rowY = menuY + menuHeight - 40f - PADDING;
+        // Only register as a tap if finger didn't move much (not a scroll)
+        float dragDistance = Math.abs(worldX - scrollTouchStartX);
+        if (dragDistance > 10f) return true; // was a scroll, consume but don't act
+
+        if (worldY > MENU_HEIGHT) return false;
+
+        // Check if a build button was hit
+        float startX = MENU_PADDING - scrollX;
+        float cardY = MENU_PADDING;
         ResourceManager rm = eventManager.getResourceManager();
 
         for (BuildableItem item : items) {
-            float rowBottom = rowY - ROW_HEIGHT + PADDING;
+            float cardX = startX;
 
             if (item.unlocked) {
-                float btnX = menuX + menuWidth - PADDING - BUTTON_WIDTH - 4f;
-                float btnY = rowBottom + (ROW_HEIGHT - BUTTON_HEIGHT) / 2f - 2f;
+                float btnX = cardX + (CARD_WIDTH - BTN_WIDTH) / 2f;
+                float btnY = cardY + CARD_PADDING;
 
-                if (touchPos.x >= btnX && touchPos.x <= btnX + BUTTON_WIDTH
-                    && touchPos.y >= btnY && touchPos.y <= btnY + BUTTON_HEIGHT) {
+                if (worldX >= btnX && worldX <= btnX + BTN_WIDTH
+                    && worldY >= btnY && worldY <= btnY + BTN_HEIGHT) {
                     tryBuild(item, rm);
                     return true;
                 }
             }
 
-            rowY -= ROW_HEIGHT;
+            startX += CARD_WIDTH + CARD_GAP;
         }
 
-        return true; // consume touch even if nothing was hit
+        return true;
     }
+
+    /**
+     * Check if a touch Y coordinate is within the menu area.
+     */
+    public boolean isInMenuArea(float worldY) {
+        return visible && worldY <= MENU_HEIGHT;
+    }
+
+    // ── Building logic ──
 
     private void tryBuild(BuildableItem item, ResourceManager rm) {
         if (!canAfford(item, rm)) {
@@ -321,17 +383,18 @@ public class BuildMenu {
             return;
         }
 
-        // Deduct tokens
         if (!rm.decreaseTokens(item.costWood, item.costWheat, item.costStone, item.costFire)) {
             Gdx.app.log(TAG, "Token deduction failed for " + item.type);
             return;
         }
 
-        // Spawn the facility at nearest empty cell
         int[] empty = eventManager.getGridInstance().getClosestEmptyCell(0, 0);
         if (empty != null) {
             eventManager.spawnObject(item.type, 1, empty[0], empty[1]);
             Gdx.app.log(TAG, "Built " + item.type + " at [" + empty[0] + "," + empty[1] + "]");
+            // Refresh to update affordability
+            princeLevelCache = -1;
+            refreshItems();
         }
     }
 
@@ -342,26 +405,26 @@ public class BuildMenu {
             && rm.getAmount("fire") >= item.costFire;
     }
 
-    private String buildCostString(BuildableItem item) {
+    private String shortCostString(BuildableItem item) {
         StringBuilder sb = new StringBuilder();
         boolean first = true;
         if (item.costWood > 0) {
-            sb.append(item.costWood).append(" wood");
+            sb.append(item.costWood).append("W");
             first = false;
         }
         if (item.costWheat > 0) {
-            if (!first) sb.append(", ");
-            sb.append(item.costWheat).append(" wheat");
+            if (!first) sb.append(" ");
+            sb.append(item.costWheat).append("Wh");
             first = false;
         }
         if (item.costStone > 0) {
-            if (!first) sb.append(", ");
-            sb.append(item.costStone).append(" stone");
+            if (!first) sb.append(" ");
+            sb.append(item.costStone).append("S");
             first = false;
         }
         if (item.costFire > 0) {
-            if (!first) sb.append(", ");
-            sb.append(item.costFire).append(" fire");
+            if (!first) sb.append(" ");
+            sb.append(item.costFire).append("F");
         }
         return sb.length() > 0 ? sb.toString() : "Free";
     }
@@ -371,9 +434,6 @@ public class BuildMenu {
         return s.substring(0, 1).toUpperCase() + s.substring(1);
     }
 
-    /**
-     * Simple data holder for a buildable item.
-     */
     private static class BuildableItem {
         String type;
         boolean unlocked;
@@ -381,6 +441,5 @@ public class BuildMenu {
         int costWheat;
         int costStone;
         int costFire;
-        String description;
     }
 }

@@ -126,8 +126,15 @@ public class EventManager {
             spawnObject("archeryrange", 1, 1, 0);
 
             // Two starting archers so the player can immediately merge
-            spawnObject("archer", 2, 0, 1);
-            spawnObject("archer", 2, 1, 1);
+            spawnObject("archer", 7, 0, 1);
+            spawnObject("archer", 7, 1, 1);
+            /*
+            spawnObject("archer", 7, 2, 1);
+            spawnObject("archer", 7, 1, 2);
+            spawnObject("archer", 7, 2, 2);
+
+            spawnObject("archer", 7, 2, 0);
+            spawnObject("archer", 7, 0, 2);*/
 
         } else {
             Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");
@@ -492,7 +499,9 @@ public class EventManager {
             if (UNIT_TYPES.contains(mergedType)) {
                 Unit unit = (Unit) originGO;
                 //int contribution = 1 << mergedLvl - 1; // 2^level (both units combined)
-                BATTLE_FIELD_MANAGER.increaseCounter(unit.getNemesis(), unit.getNemesis_rate());
+                int nemesis_rate = unit.getNemesis_rate() + 1;
+                int contribution = 1 << nemesis_rate;
+                BATTLE_FIELD_MANAGER.increaseCounter(unit.getNemesis(), contribution);
                 Gdx.app.log(TAG, "Merge " + mergedType + ": +" + unit.getNemesis_rate()
                     + " to " + unit.getNemesis() + " counter");
             }

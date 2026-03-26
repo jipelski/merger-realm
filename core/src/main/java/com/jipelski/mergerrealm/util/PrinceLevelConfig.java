@@ -18,13 +18,14 @@ public class PrinceLevelConfig {
     private static final Map<Integer, int[]> GRID_EXPANSIONS = new HashMap<>();
     static {
         //              level → {width, height}
-        GRID_EXPANSIONS.put(1,  new int[]{4, 4});  // start
-        GRID_EXPANSIONS.put(5,  new int[]{4, 5});  // +1 row
-        GRID_EXPANSIONS.put(10, new int[]{5, 5});  // +1 col
-        GRID_EXPANSIONS.put(15, new int[]{5, 6});  // +1 row
-        GRID_EXPANSIONS.put(20, new int[]{5, 7});  // +1 row
-        GRID_EXPANSIONS.put(25, new int[]{6, 7});  // +1 col
-        GRID_EXPANSIONS.put(30, new int[]{6, 8});  // +1 row (final)
+        GRID_EXPANSIONS.put(1,  new int[]{3, 4});  // start
+        GRID_EXPANSIONS.put(5, new int[]{4, 4});  // +1 col
+        GRID_EXPANSIONS.put(10,  new int[]{4, 5});  // +1 row
+        GRID_EXPANSIONS.put(15, new int[]{5, 5});  // +1 col
+        GRID_EXPANSIONS.put(20, new int[]{5, 6});  // +1 row
+        GRID_EXPANSIONS.put(25, new int[]{5, 7});  // +1 row
+        GRID_EXPANSIONS.put(30, new int[]{6, 7});  // +1 col
+        GRID_EXPANSIONS.put(35, new int[]{6, 8});  // +1 row (final)
     }
 
     // ── Facility unlocks by prince level ──
