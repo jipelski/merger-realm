@@ -136,8 +136,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         wallGate = new WallGate(eventManager, spriteManager, uiTex);
         wallGate.updateLayout();
 
-        inputHandler.setWallGate(wallGate);
-
         calculateGridLayout();
 
         inputHandler = new GridInputHandler(eventManager, viewport);
@@ -164,6 +162,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        inputHandler.setWallGate(wallGate);
 
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         calculateGridLayout();

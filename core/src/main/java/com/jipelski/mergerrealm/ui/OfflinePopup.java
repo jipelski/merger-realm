@@ -74,7 +74,7 @@ public class OfflinePopup {
         // Center popup on screen
         float actualHeight = LayoutConfig.getActualHeight();
         popupX = (LayoutConfig.WORLD_WIDTH - POPUP_WIDTH) / 2f;
-        popupY = (actualHeight - POPUP_HEIGHT) / 2f;
+        popupY = (actualHeight + POPUP_HEIGHT * 2);// TODO: make sure this is correctly rendered / 2f; //(actualHeight - POPUP_HEIGHT) / 2f;
 
         // Center button at bottom of popup
         btnX = popupX + (POPUP_WIDTH - BTN_WIDTH) / 2f;
