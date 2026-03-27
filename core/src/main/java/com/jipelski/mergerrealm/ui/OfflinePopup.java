@@ -18,8 +18,8 @@ import com.badlogic.gdx.utils.viewport.Viewport;
  * │    You were away for     │
  * │     2h 34m               │
  * │                          │
- * │  +120 timber             │
- * │  +85 stone               │
+ * │  +120 food             │
+ * │  +85 wood               │
  * │  +40 iron                │
  * │                          │
  * │        [ OK ]            │
@@ -31,8 +31,8 @@ public class OfflinePopup {
 
     // Content
     private String timeAwayText;
-    private String timberText;
-    private String stoneText;
+    private String foodText;
+    private String woodText;
     private String ironText;
 
     // Layout
@@ -58,7 +58,7 @@ public class OfflinePopup {
     /**
      * Shows the popup with offline progress details.
      */
-    public void show(long secondsAway, int timberGained, int stoneGained, int ironGained) {
+    public void show(long secondsAway, int foodGained, int woodGained, int ironGained) {
         // Format time
         long hours = secondsAway / 3600;
         long minutes = (secondsAway % 3600) / 60;
@@ -67,8 +67,8 @@ public class OfflinePopup {
         timeSb.append(minutes).append("m");
         timeAwayText = timeSb.toString();
 
-        timberText = timberGained > 0 ? "+" + timberGained + " Timber" : null;
-        stoneText = stoneGained > 0 ? "+" + stoneGained + " Stone" : null;
+        foodText = foodGained > 0 ? "+" + foodGained + " food" : null;
+        woodText = woodGained > 0 ? "+" + woodGained + " wood" : null;
         ironText = ironGained > 0 ? "+" + ironGained + " Iron" : null;
 
         // Center popup on screen
@@ -144,18 +144,18 @@ public class OfflinePopup {
 
         boolean anyGained = false;
 
-        if (timberText != null) {
+        if (foodText != null) {
             fontSmall.setColor(0.6f, 0.9f, 0.4f, 1f); // green
-            glyphLayout.setText(fontSmall, timberText);
-            fontSmall.draw(batch, timberText,
+            glyphLayout.setText(fontSmall, foodText);
+            fontSmall.draw(batch, foodText,
                 centerX - glyphLayout.width / 2f, resourceY);
             resourceY -= lineHeight;
             anyGained = true;
         }
-        if (stoneText != null) {
+        if (woodText != null) {
             fontSmall.setColor(0.6f, 0.7f, 0.9f, 1f); // blue-ish
-            glyphLayout.setText(fontSmall, stoneText);
-            fontSmall.draw(batch, stoneText,
+            glyphLayout.setText(fontSmall, woodText);
+            fontSmall.draw(batch, woodText,
                 centerX - glyphLayout.width / 2f, resourceY);
             resourceY -= lineHeight;
             anyGained = true;

@@ -1,70 +1,22 @@
 {
-  "wood_chest": [
-    {
-      "unitType": "wood_token",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "wood_token",
-      "level": 2,
-      "spawnProbability": 0.3
-    },
-    {
-      "unitType": "wood_token",
-      "level": 3,
-      "spawnProbability": 0.1
-    }
+  "nail_chest": [
+    {"unitType":"nail_token","level":1,"spawnProbability":0.6},
+    {"unitType":"nail_token","level":2,"spawnProbability":0.3},
+    {"unitType":"nail_token","level":3,"spawnProbability":0.1}
   ],
-  "wheat_chest": [
-    {
-      "unitType": "wheat_token",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "wheat_token",
-      "level": 2,
-      "spawnProbability": 0.3
-    },
-    {
-      "unitType": "wheat_token",
-      "level": 3,
-      "spawnProbability": 0.1
-    }
+  "slate_chest": [
+    {"unitType":"slate_token","level":1,"spawnProbability":0.6},
+    {"unitType":"slate_token","level":2,"spawnProbability":0.3},
+    {"unitType":"slate_token","level":3,"spawnProbability":0.1}
   ],
-  "stone_chest": [
-    {
-      "unitType": "stone_token",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "stone_token",
-      "level": 2,
-      "spawnProbability": 0.3
-    },
-    {
-      "unitType": "stone_token",
-      "level": 3,
-      "spawnProbability": 0.1
-    }
+  "ingot_chest": [
+    {"unitType":"ingot_token","level":1,"spawnProbability":0.6},
+    {"unitType":"ingot_token","level":2,"spawnProbability":0.3},
+    {"unitType":"ingot_token","level":3,"spawnProbability":0.1}
   ],
-  "fire_chest": [
-    {
-      "unitType": "fire_token",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "fire_token",
-      "level": 2,
-      "spawnProbability": 0.3
-    },
-    {
-      "unitType": "fire_token",
-      "level": 3,
-      "spawnProbability": 0.1
-    }
+  "relic_chest": [
+    {"unitType":"relic_token","level":1,"spawnProbability":0.6},
+    {"unitType":"relic_token","level":2,"spawnProbability":0.3},
+    {"unitType":"relic_token","level":3,"spawnProbability":0.1}
   ]
 }

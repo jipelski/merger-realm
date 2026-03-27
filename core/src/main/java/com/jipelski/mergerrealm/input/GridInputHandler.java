@@ -153,11 +153,13 @@ public class GridInputHandler extends InputAdapter {
         // Check build button tap
         if (buildMenu != null && !buildMenu.isVisible() && isBuildButtonTap(worldPos.x, worldPos.y)) {
             buildMenu.toggle();
+            clearSelection();
             return true;
         }
 
         if (wallGate != null && wallGate.isInWallArea(worldPos.y)) {
             wallGate.handleTouch(worldPos.x, worldPos.y);
+            clearSelection();
             return true;
         }
 
@@ -294,7 +296,10 @@ public class GridInputHandler extends InputAdapter {
 
         if (isFacility(obj.getType())) {
             handleFacilityTap();
-        } else {
+        } else if (isChest(obj.getType())) {
+            handleChestTap();
+        }
+        else {
             // Non-facility: normal tap (token collect, chest open, etc.)
             eventManager.tap(draggedObjectId);
         }
@@ -308,6 +313,14 @@ public class GridInputHandler extends InputAdapter {
         } else {
             // First tap — just selected (already done in touchDown)
             Gdx.app.log(TAG, "Selected facility at [" + selectedCellX + "," + selectedCellY + "]");
+        }
+    }
+
+    private void handleChestTap() {
+        if (wasAlreadySelected) {
+            eventManager.tap(draggedObjectId);
+        } else {
+            Gdx.app.log(TAG, "Selected chest at [" + selectedCellX + "," + selectedCellY + "]");
         }
     }
 
@@ -413,8 +426,18 @@ public class GridInputHandler extends InputAdapter {
 
     private boolean isFacility(String type) {
         switch (type) {
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery":
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean isChest(String type) {
+        switch (type) {
+            case "nail_chest": case "slate_chest": case "ingot_chest": case "relic_chest":
                 return true;
             default:
                 return false;

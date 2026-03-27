@@ -77,11 +77,11 @@ public class ResourceManager {
 
     /**
      * Ticks resource generation. Adds gen rate to amount, capped at pool size.
-     * Only applies to timber, quarrystone, and iron.
+     * Only applies to food, wood, and iron.
      */
     public void updateResources() {
         for (String t : consumableMap.keySet()) {
-            if (t.equals("timber") || t.equals("quarrystone") || t.equals("iron")) {
+            if (t.equals("food") || t.equals("wood") || t.equals("iron")) {
                 int[] value = consumableMap.get(t);
                 if (value == null) continue;
                 if (value[1] <= 0) continue; // no gen rate, skip
@@ -98,22 +98,22 @@ public class ResourceManager {
     }
 
     /**
-     * Deducts timber, quarrystone, and iron if all three are available.
+     * Deducts food, wood, and iron if all three are available.
      * Returns true on success, false if any resource is insufficient.
      */
     public boolean reduceResource(int amount1, int amount2, int amount3) {
-        int[] timber      = consumableMap.get("timber");
-        int[] quarrystone = consumableMap.get("quarrystone");
+        int[] food      = consumableMap.get("food");
+        int[] wood = consumableMap.get("wood");
         int[] iron        = consumableMap.get("iron");
 
-        if (timber == null || quarrystone == null || iron == null) {
+        if (food == null || wood == null || iron == null) {
             Gdx.app.log(TAG, "reduceResource: one or more resource entries missing");
             return false;
         }
 
-        if (timber[0] >= amount1 && quarrystone[0] >= amount2 && iron[0] >= amount3) {
-            timber[0]      -= amount1;
-            quarrystone[0] -= amount2;
+        if (food[0] >= amount1 && wood[0] >= amount2 && iron[0] >= amount3) {
+            food[0]      -= amount1;
+            wood[0] -= amount2;
             iron[0]        -= amount3;
             return true;
         }
@@ -146,10 +146,10 @@ public class ResourceManager {
     }
 
     public void increaseTokens(int amount1, int amount2, int amount3, int amount4) {
-        addToToken("wood",  amount1);
-        addToToken("wheat", amount2);
-        addToToken("stone", amount3);
-        addToToken("fire",  amount4);
+        addToToken("nail",  amount1);
+        addToToken("slate", amount2);
+        addToToken("ingot", amount3);
+        addToToken("relic",  amount4);
     }
 
     public void increaseToken(String tokenType, int amount) {
@@ -157,27 +157,27 @@ public class ResourceManager {
     }
 
     /**
-     * Deducts wood, wheat, stone, and fire tokens if all four are available.
+     * Deducts nail, slate, ingot, and relic tokens if all four are available.
      * Returns true on success, false if any token is insufficient.
-     * Previously wrote value3 into the "fire" slot instead of value4 — fixed.
+     * Previously wrote value3 into the "relic" slot instead of value4 — fixed.
      */
     public boolean decreaseTokens(int amount1, int amount2, int amount3, int amount4) {
-        int[] wood  = consumableMap.get("wood");
-        int[] wheat = consumableMap.get("wheat");
-        int[] stone = consumableMap.get("stone");
-        int[] fire  = consumableMap.get("fire");
+        int[] nail  = consumableMap.get("nail");
+        int[] slate = consumableMap.get("slate");
+        int[] ingot = consumableMap.get("ingot");
+        int[] relic  = consumableMap.get("relic");
 
-        if (wood == null || wheat == null || stone == null || fire == null) {
+        if (nail == null || slate == null || ingot == null || relic == null) {
             Gdx.app.log(TAG, "decreaseTokens: one or more token entries missing");
             return false;
         }
 
-        if (wood[0] >= amount1 && wheat[0] >= amount2
-                && stone[0] >= amount3 && fire[0] >= amount4) {
-            wood[0]  -= amount1;
-            wheat[0] -= amount2;
-            stone[0] -= amount3;
-            fire[0]  -= amount4; // was: value3 (stone's array) — now correctly value4
+        if (nail[0] >= amount1 && slate[0] >= amount2
+                && ingot[0] >= amount3 && relic[0] >= amount4) {
+            nail[0]  -= amount1;
+            slate[0] -= amount2;
+            ingot[0] -= amount3;
+            relic[0]  -= amount4; // was: value3 (ingot's array) — now correctly value4
             return true;
         }
         return false;

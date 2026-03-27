@@ -76,8 +76,8 @@ public class BuildMenu {
 
     // All buildable types in display order
     private static final String[] ALL_BUILDABLES = {
-        "archeryrange", "sawmill", "farmhouse", "quarry",
-        "barracks", "ironmine", "griffinnest", "monastery"
+        "homestead", "lodge", "tavernboard", "barracks",
+        "archeryrange", "forge", "monastery", "griffinnest", "dragonslair"
     };
 
     public BuildMenu(EventManager eventManager, SpriteManager spriteManager,
@@ -134,16 +134,16 @@ public class BuildMenu {
 
             if (data instanceof FacilityData) {
                 FacilityData fd = (FacilityData) data;
-                item.costWood = fd.getBuildCost1();
-                item.costWheat = fd.getBuildCost2();
-                item.costStone = fd.getBuildCost3();
-                item.costFire = fd.getBuildCost4();
+                item.buildCost1 = fd.getBuildCost1();
+                item.buildCost2 = fd.getBuildCost2();
+                item.buildCost3 = fd.getBuildCost3();
+                item.buildCost4 = fd.getBuildCost4();
             } else if (data instanceof StorageData) {
                 StorageData sd = (StorageData) data;
-                item.costWood = sd.getBuild_cost1();
-                item.costWheat = sd.getBuild_cost2();
-                item.costStone = sd.getBuild_cost3();
-                item.costFire = 0;
+                item.buildCost1 = sd.getBuild_cost1();
+                item.buildCost2 = sd.getBuild_cost2();
+                item.buildCost3 = sd.getBuild_cost3();
+                item.buildCost4 = 0;
             }
 
             items.add(item);
@@ -383,7 +383,7 @@ public class BuildMenu {
             return;
         }
 
-        if (!rm.decreaseTokens(item.costWood, item.costWheat, item.costStone, item.costFire)) {
+        if (!rm.decreaseTokens(item.buildCost1, item.buildCost2, item.buildCost3, item.buildCost4)) {
             Gdx.app.log(TAG, "Token deduction failed for " + item.type);
             return;
         }
@@ -399,32 +399,32 @@ public class BuildMenu {
     }
 
     private boolean canAfford(BuildableItem item, ResourceManager rm) {
-        return rm.getAmount("wood") >= item.costWood
-            && rm.getAmount("wheat") >= item.costWheat
-            && rm.getAmount("stone") >= item.costStone
-            && rm.getAmount("fire") >= item.costFire;
+        return rm.getAmount("nail") >= item.buildCost1
+            && rm.getAmount("slate") >= item.buildCost2
+            && rm.getAmount("ingot") >= item.buildCost3
+            && rm.getAmount("relic") >= item.buildCost4;
     }
 
     private String shortCostString(BuildableItem item) {
         StringBuilder sb = new StringBuilder();
         boolean first = true;
-        if (item.costWood > 0) {
-            sb.append(item.costWood).append("W");
+        if (item.buildCost1 > 0) {
+            sb.append(item.buildCost1).append("N");
             first = false;
         }
-        if (item.costWheat > 0) {
+        if (item.buildCost2 > 0) {
             if (!first) sb.append(" ");
-            sb.append(item.costWheat).append("Wh");
+            sb.append(item.buildCost2).append("S");
             first = false;
         }
-        if (item.costStone > 0) {
+        if (item.buildCost3 > 0) {
             if (!first) sb.append(" ");
-            sb.append(item.costStone).append("S");
+            sb.append(item.buildCost3).append("I");
             first = false;
         }
-        if (item.costFire > 0) {
+        if (item.buildCost4 > 0) {
             if (!first) sb.append(" ");
-            sb.append(item.costFire).append("F");
+            sb.append(item.buildCost4).append("R");
         }
         return sb.length() > 0 ? sb.toString() : "Free";
     }
@@ -437,9 +437,9 @@ public class BuildMenu {
     private static class BuildableItem {
         String type;
         boolean unlocked;
-        int costWood;
-        int costWheat;
-        int costStone;
-        int costFire;
+        int buildCost1;
+        int buildCost2;
+        int buildCost3;
+        int buildCost4;
     }
 }

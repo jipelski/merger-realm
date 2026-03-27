@@ -1,256 +1,180 @@
 {
-  "archeryrange_1": [
-    {
-      "unitType": "archer",
-      "level": 1,
-      "spawnProbability": 1
-    }
+  "homestead_1": [
+    {"unitType":"villager","level":1,"spawnProbability":0.5},
+    {"unitType":"woodsman","level":1,"spawnProbability":0.5}
   ],
-  "archeryrange_2": [
-    {
-      "unitType": "archer",
-      "level": 1,
-      "spawnProbability": 0.8
-    },
-    {
-      "unitType": "archer",
-      "level": 2,
-      "spawnProbability": 0.2
-    }
+  "homestead_2": [
+    {"unitType":"villager","level":1,"spawnProbability":0.4},
+    {"unitType":"villager","level":2,"spawnProbability":0.1},
+    {"unitType":"woodsman","level":1,"spawnProbability":0.4},
+    {"unitType":"woodsman","level":2,"spawnProbability":0.1}
   ],
-  "archeryrange_3": [
-    {
-      "unitType": "archer",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "archer",
-      "level": 2,
-      "spawnProbability": 0.4
-    }
+  "homestead_3": [
+    {"unitType":"villager","level":1,"spawnProbability":0.3},
+    {"unitType":"villager","level":2,"spawnProbability":0.2},
+    {"unitType":"woodsman","level":1,"spawnProbability":0.3},
+    {"unitType":"woodsman","level":2,"spawnProbability":0.2}
   ],
-  "archeryrange_4": [
-    {
-      "unitType": "archer",
-      "level": 1,
-      "spawnProbability": 0.4
-    },
-    {
-      "unitType": "archer",
-      "level": 2,
-      "spawnProbability": 0.6
-    }
+  "homestead_4": [
+    {"unitType":"villager","level":1,"spawnProbability":0.2},
+    {"unitType":"villager","level":2,"spawnProbability":0.3},
+    {"unitType":"woodsman","level":1,"spawnProbability":0.2},
+    {"unitType":"woodsman","level":2,"spawnProbability":0.3}
   ],
-  "farmhouse_1": [
-    {
-      "unitType": "farmer",
-      "level": 1,
-      "spawnProbability": 1
-    }
+  "lodge_1": [
+    {"unitType":"cook","level":1,"spawnProbability":0.5},
+    {"unitType":"prospector","level":1,"spawnProbability":0.5}
   ],
-  "farmhouse_2": [
-    {
-      "unitType": "farmer",
-      "level": 1,
-      "spawnProbability": 0.8
-    },
-    {
-      "unitType": "farmer",
-      "level": 2,
-      "spawnProbability": 0.2
-    }
+  "lodge_2": [
+    {"unitType":"cook","level":1,"spawnProbability":0.4},
+    {"unitType":"cook","level":2,"spawnProbability":0.1},
+    {"unitType":"prospector","level":1,"spawnProbability":0.4},
+    {"unitType":"prospector","level":2,"spawnProbability":0.1}
   ],
-  "farmhouse_3": [
-    {
-      "unitType": "farmer",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "farmer",
-      "level": 2,
-      "spawnProbability": 0.2
-    },
-    {
-      "unitType": "spearman",
-      "level": 1,
-      "spawnProbability": 0.2
-    }
+  "lodge_3": [
+    {"unitType":"cook","level":1,"spawnProbability":0.3},
+    {"unitType":"cook","level":2,"spawnProbability":0.2},
+    {"unitType":"prospector","level":1,"spawnProbability":0.3},
+    {"unitType":"prospector","level":2,"spawnProbability":0.2}
   ],
-  "farmhouse_4": [
-    {
-      "unitType": "farmer",
-      "level": 1,
-      "spawnProbability": 0.4
-    },
-    {
-      "unitType": "farmer",
-      "level": 2,
-      "spawnProbability": 0.3
-    },
-    {
-      "unitType": "spearman",
-      "level": 1,
-      "spawnProbability": 0.3
-    }
+  "lodge_4": [
+    {"unitType":"cook","level":1,"spawnProbability":0.2},
+    {"unitType":"cook","level":2,"spawnProbability":0.3},
+    {"unitType":"prospector","level":1,"spawnProbability":0.2},
+    {"unitType":"prospector","level":2,"spawnProbability":0.3}
   ],
-  "farmhouse_5": [
-    {
-      "unitType": "farmer",
-      "level": 1,
-      "spawnProbability": 0.2
-    },
-    {
-      "unitType": "farmer",
-      "level": 2,
-      "spawnProbability": 0.4
-    },
-    {
-      "unitType": "spearman",
-      "level": 1,
-      "spawnProbability": 0.4
-    }
+  "tavernboard_1": [
+    {"unitType":"mercenary","level":1,"spawnProbability":1.0}
+  ],
+  "tavernboard_2": [
+    {"unitType":"mercenary","level":1,"spawnProbability":1.0}
+  ],
+  "tavernboard_3": [
+    {"unitType":"mercenary","level":1,"spawnProbability":1.0}
+  ],
+  "tavernboard_4": [
+    {"unitType":"mercenary","level":1,"spawnProbability":1.0}
   ],
   "barracks_1": [
-    {
-      "unitType": "swordsman",
-      "level": 1,
-      "spawnProbability": 1
-    }
+    {"unitType":"carpenter","level":1,"spawnProbability":0.5},
+    {"unitType":"knight","level":1,"spawnProbability":0.5}
   ],
   "barracks_2": [
-    {
-      "unitType": "swordsman",
-      "level": 1,
-      "spawnProbability": 0.8
-    },
-    {
-      "unitType": "swordsman",
-      "level": 2,
-      "spawnProbability": 0.2
-    }
+    {"unitType":"carpenter","level":1,"spawnProbability":0.4},
+    {"unitType":"carpenter","level":2,"spawnProbability":0.1},
+    {"unitType":"knight","level":1,"spawnProbability":0.4},
+    {"unitType":"knight","level":2,"spawnProbability":0.1}
   ],
   "barracks_3": [
-    {
-      "unitType": "swordsman",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "swordsman",
-      "level": 2,
-      "spawnProbability": 0.4
-    }
+    {"unitType":"carpenter","level":1,"spawnProbability":0.3},
+    {"unitType":"carpenter","level":2,"spawnProbability":0.2},
+    {"unitType":"knight","level":1,"spawnProbability":0.3},
+    {"unitType":"knight","level":2,"spawnProbability":0.2}
   ],
   "barracks_4": [
-    {
-      "unitType": "swordsman",
-      "level": 1,
-      "spawnProbability": 0.4
-    },
-    {
-      "unitType": "swordsman",
-      "level": 2,
-      "spawnProbability": 0.6
-    }
+    {"unitType":"carpenter","level":1,"spawnProbability":0.2},
+    {"unitType":"carpenter","level":2,"spawnProbability":0.3},
+    {"unitType":"knight","level":1,"spawnProbability":0.2},
+    {"unitType":"knight","level":2,"spawnProbability":0.3}
   ],
-  "griffinnest_1": [
-    {
-      "unitType": "griffin",
-      "level": 1,
-      "spawnProbability": 1
-    }
+  "archeryrange_1": [
+    {"unitType":"hunter","level":1,"spawnProbability":0.5},
+    {"unitType":"archer","level":1,"spawnProbability":0.5}
   ],
-  "griffinnest_2": [
-    {
-      "unitType": "griffin",
-      "level": 1,
-      "spawnProbability": 0.8
-    },
-    {
-      "unitType": "eldergriffin",
-      "level": 1,
-      "spawnProbability": 0.2
-    }
+  "archeryrange_2": [
+    {"unitType":"hunter","level":1,"spawnProbability":0.4},
+    {"unitType":"hunter","level":2,"spawnProbability":0.1},
+    {"unitType":"archer","level":1,"spawnProbability":0.4},
+    {"unitType":"archer","level":2,"spawnProbability":0.1}
   ],
-  "griffinnest_3": [
-    {
-      "unitType": "griffin",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "eldergriffin",
-      "level": 1,
-      "spawnProbability": 0.4
-    }
+  "archeryrange_3": [
+    {"unitType":"hunter","level":1,"spawnProbability":0.3},
+    {"unitType":"hunter","level":2,"spawnProbability":0.2},
+    {"unitType":"archer","level":1,"spawnProbability":0.3},
+    {"unitType":"archer","level":2,"spawnProbability":0.2}
   ],
-  "griffinnest_4": [
-    {
-      "unitType": "griffin",
-      "level": 1,
-      "spawnProbability": 0.5
-    },
-    {
-      "unitType": "eldergriffin",
-      "level": 1,
-      "spawnProbability": 0.5
-    }
+  "archeryrange_4": [
+    {"unitType":"hunter","level":1,"spawnProbability":0.2},
+    {"unitType":"hunter","level":2,"spawnProbability":0.3},
+    {"unitType":"archer","level":1,"spawnProbability":0.2},
+    {"unitType":"archer","level":2,"spawnProbability":0.3}
   ],
-  "griffinnest_5": [
-    {
-      "unitType": "griffin",
-      "level": 1,
-      "spawnProbability": 0.2
-    },
-    {
-      "unitType": "eldergriffin",
-      "level": 1,
-      "spawnProbability": 0.8
-    }
+  "forge_1": [
+    {"unitType":"blacksmith","level":1,"spawnProbability":0.5},
+    {"unitType":"bulwark","level":1,"spawnProbability":0.5}
+  ],
+  "forge_2": [
+    {"unitType":"blacksmith","level":1,"spawnProbability":0.4},
+    {"unitType":"blacksmith","level":2,"spawnProbability":0.1},
+    {"unitType":"bulwark","level":1,"spawnProbability":0.4},
+    {"unitType":"bulwark","level":2,"spawnProbability":0.1}
+  ],
+  "forge_3": [
+    {"unitType":"blacksmith","level":1,"spawnProbability":0.3},
+    {"unitType":"blacksmith","level":2,"spawnProbability":0.2},
+    {"unitType":"bulwark","level":1,"spawnProbability":0.3},
+    {"unitType":"bulwark","level":2,"spawnProbability":0.2}
+  ],
+  "forge_4": [
+    {"unitType":"blacksmith","level":1,"spawnProbability":0.2},
+    {"unitType":"blacksmith","level":2,"spawnProbability":0.3},
+    {"unitType":"bulwark","level":1,"spawnProbability":0.2},
+    {"unitType":"bulwark","level":2,"spawnProbability":0.3}
   ],
   "monastery_1": [
-    {
-      "unitType": "monk",
-      "level": 1,
-      "spawnProbability": 1
-    }
+    {"unitType":"monk","level":1,"spawnProbability":0.5},
+    {"unitType":"paladin","level":1,"spawnProbability":0.5}
   ],
   "monastery_2": [
-    {
-      "unitType": "monk",
-      "level": 1,
-      "spawnProbability": 0.8
-    },
-    {
-      "unitType": "monk",
-      "level": 2,
-      "spawnProbability": 0.2
-    }
+    {"unitType":"monk","level":1,"spawnProbability":0.4},
+    {"unitType":"monk","level":2,"spawnProbability":0.1},
+    {"unitType":"paladin","level":1,"spawnProbability":0.4},
+    {"unitType":"paladin","level":2,"spawnProbability":0.1}
   ],
   "monastery_3": [
-    {
-      "unitType": "monk",
-      "level": 1,
-      "spawnProbability": 0.6
-    },
-    {
-      "unitType": "monk",
-      "level": 2,
-      "spawnProbability": 0.4
-    }
+    {"unitType":"monk","level":1,"spawnProbability":0.3},
+    {"unitType":"monk","level":2,"spawnProbability":0.2},
+    {"unitType":"paladin","level":1,"spawnProbability":0.3},
+    {"unitType":"paladin","level":2,"spawnProbability":0.2}
   ],
   "monastery_4": [
-    {
-      "unitType": "monk",
-      "level": 1,
-      "spawnProbability": 0.4
-    },
-    {
-      "unitType": "monk",
-      "level": 2,
-      "spawnProbability": 0.6
-    }
+    {"unitType":"monk","level":1,"spawnProbability":0.2},
+    {"unitType":"monk","level":2,"spawnProbability":0.3},
+    {"unitType":"paladin","level":1,"spawnProbability":0.2},
+    {"unitType":"paladin","level":2,"spawnProbability":0.3}
+  ],
+  "griffinnest_1": [
+    {"unitType":"griffin","level":1,"spawnProbability":1.0}
+  ],
+  "griffinnest_2": [
+    {"unitType":"griffin","level":1,"spawnProbability":0.8},
+    {"unitType":"wyvern","level":1,"spawnProbability":0.2}
+  ],
+  "griffinnest_3": [
+    {"unitType":"griffin","level":1,"spawnProbability":0.6},
+    {"unitType":"wyvern","level":1,"spawnProbability":0.4}
+  ],
+  "griffinnest_4": [
+    {"unitType":"griffin","level":1,"spawnProbability":0.5},
+    {"unitType":"wyvern","level":1,"spawnProbability":0.5}
+  ],
+  "griffinnest_5": [
+    {"unitType":"griffin","level":1,"spawnProbability":0.2},
+    {"unitType":"wyvern","level":1,"spawnProbability":0.8}
+  ],
+  "dragonslair_1": [
+    {"unitType":"dragon","level":1,"spawnProbability":1.0}
+  ],
+  "dragonslair_2": [
+    {"unitType":"dragon","level":1,"spawnProbability":0.8},
+    {"unitType":"phoenix","level":1,"spawnProbability":0.2}
+  ],
+  "dragonslair_3": [
+    {"unitType":"dragon","level":1,"spawnProbability":0.5},
+    {"unitType":"phoenix","level":1,"spawnProbability":0.5}
+  ],
+  "dragonslair_4": [
+    {"unitType":"dragon","level":1,"spawnProbability":0.5},
+    {"unitType":"phoenix","level":1,"spawnProbability":0.5}
   ]
 }

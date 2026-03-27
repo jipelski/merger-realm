@@ -33,7 +33,10 @@ public class EventManager {
 
     // Used for type checks — avoids the broken string.contains() pattern
     private static final Set<String> UNIT_TYPES = new HashSet<>(Arrays.asList(
-            "archer", "farmer", "spearman", "griffin", "eldergriffin", "monk", "swordsman"
+        "villager", "woodsman", "cook", "prospector", "mercenary",
+        "carpenter", "knight", "hunter", "archer", "blacksmith",
+        "bulwark", "monk", "paladin", "griffin", "wyvern",
+        "dragon", "phoenix"
     ));
 
     private final Grid               gridInstance;
@@ -223,8 +226,9 @@ public class EventManager {
 
     private boolean isFacilityType(String type) {
         switch (type) {
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery":
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair":
                 return true;
             default:
                 return false;
@@ -244,8 +248,11 @@ public class EventManager {
                 + " at [" + XoY[0] + "," + XoY[1] + "]");
 
         switch (type) {
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix": {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(type, level);
                 if (unitData == null) {
                     Gdx.app.error(TAG, "spawnObject: no UnitData for " + type + " lvl " + level);
@@ -258,7 +265,7 @@ public class EventManager {
                 //BATTLE_FIELD_MANAGER.increaseCounter(unitData.getNemesis(), unitData.getNemesis_Rate());
                 break;
             }
-            case "sawmill": case "quarry": case "ironmine": {
+            case "silo": case "timberyard": case "ironvault": {
                 StorageData storageData = (StorageData) GDLInstance.getGameData(type, level);
                 if (storageData == null) {
                     Gdx.app.error(TAG, "spawnObject: no StorageData for " + type + " lvl " + level);
@@ -270,8 +277,9 @@ public class EventManager {
                 resourceManager.modifyResourcePoolSize(storageData.getStorage_type(), storageData.getStorage_size(), true);
                 break;
             }
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData facilityData = (FacilityData) GDLInstance.getGameData(type, level);
                 if (facilityData == null) {
                     Gdx.app.error(TAG, "spawnObject: no FacilityData for " + type + " lvl " + level);
@@ -282,7 +290,8 @@ public class EventManager {
                 GRID_OBJECT_MANAGER.addObject(id, facility);
                 break;
             }
-            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon": {
                 MonsterData monsterData = (MonsterData) GDLInstance.getGameData(type, level);
                 if (monsterData == null) {
                     Gdx.app.error(TAG, "spawnObject: no MonsterData for " + type + " lvl " + level);
@@ -293,7 +302,8 @@ public class EventManager {
                 GRID_OBJECT_MANAGER.addObject(id, monster);
                 break;
             }
-            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+            case "nail_chest": case "slate_chest":
+            case "ingot_chest": case "relic_chest": {
                 ChestData chestData = (ChestData) GDLInstance.getGameData(type, level);
                 if (chestData == null) {
                     Gdx.app.error(TAG, "spawnObject: no ChestData for " + type + " lvl " + level);
@@ -304,7 +314,8 @@ public class EventManager {
                 GRID_OBJECT_MANAGER.addObject(id, chest);
                 break;
             }
-            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+            case "nail_token": case "slate_token":
+            case "ingot_token": case "relic_token": {
                 TokenData tokenData = (TokenData) GDLInstance.getGameData(type, level);
                 if (tokenData == null) {
                     Gdx.app.error(TAG, "spawnObject: no TokenData for " + type + " lvl " + level);
@@ -359,8 +370,11 @@ public class EventManager {
         GRID_OBJECT_MANAGER.removeObject(id);
 
         switch (object.getType()) {
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix": {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(object.getType(), object.getLvl());
                 if (unitData != null) {
                     resourceManager.modifyResourceRate(unitData.getResource(), unitData.getGen_rate(), false);
@@ -368,19 +382,21 @@ public class EventManager {
                 }
                 break;
             }
-            case "sawmill": case "quarry": case "ironmine": {
+            case "silo": case "timberyard": case "ironvault": {
                 StorageData storageData = (StorageData) GDLInstance.getGameData(object.getType(), object.getLvl());
                 if (storageData != null) {
                     resourceManager.modifyResourcePoolSize(storageData.getStorage_type(), storageData.getStorage_size(), false);
                 }
                 break;
             }
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 // TODO: implement counter for facility removal rewards
                 break;
             }
-            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon": {
                 // object is already fetched above — cast directly, no second lookup
                 Monster monster = (Monster) object;
                 if (monster.getHp() <= 0) {
@@ -391,11 +407,13 @@ public class EventManager {
                 }
                 break;
             }
-            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+            case "nail_chest": case "slate_chest":
+            case "ingot_chest": case "relic_chest": {
                 // TODO: implement chest removal reward
                 break;
             }
-            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+            case "nail_token": case "slate_token":
+            case "ingot_token": case "relic_token": {
                 //TokenData tokenData = (TokenData) GDLInstance.getGameData(object.getType(), object.getLvl());
                 //if (tokenData != null) {
                 //resourceManager.increaseToken(tokenData.getTokenType(), tokenData.getValue());
@@ -425,15 +443,20 @@ public class EventManager {
         Gdx.app.log(TAG, "tap: " + id + " type=" + object.getType());
 
         switch (object.getType()) {
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman":
-            case "sawmill": case "quarry": case "ironmine":
-            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix":
+            case "silo": case "timberyard": case "ironvault":
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon": {
                 // No tap action for these types
                 break;
             }
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 break;
                 /*Facility facility = (Facility) object;
                 if (!gridInstance.hasEmptyCell()) {
@@ -451,7 +474,8 @@ public class EventManager {
                 }
                 break;*/
             }
-            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+            case "nail_chest": case "slate_chest":
+            case "ingot_chest": case "relic_chest": {
                 if (!gridInstance.hasEmptyCell()) {
                     Gdx.app.log(TAG, "tap: grid full — cannot open chest");
                     break;
@@ -470,7 +494,8 @@ public class EventManager {
                 }
                 break;
             }
-            //case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+            //case "nail_token": case "slate_token":
+            //case "ingot_token": case "relic_token": {
                 // Award resources then remove the token from the grid
             //    TokenData tokenData = (TokenData) GDLInstance.getGameData(object.getType(), object.getLvl());
             //    if (tokenData != null) {
@@ -570,8 +595,11 @@ public class EventManager {
 
         switch (type) {
             // ── Units: dismissed from service, Prince gains leadership XP ──
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix": {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(type, object.getLvl());
                 if (unitData != null) {
                     int xpGain = unitData.getXP_Rate();
@@ -584,16 +612,17 @@ public class EventManager {
             }
 
             // ── Facilities: torn down, land reclaimed, partial resources returned ──
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData facilityData = (FacilityData) GDLInstance.getGameData(type, object.getLvl());
                 if (facilityData != null) {
                     // Return half the build cost (rounded down) as a refund
                     int refund1 = facilityData.getBuildCost1() / 2;
                     int refund2 = facilityData.getBuildCost2() / 2;
                     int refund3 = facilityData.getBuildCost3() / 2;
-                    resourceManager.addAmount("timber", refund1);
-                    resourceManager.addAmount("quarrystone", refund2);
+                    resourceManager.addAmount("food", refund1);
+                    resourceManager.addAmount("wood", refund2);
                     resourceManager.addAmount("iron", refund3);
                     Gdx.app.log(TAG, "Prince reclaimed " + type + " lvl " + object.getLvl()
                         + " — refunded [" + refund1 + "," + refund2 + "," + refund3 + "]");
@@ -603,7 +632,7 @@ public class EventManager {
             }
 
             // ── Storage: torn down, pool size reduced ──
-            case "sawmill": case "quarry": case "ironmine": {
+            case "silo": case "timberyard": case "ironvault": {
                 // removeObject already handles pool size reduction
                 removeObject(objectId);
                 Gdx.app.log(TAG, "Prince reclaimed storage: " + type);
@@ -611,7 +640,8 @@ public class EventManager {
             }
 
             // ── Tokens: collected into the royal treasury ──
-            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+            case "nail_token": case "slate_token":
+            case "ingot_token": case "relic_token": {
                 TokenData tokenData = (TokenData) GDLInstance.getGameData(type, object.getLvl());
                 if (tokenData != null) {
                     resourceManager.increaseToken(tokenData.getTokenType(), tokenData.getValue());
@@ -623,14 +653,16 @@ public class EventManager {
             }
 
             // ── Chests: opened by royal decree ──
-            case "wood_chest": case "wheat_chest": case "stone_chest": case "fire_chest": {
+            case "nail_chest": case "slate_chest":
+            case "ingot_chest": case "relic_chest": {
                 removeObject(objectId);
                 Gdx.app.log(TAG, "Prince dismissed chest: " + type);
                 break;
             }
 
             // ── Monsters: should never reach here (handled in swapOrMerge) ──
-            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon": {
                 Gdx.app.log(TAG, "dismissToPrince: monster " + type
                     + " should not reach here — this is a bug");
                 break;
@@ -649,7 +681,8 @@ public class EventManager {
      */
     private boolean isMonster(String type) {
         switch (type) {
-            case "imp": case "scarecrow": case "gargoyle": case "efreet":
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon":
                 return true;
             default:
                 return false;

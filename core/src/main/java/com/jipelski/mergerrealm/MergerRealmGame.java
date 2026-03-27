@@ -195,24 +195,24 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         long ticks = cappedSeconds / 15;
 
         ResourceManager rm = eventManager.getResourceManager();
-        int timberBefore = rm.getAmount("timber");
-        int stoneBefore = rm.getAmount("quarrystone");
+        int foodBefore = rm.getAmount("food");
+        int woodBefore = rm.getAmount("wood");
         int ironBefore = rm.getAmount("iron");
 
         for (long i = 0; i < ticks; i++) {
             rm.updateResources();
         }
 
-        int timberGained = rm.getAmount("timber") - timberBefore;
-        int stoneGained = rm.getAmount("quarrystone") - stoneBefore;
+        int foodGained = rm.getAmount("food") - foodBefore;
+        int woodGained = rm.getAmount("wood") - woodBefore;
         int ironGained = rm.getAmount("iron") - ironBefore;
 
         // Show popup instead of timed message
-        offlinePopup.show(cappedSeconds, timberGained, stoneGained, ironGained);
+        offlinePopup.show(cappedSeconds, foodGained, woodGained, ironGained);
 
         saveDirty = true;
-        Gdx.app.log(TAG, "Offline: " + cappedSeconds + "s, timber+"
-            + timberGained + " stone+" + stoneGained + " iron+" + ironGained);
+        Gdx.app.log(TAG, "Offline: " + cappedSeconds + "s, food+"
+            + foodGained + " wood+" + woodGained + " iron+" + ironGained);
     }
 
     private void saveTimestamp() {
@@ -470,15 +470,15 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         ResourceManager rm = eventManager.getResourceManager();
 
         font.setColor(Color.WHITE);
-        font.draw(batch, "Timber: " + rm.getAmount("timber"), 20f, LayoutConfig.getResourcesY());
-        font.draw(batch, "Stone: " + rm.getAmount("quarrystone"), 170f, LayoutConfig.getResourcesY());
+        font.draw(batch, "Food: " + rm.getAmount("food"), 20f, LayoutConfig.getResourcesY());
+        font.draw(batch, "Wood: " + rm.getAmount("wood"), 170f, LayoutConfig.getResourcesY());
         font.draw(batch, "Iron: " + rm.getAmount("iron"), 320f, LayoutConfig.getResourcesY());
 
         fontSmall.setColor(0.7f, 0.8f, 0.7f, 1f);
-        fontSmall.draw(batch, "Wood: " + rm.getAmount("wood"), 20f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Wheat: " + rm.getAmount("wheat"), 130f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Stone: " + rm.getAmount("stone"), 240f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Fire: " + rm.getAmount("fire"), 350f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Nail: " + rm.getAmount("nail"), 20f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Slate: " + rm.getAmount("slate"), 130f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Ingot: " + rm.getAmount("ingot"), 240f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, "Relic: " + rm.getAmount("relic"), 350f, LayoutConfig.getResourcesRow2Y());
         fontSmall.setColor(Color.WHITE);
     }
 
@@ -817,8 +817,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private boolean isUnitType(String type) {
         switch (type) {
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman":
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix":
                 return true;
             default:
                 return false;
@@ -827,7 +830,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private boolean isMonsterType(String type) {
         switch (type) {
-            case "imp": case "scarecrow": case "gargoyle": case "efreet":
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon":
                 return true;
             default:
                 return false;
@@ -843,8 +847,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         switch (obj.getType()) {
             // Units
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix": {
                 UnitData ud = (UnitData) data;
                 StringBuilder sb = new StringBuilder();
                 if (ud.getDamage() > 0)   sb.append("DMG: ").append(ud.getDamage());
@@ -857,18 +864,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             }
 
             // Facilities
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData fd = (FacilityData) data;
                 StringBuilder sb = new StringBuilder("Cost: ");
                 boolean first = true;
                 if (fd.getTapCost1() > 0) {
-                    sb.append(fd.getTapCost1()).append(" timber");
+                    sb.append(fd.getTapCost1()).append(" food");
                     first = false;
                 }
                 if (fd.getTapCost2() > 0) {
                     if (!first) sb.append(", ");
-                    sb.append(fd.getTapCost2()).append(" stone");
+                    sb.append(fd.getTapCost2()).append(" wood");
                     first = false;
                 }
                 if (fd.getTapCost3() > 0) {
@@ -879,13 +887,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             }
 
             // Storage
-            case "sawmill": case "quarry": case "ironmine": {
+            case "silo": case "timberyard": case "ironvault": {
                 StorageData sd = (StorageData) data;
                 return "+" + sd.getStorage_size() + " " + sd.getStorage_type() + " capacity";
             }
 
             // Monsters
-            case "imp": case "scarecrow": case "gargoyle": case "efreet": {
+            case "gremlin": case "troll": case "orc":
+            case "wraith": case "demon": {
                 MonsterData md = (MonsterData) data;
                 Monster m = (Monster) obj;
                 return "HP: " + m.getHp() + "/" + md.getHp()
@@ -893,7 +902,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             }
 
             // Chests
-            case "woodchest": case "wheatchest": case "stonechest": case "firechest": {
+            case "nail_chest": case "slate_chest":
+            case "ingot_chest": case "relic_chest": {
                 Chest chest = (Chest) obj;
                 ChestData cd = (ChestData) data;
                 return "Taps left: " + chest.getTap_count()
@@ -901,7 +911,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             }
 
             // Tokens
-            case "wood_token": case "wheat_token": case "stone_token": case "fire_token": {
+            case "nail_token": case "slate_token":
+            case "ingot_token": case "relic_token": {
                 TokenData td = (TokenData) data;
                 return "Value: +" + td.getValue() + " " + td.getTokenType();
             }
@@ -909,8 +920,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             // Prince
             case "prince": {
                 PrinceData pd = (PrinceData) data;
-                return "Gen: +" + pd.getResource_1() + " timber, +"
-                    + pd.getResource_2() + " stone, +"
+                return "Gen: +" + pd.getResource_1() + " food, +"
+                    + pd.getResource_2() + " wood, +"
                     + pd.getResource_3() + " iron";
             }
 
@@ -927,16 +938,20 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         switch (obj.getType()) {
             // Units: show dismiss XP
-            case "archer": case "farmer": case "spearman":
-            case "griffin": case "eldergriffin": case "monk": case "swordsman": {
+            case "villager": case "woodsman": case "cook": case "prospector":
+            case "mercenary": case "carpenter": case "knight": case "hunter":
+            case "archer": case "blacksmith": case "bulwark": case "monk":
+            case "paladin": case "griffin": case "wyvern": case "dragon":
+            case "phoenix": {
                 UnitData ud = (UnitData) data;
                 return "Dismiss XP: " + ud.getXP_Rate()
                     + " | Provokes: " + capitalize(ud.getNemesis());
             }
 
             // Facilities: show build cost for upgrade reference
-            case "archeryrange": case "farmhouse": case "barracks":
-            case "griffinnest": case "monastery": {
+            case "homestead": case "lodge": case "tavernboard":
+            case "barracks": case "archeryrange": case "forge":
+            case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData fd = (FacilityData) data;
                 if (fd.getBuildCost1() + fd.getBuildCost2()
                     + fd.getBuildCost3() + fd.getBuildCost4() == 0) {
@@ -945,12 +960,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 StringBuilder sb = new StringBuilder("Built with: ");
                 boolean first = true;
                 if (fd.getBuildCost1() > 0) {
-                    sb.append(fd.getBuildCost1()).append(" timber");
+                    sb.append(fd.getBuildCost1()).append(" food");
                     first = false;
                 }
                 if (fd.getBuildCost2() > 0) {
                     if (!first) sb.append(", ");
-                    sb.append(fd.getBuildCost2()).append(" stone");
+                    sb.append(fd.getBuildCost2()).append(" wood");
                     first = false;
                 }
                 if (fd.getBuildCost3() > 0) {

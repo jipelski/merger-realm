@@ -32,11 +32,12 @@ public class PrinceLevelConfig {
     // Maps level → facility type that unlocks
     private static final Map<Integer, String> FACILITY_UNLOCKS = new HashMap<>();
     static {
-        FACILITY_UNLOCKS.put(1,  "archeryrange");
-        FACILITY_UNLOCKS.put(3,  "sawmill");
-        FACILITY_UNLOCKS.put(6,  "farmhouse");
-        FACILITY_UNLOCKS.put(9,  "quarry");
-        FACILITY_UNLOCKS.put(12, "barracks");
+        FACILITY_UNLOCKS.put(1,  "homestead");
+        FACILITY_UNLOCKS.put(3,  "lodge");
+        FACILITY_UNLOCKS.put(4,  "tavernboard");
+        FACILITY_UNLOCKS.put(6,  "barracks");
+        FACILITY_UNLOCKS.put(9,  "archeryrange");
+        FACILITY_UNLOCKS.put(12, "blacksmith");
         FACILITY_UNLOCKS.put(15, "ironmine");
         FACILITY_UNLOCKS.put(20, "griffinnest");
         FACILITY_UNLOCKS.put(25, "monastery");
@@ -46,14 +47,15 @@ public class PrinceLevelConfig {
     // Maps facility type → chest type that contains the tokens needed to build it
     private static final Map<String, String> UNLOCK_REWARD_CHEST = new HashMap<>();
     static {
-        UNLOCK_REWARD_CHEST.put("archeryrange", "woodchest");
-        UNLOCK_REWARD_CHEST.put("sawmill",      "woodchest");
-        UNLOCK_REWARD_CHEST.put("farmhouse",    "wheatchest");
-        UNLOCK_REWARD_CHEST.put("quarry",       "stonechest");
-        UNLOCK_REWARD_CHEST.put("barracks",     "stonechest");
-        UNLOCK_REWARD_CHEST.put("ironmine",     "firechest");
-        UNLOCK_REWARD_CHEST.put("griffinnest",  "woodchest");
-        UNLOCK_REWARD_CHEST.put("monastery",    "firechest");
+
+        UNLOCK_REWARD_CHEST.put("homestead", "nail_chest");
+        UNLOCK_REWARD_CHEST.put("lodge",      "nail_chest");
+        UNLOCK_REWARD_CHEST.put("tavernboard",    "slate_chest");
+        UNLOCK_REWARD_CHEST.put("barracks",       "ingot_chest");
+        UNLOCK_REWARD_CHEST.put("archeryrange",     "ingot_chest");
+        UNLOCK_REWARD_CHEST.put("ironmine",     "relic_chest");
+        UNLOCK_REWARD_CHEST.put("griffinnest",  "nail_chest");
+        UNLOCK_REWARD_CHEST.put("monastery",    "relic_chest");
     }
 
     // ── XP scaling ──

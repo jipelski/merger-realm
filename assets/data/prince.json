@@ -1,328 +1,40 @@
 {
   "prince": [
-    {
-      "level": 1,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 2,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 3,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 4,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 5,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 6,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    },
-    {
-      "level": 7,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 8,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 9,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 10,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 11,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 12,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    },
-    {
-      "level": 13,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 14,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 15,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 16,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 17,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 18,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    },
-    {
-      "level": 19,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 20,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 21,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 22,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 23,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 24,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    },
-    {
-      "level": 25,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 26,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 27,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 28,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 29,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 30,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    },
-    {
-      "level": 31,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 0,
-      "resource_3" : 0
-    },
-    {
-      "level": 32,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 0
-    },
-    {
-      "level": 33,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 8,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 34,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 6,
-      "resource_3" : 4
-    },
-    {
-      "level": 35,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 4
-    },
-    {
-      "level": 36,
-      "sprite_path": "/pathPrince1",
-      "description": "Someone left these here",
-      "maxLVL": 6,
-      "resource_1" : 16,
-      "resource_2" : 12,
-      "resource_3" : 8
-    }
+    {"level":1,"sprite_path":"prince_1","description":"A young ruler","maxLVL":50,"resource_1":8,"resource_2":0,"resource_3":0},
+    {"level":2,"sprite_path":"prince_2","description":"Learning to lead","maxLVL":50,"resource_1":8,"resource_2":6,"resource_3":0},
+    {"level":3,"sprite_path":"prince_3","description":"Growing confident","maxLVL":50,"resource_1":8,"resource_2":6,"resource_3":4},
+    {"level":4,"sprite_path":"prince_4","description":"Respected by his people","maxLVL":50,"resource_1":16,"resource_2":6,"resource_3":4},
+    {"level":5,"sprite_path":"prince_5","description":"A born commander","maxLVL":50,"resource_1":16,"resource_2":12,"resource_3":4},
+    {"level":6,"sprite_path":"prince_6","description":"Expanding the realm","maxLVL":50,"resource_1":16,"resource_2":12,"resource_3":8},
+    {"level":7,"sprite_path":"prince_7","description":"Wisdom beyond his years","maxLVL":50,"resource_1":24,"resource_2":12,"resource_3":8},
+    {"level":8,"sprite_path":"prince_8","description":"The people prosper","maxLVL":50,"resource_1":24,"resource_2":18,"resource_3":8},
+    {"level":9,"sprite_path":"prince_9","description":"Feared by enemies","maxLVL":50,"resource_1":24,"resource_2":18,"resource_3":12},
+    {"level":10,"sprite_path":"prince_10","description":"A decade of rule","maxLVL":50,"resource_1":32,"resource_2":18,"resource_3":12},
+    {"level":11,"sprite_path":"prince_11","description":"Building an empire","maxLVL":50,"resource_1":32,"resource_2":24,"resource_3":12},
+    {"level":12,"sprite_path":"prince_12","description":"The kingdom flourishes","maxLVL":50,"resource_1":32,"resource_2":24,"resource_3":16},
+    {"level":13,"sprite_path":"prince_13","description":"Diplomatic mastery","maxLVL":50,"resource_1":40,"resource_2":24,"resource_3":16},
+    {"level":14,"sprite_path":"prince_14","description":"Trade routes established","maxLVL":50,"resource_1":40,"resource_2":30,"resource_3":16},
+    {"level":15,"sprite_path":"prince_15","description":"Forge alliance sealed","maxLVL":50,"resource_1":40,"resource_2":30,"resource_3":20},
+    {"level":16,"sprite_path":"prince_16","description":"Military reforms enacted","maxLVL":50,"resource_1":48,"resource_2":30,"resource_3":20},
+    {"level":17,"sprite_path":"prince_17","description":"Borders well defended","maxLVL":50,"resource_1":48,"resource_2":36,"resource_3":20},
+    {"level":18,"sprite_path":"prince_18","description":"Golden age begins","maxLVL":50,"resource_1":48,"resource_2":36,"resource_3":24},
+    {"level":19,"sprite_path":"prince_19","description":"Scholars flock to the court","maxLVL":50,"resource_1":56,"resource_2":36,"resource_3":24},
+    {"level":20,"sprite_path":"prince_20","description":"Griffin riders answer the call","maxLVL":50,"resource_1":56,"resource_2":42,"resource_3":24},
+    {"level":21,"sprite_path":"prince_21","description":"Legends speak his name","maxLVL":50,"resource_1":56,"resource_2":42,"resource_3":28},
+    {"level":22,"sprite_path":"prince_22","description":"The realm expands","maxLVL":50,"resource_1":64,"resource_2":42,"resource_3":28},
+    {"level":23,"sprite_path":"prince_23","description":"Ancient alliances forged","maxLVL":50,"resource_1":64,"resource_2":48,"resource_3":28},
+    {"level":24,"sprite_path":"prince_24","description":"The people celebrate","maxLVL":50,"resource_1":64,"resource_2":48,"resource_3":32},
+    {"level":25,"sprite_path":"prince_25","description":"Monastery blessed the throne","maxLVL":50,"resource_1":72,"resource_2":48,"resource_3":32},
+    {"level":26,"sprite_path":"prince_26","description":"Master strategist","maxLVL":50,"resource_1":72,"resource_2":54,"resource_3":32},
+    {"level":27,"sprite_path":"prince_27","description":"Unstoppable momentum","maxLVL":50,"resource_1":72,"resource_2":54,"resource_3":36},
+    {"level":28,"sprite_path":"prince_28","description":"Enemies bow before him","maxLVL":50,"resource_1":80,"resource_2":54,"resource_3":36},
+    {"level":29,"sprite_path":"prince_29","description":"Continental dominion","maxLVL":50,"resource_1":80,"resource_2":60,"resource_3":36},
+    {"level":30,"sprite_path":"prince_30","description":"Dragons kneel to him","maxLVL":50,"resource_1":80,"resource_2":60,"resource_3":40},
+    {"level":31,"sprite_path":"prince_31","description":"Immortalized in song","maxLVL":50,"resource_1":88,"resource_2":60,"resource_3":40},
+    {"level":32,"sprite_path":"prince_32","description":"His shadow covers the world","maxLVL":50,"resource_1":88,"resource_2":66,"resource_3":40},
+    {"level":33,"sprite_path":"prince_33","description":"The eternal king","maxLVL":50,"resource_1":88,"resource_2":66,"resource_3":44},
+    {"level":34,"sprite_path":"prince_34","description":"Beyond mortal ambition","maxLVL":50,"resource_1":96,"resource_2":66,"resource_3":44},
+    {"level":35,"sprite_path":"prince_35","description":"Ascended ruler","maxLVL":50,"resource_1":96,"resource_2":72,"resource_3":44},
+    {"level":36,"sprite_path":"prince_36","description":"Divine sovereign","maxLVL":50,"resource_1":96,"resource_2":72,"resource_3":48}
   ]
 }
