@@ -27,6 +27,7 @@ import com.jipelski.mergerrealm.input.GridInputHandler;
 import com.jipelski.mergerrealm.model.Chest;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Monster;
+import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
@@ -181,6 +182,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     // ══════════════════════════════════════════════════════════════
 
     private void processOfflineProgress() {
+
+        Gdx.app.log(TAG, "offline progress");
         int[] savedTimestamp = jsonManager.loadArray(TIMESTAMP_KEY);
         if (savedTimestamp == null || savedTimestamp.length < 2) return;
 
@@ -206,6 +209,54 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int foodGained = rm.getAmount("food") - foodBefore;
         int woodGained = rm.getAmount("wood") - woodBefore;
         int ironGained = rm.getAmount("iron") - ironBefore;
+
+        int periodicSpawned = 0;
+        int periodicHeld = 0;
+        for (GameObject obj : eventManager.getGRID_OBJECT_MANAGER().getObjectMap().values()) {
+            if (!eventManager.isPeriodicFacility(obj.getType())) continue;
+
+            Facility facility = (Facility) obj;
+            FacilityData data = (FacilityData) eventManager.getGameDataLoader()
+                .getGameData(facility.getType(), facility.getLvl());
+            if (data == null || data.getTimeCost() <= 0) continue;
+
+            // How many spawns would have happened offline?
+            int offlineSpawns = (int)(cappedSeconds / data.getTimeCost());
+            if (offlineSpawns <= 0) continue;
+
+            GameDataLoader gdl = eventManager.getGameDataLoader();
+
+            for (int i = 0; i < offlineSpawns; i++) {
+                String[] unitString = facility.spawn(
+                    gdl.getSpawnConfiguration(
+                        facility.getType() + "_" + facility.getLvl()));
+                if (unitString == null) continue;
+
+                String unitType = unitString[0];
+                int unitLevel = Integer.parseInt(unitString[1]);
+
+                // Try adjacent cell first
+                int[] adjacent = eventManager.getAdjacentEmptyCell(
+                    facility.getxPos(), facility.getyPos());
+                if (adjacent != null) {
+                    eventManager.spawnObject(unitType, unitLevel,
+                        adjacent[0], adjacent[1]);
+                    periodicSpawned++;
+                } else if (facility.getHeldCount() < facility.getHoldCapacity()) {
+                    // Store internally
+                    facility.addHeldUnit(unitType, unitLevel);
+                    periodicHeld++;
+                } else {
+                    // Both full — stop spawning for this facility
+                    break;
+                }
+            }
+        }
+
+        if (periodicSpawned + periodicHeld > 0) {
+            Gdx.app.log(TAG, "Offline periodic: " + periodicSpawned
+                + " spawned, " + periodicHeld + " held");
+        }
 
         // Show popup instead of timed message
         offlinePopup.show(cappedSeconds, foodGained, woodGained, ironGained);
@@ -249,6 +300,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible()) {
             inputHandler.update(delta);
+            eventManager.updatePeriodicFacilities(delta);
+            Gdx.app.log(TAG, "delta " + delta);
 
             tickTimer += delta;
             if (tickTimer >= TICK_INTERVAL) {
@@ -868,6 +921,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "barracks": case "archeryrange": case "forge":
             case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData fd = (FacilityData) data;
+
+                // Periodic facilities show timer + held count
+                if (fd.getTimeCost() > 0) {
+                    Facility f = (Facility) obj;
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Spawns every ").append(fd.getTimeCost()).append("s");
+                    if (f.getHoldCapacity() > 0) {
+                        sb.append(" | Held: ").append(f.getHeldCount())
+                            .append("/").append(f.getHoldCapacity());
+                    }
+                    return sb.toString();
+                }
+
                 StringBuilder sb = new StringBuilder("Cost: ");
                 boolean first = true;
                 if (fd.getTapCost1() > 0) {

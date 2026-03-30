@@ -22,8 +22,10 @@ import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -37,6 +39,10 @@ public class EventManager {
         "carpenter", "knight", "hunter", "archer", "blacksmith",
         "bulwark", "monk", "paladin", "griffin", "wyvern",
         "dragon", "phoenix"
+    ));
+
+    private static final Set<String> PERIODIC_FACILITIES = new HashSet<>(Arrays.asList(
+        "tavernboard", "griffinnest", "dragonslair"
     ));
 
     private final Grid               gridInstance;
@@ -133,11 +139,11 @@ public class EventManager {
             spawnObject("prince", 1, 0, 0);
 
             // Starting archery range (only facility unlocked at level 1)
-            spawnObject("archeryrange", 1, 1, 0);
+            spawnObject("homestead", 1, 1, 0);
 
             // Two starting archers so the player can immediately merge
-            spawnObject("archer", 7, 0, 1);
-            spawnObject("archer", 7, 1, 1);
+            spawnObject("villager", 7, 0, 1);
+            spawnObject("woodsman", 7, 1, 1);
             ///*
             spawnObject("archer", 6, 2, 1);
             spawnObject("archer", 6, 1, 2);
@@ -550,25 +556,46 @@ public class EventManager {
             return;
         }
 
-        // ── Unit dropped on its nemesis → combat ──
+        // ── Unit dropped on monster → HP-based combat ──
         if (UNIT_TYPES.contains(originGO.getType()) && isMonster(targetGO.getType())) {
             Unit originUnit = (Unit) originGO;
 
-            if (originUnit.getDamage() <= 0) {
-                // No attack power — just swap positions
-                Gdx.app.log(TAG, originUnit.getType() + " has no damage — swapping instead");
+            if (originUnit.getDamage() <= 0 || !originUnit.isAlive()) {
+                // No attack power or dead — just swap positions
+                Gdx.app.log(TAG, originUnit.getType() + " can't fight — swapping instead");
                 swapPositions(originGO, targetGO, originId, targetId);
                 return;
             }
 
             Monster monster = (Monster) targetGO;
-            if (monster.reduceHp(originUnit.getDamage())) {
+
+            // Unit attacks monster
+            boolean monsterDied = monster.reduceHp(originUnit.getDamage());
+
+            // Monster attacks unit back (only if monster survived)
+            if (!monsterDied) {
+                int monsterDmg = monster.getDamage();
+                boolean unitDied = originUnit.takeDamage(monsterDmg);
+
+                Gdx.app.log(TAG, originUnit.getType() + " hit " + monster.getType()
+                    + " for " + originUnit.getDamage() + " (monster HP: " + monster.getHp() + ")"
+                    + " | " + monster.getType() + " hit back for " + monsterDmg
+                    + " (unit HP: " + originUnit.getHp() + "/" + originUnit.getMax_hp() + ")");
+
+                if (unitDied) {
+                    BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2);
+                    removeObject(originId);
+                    Gdx.app.log(TAG, originUnit.getType() + " died in combat");
+                }
+                // If unit survived → it stays on its origin cell (snap back automatically)
+            } else {
+                // Monster died — award XP and remove monster
+                BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2);
                 removeObject(targetId);
+                Gdx.app.log(TAG, monster.getType() + " defeated by " + originUnit.getType()
+                    + "! (unit HP: " + originUnit.getHp() + "/" + originUnit.getMax_hp() + ")");
             }
-            removeObject(originId);
-            BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2); // Only half the xp for units lost in battle
-            Gdx.app.log(TAG, originUnit.getType() + " attacked " + monster.getType()
-                + " for " + originUnit.getDamage() + " dmg — hp remaining: " + monster.getHp());
+
             return;
         }
 
@@ -674,6 +701,145 @@ public class EventManager {
                 break;
             }
         }
+    }
+
+    /**
+     * Called every frame. Updates timers on all periodic facilities.
+     */
+    public void updatePeriodicFacilities(float delta) {
+        List<Facility> periodicList = new ArrayList<>();
+        for (GameObject obj : GRID_OBJECT_MANAGER.getObjectMap().values()) {
+            if (PERIODIC_FACILITIES.contains(obj.getType())) {
+                periodicList.add((Facility) obj);
+            }
+        }
+
+        Gdx.app.log(TAG, "EventManager updating periodic facilities " + delta);
+        for (Facility facility : periodicList) {
+            FacilityData data = (FacilityData) GDLInstance.getGameData(
+                facility.getType(), facility.getLvl());
+            if (data == null || data.getTimeCost() <= 0)
+            {
+                Gdx.app.log(TAG, "EventManager data is null.");
+                continue;
+            }
+
+
+            Gdx.app.log(TAG, "EventManager delta" + delta);
+            facility.addSpawnTime(delta);
+
+
+            Gdx.app.log(TAG, "EventManager getSpawnTimer()" + facility.getSpawnTimer());
+
+            if (facility.getSpawnTimer() >= data.getTimeCost()) {
+                facility.resetSpawnTimer();
+                periodicSpawn(facility);
+            }
+        }
+
+        Gdx.app.log(TAG, "EventManager forloop done, no more facilties to update");
+    }
+
+    /**
+     * Spawns a unit from a periodic facility.
+     * Tries adjacent cells first, then stores internally if capacity allows.
+     */
+    private void periodicSpawn(Facility facility) {
+        // Roll what unit to spawn
+        String[] unitString = facility.spawn(
+            GDLInstance.getSpawnConfiguration(
+                facility.getType() + "_" + facility.getLvl()));
+        if (unitString == null) return;
+
+        String unitType = unitString[0];
+        int unitLevel = Integer.parseInt(unitString[1]);
+
+        // Try to spawn on an adjacent empty cell
+        int[] adjacent = getAdjacentEmptyCell(facility.getxPos(), facility.getyPos());
+        if (adjacent != null) {
+            spawnObject(unitType, unitLevel, adjacent[0], adjacent[1]);
+            Gdx.app.log(TAG, "Periodic spawn: " + unitType + " at ["
+                + adjacent[0] + "," + adjacent[1] + "] from " + facility.getType());
+            return;
+        }
+
+        // No adjacent space — try to hold internally
+        if (facility.getHeldCount() < facility.getHoldCapacity()) {
+            facility.addHeldUnit(unitType, unitLevel);
+            Gdx.app.log(TAG, "Periodic hold: " + unitType
+                + " stored in " + facility.getType()
+                + " (" + facility.getHeldCount() + "/" + facility.getHoldCapacity() + ")");
+        } else {
+            Gdx.app.log(TAG, "Periodic spawn blocked: " + facility.getType()
+                + " — no adjacent space and hold full ("
+                + facility.getHeldCount() + "/" + facility.getHoldCapacity() + ")");
+        }
+    }
+
+    /**
+     * Releases one held unit from a periodic facility to an adjacent empty cell.
+     * Returns true if a unit was released.
+     */
+    public boolean releaseHeldUnit(String facilityId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(facilityId);
+        if (obj == null || !PERIODIC_FACILITIES.contains(obj.getType())) return false;
+
+        Facility facility = (Facility) obj;
+        if (facility.getHeldCount() <= 0) return false;
+
+        int[] adjacent = getAdjacentEmptyCell(facility.getxPos(), facility.getyPos());
+        if (adjacent == null) {
+            // No adjacent space — try any empty cell on grid
+            if (!gridInstance.hasEmptyCell()) {
+                Gdx.app.log(TAG, "releaseHeldUnit: no space anywhere");
+                return false;
+            }
+            adjacent = gridInstance.getClosestEmptyCell(facility.getxPos(), facility.getyPos());
+            if (adjacent == null) return false;
+        }
+
+        String[] held = facility.removeHeldUnit();
+        if (held == null) return false;
+
+        spawnObject(held[0], Integer.parseInt(held[1]), adjacent[0], adjacent[1]);
+        Gdx.app.log(TAG, "Released held " + held[0] + " from " + facility.getType()
+            + " to [" + adjacent[0] + "," + adjacent[1] + "]"
+            + " (" + facility.getHeldCount() + " remaining)");
+        return true;
+    }
+
+    /**
+     * Returns an empty cell adjacent to (x, y), or null if none available.
+     * Checks all 8 neighbors in random order to avoid bias.
+     */
+    public int[] getAdjacentEmptyCell(int cx, int cy) {
+        int[][] offsets = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+
+        // Shuffle offsets for variety
+        for (int i = offsets.length - 1; i > 0; i--) {
+            int j = (int)(Math.random() * (i + 1));
+            int[] temp = offsets[i];
+            offsets[i] = offsets[j];
+            offsets[j] = temp;
+        }
+
+        for (int[] off : offsets) {
+            int nx = cx + off[0];
+            int ny = cy + off[1];
+            if (nx < 0 || nx >= gridInstance.getWidth()) continue;
+            if (ny < 0 || ny >= gridInstance.getHeight()) continue;
+            if (gridInstance.getCell(nx, ny).isEmpty()) {
+                return new int[]{nx, ny};
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if this is a periodic (timer-based) facility.
+     */
+    public boolean isPeriodicFacility(String type) {
+        return PERIODIC_FACILITIES.contains(type);
     }
 
     /**

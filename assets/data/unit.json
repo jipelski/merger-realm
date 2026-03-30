@@ -1,140 +1,140 @@
 {
   "villager": [
-    {"level":1,"sprite_path":"villager_1","description":"A lost rag","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":2,"sprite_path":"villager_2","description":"Someone's belongings","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":3,"sprite_path":"villager_3","description":"Fresh off the road","maxLVL":7,"resource":"food","gen_rate":2,"damage":5,"xp":15,"nemesis":"gremlin","nemesis_rate":1},
-    {"level":4,"sprite_path":"villager_4","description":"Knows where the berries grow","maxLVL":7,"resource":"food","gen_rate":3,"damage":10,"xp":30,"nemesis":"gremlin","nemesis_rate":2},
-    {"level":5,"sprite_path":"villager_5","description":"Can feed a small family","maxLVL":7,"resource":"food","gen_rate":5,"damage":16,"xp":50,"nemesis":"gremlin","nemesis_rate":3},
-    {"level":6,"sprite_path":"villager_6","description":"The village elder trusts him","maxLVL":7,"resource":"food","gen_rate":7,"damage":24,"xp":75,"nemesis":"gremlin","nemesis_rate":4},
-    {"level":7,"sprite_path":"villager_7","description":"Heart of the community (Max level)","maxLVL":7,"resource":"food","gen_rate":9,"damage":35,"xp":100,"nemesis":"gremlin","nemesis_rate":5}
+    {"level":1,"sprite_path":"villager_1","description":"A lost rag","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":2,"sprite_path":"villager_2","description":"Someone's belongings","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":3,"sprite_path":"villager_3","description":"Fresh off the road","maxLVL":7,"resource":"food","gen_rate":2,"damage":5,"hp":30,"xp":15,"nemesis":"gremlin","nemesis_rate":1},
+    {"level":4,"sprite_path":"villager_4","description":"Knows where the berries grow","maxLVL":7,"resource":"food","gen_rate":3,"damage":10,"hp":45,"xp":30,"nemesis":"gremlin","nemesis_rate":2},
+    {"level":5,"sprite_path":"villager_5","description":"Can feed a small family","maxLVL":7,"resource":"food","gen_rate":5,"damage":16,"hp":65,"xp":50,"nemesis":"gremlin","nemesis_rate":3},
+    {"level":6,"sprite_path":"villager_6","description":"The village elder trusts him","maxLVL":7,"resource":"food","gen_rate":7,"damage":24,"hp":90,"xp":75,"nemesis":"gremlin","nemesis_rate":4},
+    {"level":7,"sprite_path":"villager_7","description":"Heart of the community (Max level)","maxLVL":7,"resource":"food","gen_rate":9,"damage":35,"hp":120,"xp":100,"nemesis":"gremlin","nemesis_rate":5}
   ],
   "woodsman": [
-    {"level":1,"sprite_path":"woodsman_1","description":"A dry twig","maxLVL":7,"resource":"wood","gen_rate":0,"damage":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":2,"sprite_path":"woodsman_2","description":"A sturdy branch","maxLVL":7,"resource":"wood","gen_rate":0,"damage":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":3,"sprite_path":"woodsman_3","description":"Smells like pine sap","maxLVL":7,"resource":"wood","gen_rate":2,"damage":5,"xp":15,"nemesis":"gremlin","nemesis_rate":1},
-    {"level":4,"sprite_path":"woodsman_4","description":"Can fell a tree before lunch","maxLVL":7,"resource":"wood","gen_rate":3,"damage":10,"xp":30,"nemesis":"gremlin","nemesis_rate":2},
-    {"level":5,"sprite_path":"woodsman_5","description":"The forest knows his name","maxLVL":7,"resource":"wood","gen_rate":5,"damage":16,"xp":50,"nemesis":"gremlin","nemesis_rate":3},
-    {"level":6,"sprite_path":"woodsman_6","description":"Axes are his best friends","maxLVL":7,"resource":"wood","gen_rate":7,"damage":24,"xp":75,"nemesis":"gremlin","nemesis_rate":4},
-    {"level":7,"sprite_path":"woodsman_7","description":"Master of the timberlands (Max level)","maxLVL":7,"resource":"wood","gen_rate":9,"damage":35,"xp":100,"nemesis":"gremlin","nemesis_rate":5}
+    {"level":1,"sprite_path":"woodsman_1","description":"A dry twig","maxLVL":7,"resource":"wood","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":2,"sprite_path":"woodsman_2","description":"A sturdy branch","maxLVL":7,"resource":"wood","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":3,"sprite_path":"woodsman_3","description":"Smells like pine sap","maxLVL":7,"resource":"wood","gen_rate":2,"damage":5,"hp":30,"xp":15,"nemesis":"gremlin","nemesis_rate":1},
+    {"level":4,"sprite_path":"woodsman_4","description":"Can fell a tree before lunch","maxLVL":7,"resource":"wood","gen_rate":3,"damage":10,"hp":45,"xp":30,"nemesis":"gremlin","nemesis_rate":2},
+    {"level":5,"sprite_path":"woodsman_5","description":"The forest knows his name","maxLVL":7,"resource":"wood","gen_rate":5,"damage":16,"hp":65,"xp":50,"nemesis":"gremlin","nemesis_rate":3},
+    {"level":6,"sprite_path":"woodsman_6","description":"Axes are his best friends","maxLVL":7,"resource":"wood","gen_rate":7,"damage":24,"hp":90,"xp":75,"nemesis":"gremlin","nemesis_rate":4},
+    {"level":7,"sprite_path":"woodsman_7","description":"Master of the timberlands (Max level)","maxLVL":7,"resource":"wood","gen_rate":9,"damage":35,"hp":120,"xp":100,"nemesis":"gremlin","nemesis_rate":5}
   ],
   "cook": [
-    {"level":1,"sprite_path":"cook_1","description":"A wild herb","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":2,"sprite_path":"cook_2","description":"A bundle of spices","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":3,"sprite_path":"cook_3","description":"Burns water occasionally","maxLVL":6,"resource":"food","gen_rate":4,"damage":0,"xp":20,"nemesis":"gremlin","nemesis_rate":1},
-    {"level":4,"sprite_path":"cook_4","description":"The stew is actually edible","maxLVL":6,"resource":"food","gen_rate":6,"damage":0,"xp":40,"nemesis":"gremlin","nemesis_rate":2},
-    {"level":5,"sprite_path":"cook_5","description":"Royal kitchen material","maxLVL":6,"resource":"food","gen_rate":9,"damage":0,"xp":65,"nemesis":"gremlin","nemesis_rate":3},
-    {"level":6,"sprite_path":"cook_6","description":"Feasts fit for a king (Max level)","maxLVL":6,"resource":"food","gen_rate":12,"damage":0,"xp":90,"nemesis":"gremlin","nemesis_rate":4}
+    {"level":1,"sprite_path":"cook_1","description":"A wild herb","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":2,"sprite_path":"cook_2","description":"A bundle of spices","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":3,"sprite_path":"cook_3","description":"Burns water occasionally","maxLVL":6,"resource":"food","gen_rate":4,"damage":0,"hp":15,"xp":20,"nemesis":"gremlin","nemesis_rate":1},
+    {"level":4,"sprite_path":"cook_4","description":"The stew is actually edible","maxLVL":6,"resource":"food","gen_rate":6,"damage":0,"hp":22,"xp":40,"nemesis":"gremlin","nemesis_rate":2},
+    {"level":5,"sprite_path":"cook_5","description":"Royal kitchen material","maxLVL":6,"resource":"food","gen_rate":9,"damage":0,"hp":30,"xp":65,"nemesis":"gremlin","nemesis_rate":3},
+    {"level":6,"sprite_path":"cook_6","description":"Feasts fit for a king (Max level)","maxLVL":6,"resource":"food","gen_rate":12,"damage":0,"hp":40,"xp":90,"nemesis":"gremlin","nemesis_rate":4}
   ],
   "prospector": [
-    {"level":1,"sprite_path":"prospector_1","description":"A shiny pebble","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
-    {"level":2,"sprite_path":"prospector_2","description":"A nugget of something","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
-    {"level":3,"sprite_path":"prospector_3","description":"Knows iron from rust","maxLVL":6,"resource":"iron","gen_rate":2,"damage":12,"xp":25,"nemesis":"troll","nemesis_rate":1},
-    {"level":4,"sprite_path":"prospector_4","description":"Strikes ore like clockwork","maxLVL":6,"resource":"iron","gen_rate":3,"damage":22,"xp":50,"nemesis":"troll","nemesis_rate":2},
-    {"level":5,"sprite_path":"prospector_5","description":"Can smell iron underground","maxLVL":6,"resource":"iron","gen_rate":5,"damage":35,"xp":80,"nemesis":"troll","nemesis_rate":3},
-    {"level":6,"sprite_path":"prospector_6","description":"The mountain yields to him (Max level)","maxLVL":6,"resource":"iron","gen_rate":7,"damage":55,"xp":120,"nemesis":"troll","nemesis_rate":4}
+    {"level":1,"sprite_path":"prospector_1","description":"A shiny pebble","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
+    {"level":2,"sprite_path":"prospector_2","description":"A nugget of something","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
+    {"level":3,"sprite_path":"prospector_3","description":"Knows iron from rust","maxLVL":6,"resource":"iron","gen_rate":2,"damage":12,"hp":35,"xp":25,"nemesis":"troll","nemesis_rate":1},
+    {"level":4,"sprite_path":"prospector_4","description":"Strikes ore like clockwork","maxLVL":6,"resource":"iron","gen_rate":3,"damage":22,"hp":55,"xp":50,"nemesis":"troll","nemesis_rate":2},
+    {"level":5,"sprite_path":"prospector_5","description":"Can smell iron underground","maxLVL":6,"resource":"iron","gen_rate":5,"damage":35,"hp":80,"xp":80,"nemesis":"troll","nemesis_rate":3},
+    {"level":6,"sprite_path":"prospector_6","description":"The mountain yields to him (Max level)","maxLVL":6,"resource":"iron","gen_rate":7,"damage":55,"hp":110,"xp":120,"nemesis":"troll","nemesis_rate":4}
   ],
   "mercenary": [
-    {"level":1,"sprite_path":"mercenary_1","description":"A crumpled contract","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
-    {"level":2,"sprite_path":"mercenary_2","description":"Fights for coin, not glory","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":18,"xp":30,"nemesis":"gremlin","nemesis_rate":1},
-    {"level":3,"sprite_path":"mercenary_3","description":"Scars tell his story","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":40,"xp":70,"nemesis":"gremlin","nemesis_rate":2},
-    {"level":4,"sprite_path":"mercenary_4","description":"Worth every coin","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":75,"xp":140,"nemesis":"gremlin","nemesis_rate":3},
-    {"level":5,"sprite_path":"mercenary_5","description":"Legendary blade for hire (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":120,"xp":220,"nemesis":"gremlin","nemesis_rate":4}
+    {"level":1,"sprite_path":"mercenary_1","description":"A crumpled contract","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"gremlin","nemesis_rate":0},
+    {"level":2,"sprite_path":"mercenary_2","description":"Fights for coin, not glory","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":18,"hp":50,"xp":30,"nemesis":"gremlin","nemesis_rate":1},
+    {"level":3,"sprite_path":"mercenary_3","description":"Scars tell his story","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":40,"hp":75,"xp":70,"nemesis":"gremlin","nemesis_rate":2},
+    {"level":4,"sprite_path":"mercenary_4","description":"Worth every coin","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":75,"hp":110,"xp":140,"nemesis":"gremlin","nemesis_rate":3},
+    {"level":5,"sprite_path":"mercenary_5","description":"Legendary blade for hire (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":120,"hp":150,"xp":220,"nemesis":"gremlin","nemesis_rate":4}
   ],
   "carpenter": [
-    {"level":1,"sprite_path":"carpenter_1","description":"A wood splinter","maxLVL":6,"resource":"wood","gen_rate":0,"damage":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
-    {"level":2,"sprite_path":"carpenter_2","description":"A rough-cut board","maxLVL":6,"resource":"wood","gen_rate":0,"damage":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
-    {"level":3,"sprite_path":"carpenter_3","description":"Measures twice, cuts once","maxLVL":6,"resource":"wood","gen_rate":4,"damage":0,"xp":30,"nemesis":"troll","nemesis_rate":1},
-    {"level":4,"sprite_path":"carpenter_4","description":"Every joint is perfect","maxLVL":6,"resource":"wood","gen_rate":6,"damage":0,"xp":60,"nemesis":"troll","nemesis_rate":2},
-    {"level":5,"sprite_path":"carpenter_5","description":"Built half the castle","maxLVL":6,"resource":"wood","gen_rate":9,"damage":0,"xp":100,"nemesis":"troll","nemesis_rate":3},
-    {"level":6,"sprite_path":"carpenter_6","description":"Master craftsman (Max level)","maxLVL":6,"resource":"wood","gen_rate":12,"damage":0,"xp":150,"nemesis":"troll","nemesis_rate":4}
+    {"level":1,"sprite_path":"carpenter_1","description":"A wood splinter","maxLVL":6,"resource":"wood","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
+    {"level":2,"sprite_path":"carpenter_2","description":"A rough-cut board","maxLVL":6,"resource":"wood","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
+    {"level":3,"sprite_path":"carpenter_3","description":"Measures twice, cuts once","maxLVL":6,"resource":"wood","gen_rate":4,"damage":0,"hp":15,"xp":30,"nemesis":"troll","nemesis_rate":1},
+    {"level":4,"sprite_path":"carpenter_4","description":"Every joint is perfect","maxLVL":6,"resource":"wood","gen_rate":6,"damage":0,"hp":22,"xp":60,"nemesis":"troll","nemesis_rate":2},
+    {"level":5,"sprite_path":"carpenter_5","description":"Built half the castle","maxLVL":6,"resource":"wood","gen_rate":9,"damage":0,"hp":30,"xp":100,"nemesis":"troll","nemesis_rate":3},
+    {"level":6,"sprite_path":"carpenter_6","description":"Master craftsman (Max level)","maxLVL":6,"resource":"wood","gen_rate":12,"damage":0,"hp":40,"xp":150,"nemesis":"troll","nemesis_rate":4}
   ],
   "knight": [
-    {"level":1,"sprite_path":"knight_1","description":"A young page","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
-    {"level":2,"sprite_path":"knight_2","description":"A squire in training","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
-    {"level":3,"sprite_path":"knight_3","description":"Fresh from the ceremony","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":30,"xp":40,"nemesis":"orc","nemesis_rate":1},
-    {"level":4,"sprite_path":"knight_4","description":"Shield never leaves his side","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":65,"xp":80,"nemesis":"orc","nemesis_rate":2},
-    {"level":5,"sprite_path":"knight_5","description":"Won three tournaments","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":120,"xp":140,"nemesis":"orc","nemesis_rate":3},
-    {"level":6,"sprite_path":"knight_6","description":"The king's champion","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":200,"xp":220,"nemesis":"orc","nemesis_rate":4},
-    {"level":7,"sprite_path":"knight_7","description":"A legend in steel (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":320,"xp":350,"nemesis":"orc","nemesis_rate":5}
+    {"level":1,"sprite_path":"knight_1","description":"A young page","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
+    {"level":2,"sprite_path":"knight_2","description":"A squire in training","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
+    {"level":3,"sprite_path":"knight_3","description":"Fresh from the ceremony","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":30,"hp":60,"xp":40,"nemesis":"orc","nemesis_rate":1},
+    {"level":4,"sprite_path":"knight_4","description":"Shield never leaves his side","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":65,"hp":100,"xp":80,"nemesis":"orc","nemesis_rate":2},
+    {"level":5,"sprite_path":"knight_5","description":"Won three tournaments","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":120,"hp":160,"xp":140,"nemesis":"orc","nemesis_rate":3},
+    {"level":6,"sprite_path":"knight_6","description":"The king's champion","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":200,"hp":240,"xp":220,"nemesis":"orc","nemesis_rate":4},
+    {"level":7,"sprite_path":"knight_7","description":"A legend in steel (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":320,"hp":350,"xp":350,"nemesis":"orc","nemesis_rate":5}
   ],
   "hunter": [
-    {"level":1,"sprite_path":"hunter_1","description":"A crude trap","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
-    {"level":2,"sprite_path":"hunter_2","description":"A woven snare","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
-    {"level":3,"sprite_path":"hunter_3","description":"Tracks anything that moves","maxLVL":6,"resource":"food","gen_rate":3,"damage":15,"xp":30,"nemesis":"troll","nemesis_rate":1},
-    {"level":4,"sprite_path":"hunter_4","description":"Silent as the forest","maxLVL":6,"resource":"food","gen_rate":4,"damage":28,"xp":55,"nemesis":"troll","nemesis_rate":2},
-    {"level":5,"sprite_path":"hunter_5","description":"Never misses a shot","maxLVL":6,"resource":"food","gen_rate":6,"damage":50,"xp":85,"nemesis":"troll","nemesis_rate":3},
-    {"level":6,"sprite_path":"hunter_6","description":"Apex predator (Max level)","maxLVL":6,"resource":"food","gen_rate":8,"damage":80,"xp":130,"nemesis":"troll","nemesis_rate":4}
+    {"level":1,"sprite_path":"hunter_1","description":"A crude trap","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"troll","nemesis_rate":0},
+    {"level":2,"sprite_path":"hunter_2","description":"A woven snare","maxLVL":6,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"troll","nemesis_rate":0},
+    {"level":3,"sprite_path":"hunter_3","description":"Tracks anything that moves","maxLVL":6,"resource":"food","gen_rate":3,"damage":15,"hp":35,"xp":30,"nemesis":"troll","nemesis_rate":1},
+    {"level":4,"sprite_path":"hunter_4","description":"Silent as the forest","maxLVL":6,"resource":"food","gen_rate":4,"damage":28,"hp":55,"xp":55,"nemesis":"troll","nemesis_rate":2},
+    {"level":5,"sprite_path":"hunter_5","description":"Never misses a shot","maxLVL":6,"resource":"food","gen_rate":6,"damage":50,"hp":80,"xp":85,"nemesis":"troll","nemesis_rate":3},
+    {"level":6,"sprite_path":"hunter_6","description":"Apex predator (Max level)","maxLVL":6,"resource":"food","gen_rate":8,"damage":80,"hp":110,"xp":130,"nemesis":"troll","nemesis_rate":4}
   ],
   "archer": [
-    {"level":1,"sprite_path":"archer_1","description":"A bent arrow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
-    {"level":2,"sprite_path":"archer_2","description":"A short bow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
-    {"level":3,"sprite_path":"archer_3","description":"Can barely hit the target","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":20,"xp":35,"nemesis":"orc","nemesis_rate":1},
-    {"level":4,"sprite_path":"archer_4","description":"Getting the hang of it","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":45,"xp":70,"nemesis":"orc","nemesis_rate":2},
-    {"level":5,"sprite_path":"archer_5","description":"Can split an apple at range","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":85,"xp":120,"nemesis":"orc","nemesis_rate":3},
-    {"level":6,"sprite_path":"archer_6","description":"Arrows darken the sky","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":150,"xp":200,"nemesis":"orc","nemesis_rate":4},
-    {"level":7,"sprite_path":"archer_7","description":"Death from a distance (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":250,"xp":300,"nemesis":"orc","nemesis_rate":5}
+    {"level":1,"sprite_path":"archer_1","description":"A bent arrow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
+    {"level":2,"sprite_path":"archer_2","description":"A short bow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
+    {"level":3,"sprite_path":"archer_3","description":"Can barely hit the target","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":20,"hp":40,"xp":35,"nemesis":"orc","nemesis_rate":1},
+    {"level":4,"sprite_path":"archer_4","description":"Getting the hang of it","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":45,"hp":65,"xp":70,"nemesis":"orc","nemesis_rate":2},
+    {"level":5,"sprite_path":"archer_5","description":"Can split an apple at range","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":85,"hp":100,"xp":120,"nemesis":"orc","nemesis_rate":3},
+    {"level":6,"sprite_path":"archer_6","description":"Arrows darken the sky","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":150,"hp":150,"xp":200,"nemesis":"orc","nemesis_rate":4},
+    {"level":7,"sprite_path":"archer_7","description":"Death from a distance (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":250,"hp":220,"xp":300,"nemesis":"orc","nemesis_rate":5}
   ],
   "blacksmith": [
-    {"level":1,"sprite_path":"blacksmith_1","description":"A lump of coal","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
-    {"level":2,"sprite_path":"blacksmith_2","description":"Raw ore","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
-    {"level":3,"sprite_path":"blacksmith_3","description":"Apprentice at the anvil","maxLVL":6,"resource":"iron","gen_rate":4,"damage":0,"xp":40,"nemesis":"orc","nemesis_rate":1},
-    {"level":4,"sprite_path":"blacksmith_4","description":"Hammer rings true","maxLVL":6,"resource":"iron","gen_rate":7,"damage":0,"xp":80,"nemesis":"orc","nemesis_rate":2},
-    {"level":5,"sprite_path":"blacksmith_5","description":"Forges legendary steel","maxLVL":6,"resource":"iron","gen_rate":10,"damage":0,"xp":130,"nemesis":"orc","nemesis_rate":3},
-    {"level":6,"sprite_path":"blacksmith_6","description":"Master of the forge (Max level)","maxLVL":6,"resource":"iron","gen_rate":14,"damage":0,"xp":200,"nemesis":"orc","nemesis_rate":4}
+    {"level":1,"sprite_path":"blacksmith_1","description":"A lump of coal","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"orc","nemesis_rate":0},
+    {"level":2,"sprite_path":"blacksmith_2","description":"Raw ore","maxLVL":6,"resource":"iron","gen_rate":0,"damage":0,"hp":0,"xp":10,"nemesis":"orc","nemesis_rate":0},
+    {"level":3,"sprite_path":"blacksmith_3","description":"Apprentice at the anvil","maxLVL":6,"resource":"iron","gen_rate":4,"damage":0,"hp":15,"xp":40,"nemesis":"orc","nemesis_rate":1},
+    {"level":4,"sprite_path":"blacksmith_4","description":"Hammer rings true","maxLVL":6,"resource":"iron","gen_rate":7,"damage":0,"hp":22,"xp":80,"nemesis":"orc","nemesis_rate":2},
+    {"level":5,"sprite_path":"blacksmith_5","description":"Forges legendary steel","maxLVL":6,"resource":"iron","gen_rate":10,"damage":0,"hp":30,"xp":130,"nemesis":"orc","nemesis_rate":3},
+    {"level":6,"sprite_path":"blacksmith_6","description":"Master of the forge (Max level)","maxLVL":6,"resource":"iron","gen_rate":14,"damage":0,"hp":40,"xp":200,"nemesis":"orc","nemesis_rate":4}
   ],
   "bulwark": [
-    {"level":1,"sprite_path":"bulwark_1","description":"A wooden plank","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
-    {"level":2,"sprite_path":"bulwark_2","description":"A makeshift barricade","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":15,"nemesis":"wraith","nemesis_rate":0},
-    {"level":3,"sprite_path":"bulwark_3","description":"Unmovable object","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":35,"xp":50,"nemesis":"wraith","nemesis_rate":1},
-    {"level":4,"sprite_path":"bulwark_4","description":"Walls crumble before him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":75,"xp":100,"nemesis":"wraith","nemesis_rate":2},
-    {"level":5,"sprite_path":"bulwark_5","description":"A fortress made flesh","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":140,"xp":180,"nemesis":"wraith","nemesis_rate":3},
-    {"level":6,"sprite_path":"bulwark_6","description":"Nothing gets past him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":240,"xp":280,"nemesis":"wraith","nemesis_rate":4},
-    {"level":7,"sprite_path":"bulwark_7","description":"The kingdom's last line (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":400,"xp":400,"nemesis":"wraith","nemesis_rate":5}
+    {"level":1,"sprite_path":"bulwark_1","description":"A wooden plank","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
+    {"level":2,"sprite_path":"bulwark_2","description":"A makeshift barricade","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":15,"nemesis":"wraith","nemesis_rate":0},
+    {"level":3,"sprite_path":"bulwark_3","description":"Unmovable object","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":35,"hp":80,"xp":50,"nemesis":"wraith","nemesis_rate":1},
+    {"level":4,"sprite_path":"bulwark_4","description":"Walls crumble before him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":75,"hp":130,"xp":100,"nemesis":"wraith","nemesis_rate":2},
+    {"level":5,"sprite_path":"bulwark_5","description":"A fortress made flesh","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":140,"hp":200,"xp":180,"nemesis":"wraith","nemesis_rate":3},
+    {"level":6,"sprite_path":"bulwark_6","description":"Nothing gets past him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":240,"hp":300,"xp":280,"nemesis":"wraith","nemesis_rate":4},
+    {"level":7,"sprite_path":"bulwark_7","description":"The kingdom's last line (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":400,"hp":450,"xp":400,"nemesis":"wraith","nemesis_rate":5}
   ],
   "monk": [
-    {"level":1,"sprite_path":"monk_1","description":"A flickering candle","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
-    {"level":2,"sprite_path":"monk_2","description":"A worn scripture","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"xp":15,"nemesis":"wraith","nemesis_rate":0},
-    {"level":3,"sprite_path":"monk_3","description":"Professional wine brewer","maxLVL":7,"resource":"food","gen_rate":3,"damage":25,"xp":50,"nemesis":"wraith","nemesis_rate":1},
-    {"level":4,"sprite_path":"monk_4","description":"Sunday's hope","maxLVL":7,"resource":"food","gen_rate":4,"damage":55,"xp":100,"nemesis":"wraith","nemesis_rate":2},
-    {"level":5,"sprite_path":"monk_5","description":"Witch hunter","maxLVL":7,"resource":"food","gen_rate":5,"damage":100,"xp":170,"nemesis":"wraith","nemesis_rate":3},
-    {"level":6,"sprite_path":"monk_6","description":"Knows the secrets of the holy water","maxLVL":7,"resource":"food","gen_rate":6,"damage":180,"xp":260,"nemesis":"wraith","nemesis_rate":4},
-    {"level":7,"sprite_path":"monk_7","description":"The final judge (Max level)","maxLVL":7,"resource":"food","gen_rate":8,"damage":300,"xp":400,"nemesis":"wraith","nemesis_rate":5}
+    {"level":1,"sprite_path":"monk_1","description":"A flickering candle","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
+    {"level":2,"sprite_path":"monk_2","description":"A worn scripture","maxLVL":7,"resource":"food","gen_rate":0,"damage":0,"hp":0,"xp":15,"nemesis":"wraith","nemesis_rate":0},
+    {"level":3,"sprite_path":"monk_3","description":"Professional wine brewer","maxLVL":7,"resource":"food","gen_rate":3,"damage":25,"hp":50,"xp":50,"nemesis":"wraith","nemesis_rate":1},
+    {"level":4,"sprite_path":"monk_4","description":"Sunday's hope","maxLVL":7,"resource":"food","gen_rate":4,"damage":55,"hp":80,"xp":100,"nemesis":"wraith","nemesis_rate":2},
+    {"level":5,"sprite_path":"monk_5","description":"Witch hunter","maxLVL":7,"resource":"food","gen_rate":5,"damage":100,"hp":120,"xp":170,"nemesis":"wraith","nemesis_rate":3},
+    {"level":6,"sprite_path":"monk_6","description":"Knows the secrets of the holy water","maxLVL":7,"resource":"food","gen_rate":6,"damage":180,"hp":180,"xp":260,"nemesis":"wraith","nemesis_rate":4},
+    {"level":7,"sprite_path":"monk_7","description":"The final judge (Max level)","maxLVL":7,"resource":"food","gen_rate":8,"damage":300,"hp":260,"xp":400,"nemesis":"wraith","nemesis_rate":5}
   ],
   "paladin": [
-    {"level":1,"sprite_path":"paladin_1","description":"A sworn oath","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
-    {"level":2,"sprite_path":"paladin_2","description":"A sacred vow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"xp":20,"nemesis":"wraith","nemesis_rate":0},
-    {"level":3,"sprite_path":"paladin_3","description":"Blessed blade, pure heart","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":40,"xp":60,"nemesis":"wraith","nemesis_rate":1},
-    {"level":4,"sprite_path":"paladin_4","description":"Smites evil on sight","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":90,"xp":120,"nemesis":"wraith","nemesis_rate":2},
-    {"level":5,"sprite_path":"paladin_5","description":"Holy radiance follows him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":160,"xp":200,"nemesis":"wraith","nemesis_rate":3},
-    {"level":6,"sprite_path":"paladin_6","description":"Champion of the divine","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":280,"xp":320,"nemesis":"wraith","nemesis_rate":4},
-    {"level":7,"sprite_path":"paladin_7","description":"The righteous fist of heaven (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":450,"xp":500,"nemesis":"wraith","nemesis_rate":5}
+    {"level":1,"sprite_path":"paladin_1","description":"A sworn oath","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":1,"nemesis":"wraith","nemesis_rate":0},
+    {"level":2,"sprite_path":"paladin_2","description":"A sacred vow","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":20,"nemesis":"wraith","nemesis_rate":0},
+    {"level":3,"sprite_path":"paladin_3","description":"Blessed blade, pure heart","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":40,"hp":70,"xp":60,"nemesis":"wraith","nemesis_rate":1},
+    {"level":4,"sprite_path":"paladin_4","description":"Smites evil on sight","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":90,"hp":110,"xp":120,"nemesis":"wraith","nemesis_rate":2},
+    {"level":5,"sprite_path":"paladin_5","description":"Holy radiance follows him","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":160,"hp":170,"xp":200,"nemesis":"wraith","nemesis_rate":3},
+    {"level":6,"sprite_path":"paladin_6","description":"Champion of the divine","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":280,"hp":260,"xp":320,"nemesis":"wraith","nemesis_rate":4},
+    {"level":7,"sprite_path":"paladin_7","description":"The righteous fist of heaven (Max level)","maxLVL":7,"resource":"nothing","gen_rate":0,"damage":450,"hp":380,"xp":500,"nemesis":"wraith","nemesis_rate":5}
   ],
   "griffin": [
-    {"level":1,"sprite_path":"griffin_1","description":"A speckled egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"xp":5,"nemesis":"wraith","nemesis_rate":0},
-    {"level":2,"sprite_path":"griffin_2","description":"When the eagle met the lion","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":30,"xp":50,"nemesis":"wraith","nemesis_rate":1},
-    {"level":3,"sprite_path":"griffin_3","description":"Monsterpecker","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":80,"xp":120,"nemesis":"wraith","nemesis_rate":2},
-    {"level":4,"sprite_path":"griffin_4","description":"Castle's public transport","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":160,"xp":220,"nemesis":"wraith","nemesis_rate":3},
-    {"level":5,"sprite_path":"griffin_5","description":"I wouldn't annoy him if I were you (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":300,"xp":350,"nemesis":"wraith","nemesis_rate":4}
+    {"level":1,"sprite_path":"griffin_1","description":"A speckled egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"wraith","nemesis_rate":0},
+    {"level":2,"sprite_path":"griffin_2","description":"When the eagle met the lion","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":30,"hp":60,"xp":50,"nemesis":"wraith","nemesis_rate":1},
+    {"level":3,"sprite_path":"griffin_3","description":"Monsterpecker","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":80,"hp":120,"xp":120,"nemesis":"wraith","nemesis_rate":2},
+    {"level":4,"sprite_path":"griffin_4","description":"Castle's public transport","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":160,"hp":200,"xp":220,"nemesis":"wraith","nemesis_rate":3},
+    {"level":5,"sprite_path":"griffin_5","description":"I wouldn't annoy him if I were you (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":300,"hp":300,"xp":350,"nemesis":"wraith","nemesis_rate":4}
   ],
   "wyvern": [
-    {"level":1,"sprite_path":"wyvern_1","description":"A leathery egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"xp":5,"nemesis":"wraith","nemesis_rate":0},
-    {"level":2,"sprite_path":"wyvern_2","description":"Snaps at everything","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":35,"xp":55,"nemesis":"wraith","nemesis_rate":1},
-    {"level":3,"sprite_path":"wyvern_3","description":"Venomous and fast","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":90,"xp":130,"nemesis":"wraith","nemesis_rate":2},
-    {"level":4,"sprite_path":"wyvern_4","description":"Dive-bombs with precision","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":180,"xp":240,"nemesis":"wraith","nemesis_rate":3},
-    {"level":5,"sprite_path":"wyvern_5","description":"Terror of the skies (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":340,"xp":380,"nemesis":"wraith","nemesis_rate":4}
+    {"level":1,"sprite_path":"wyvern_1","description":"A leathery egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":5,"nemesis":"wraith","nemesis_rate":0},
+    {"level":2,"sprite_path":"wyvern_2","description":"Snaps at everything","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":35,"hp":65,"xp":55,"nemesis":"wraith","nemesis_rate":1},
+    {"level":3,"sprite_path":"wyvern_3","description":"Venomous and fast","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":90,"hp":130,"xp":130,"nemesis":"wraith","nemesis_rate":2},
+    {"level":4,"sprite_path":"wyvern_4","description":"Dive-bombs with precision","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":180,"hp":220,"xp":240,"nemesis":"wraith","nemesis_rate":3},
+    {"level":5,"sprite_path":"wyvern_5","description":"Terror of the skies (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":340,"hp":330,"xp":380,"nemesis":"wraith","nemesis_rate":4}
   ],
   "dragon": [
-    {"level":1,"sprite_path":"dragon_1","description":"A smoldering egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"xp":10,"nemesis":"demon","nemesis_rate":0},
-    {"level":2,"sprite_path":"dragon_2","description":"Tiny but fiery","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":60,"xp":80,"nemesis":"demon","nemesis_rate":1},
-    {"level":3,"sprite_path":"dragon_3","description":"Breath melts armor","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":150,"xp":200,"nemesis":"demon","nemesis_rate":2},
-    {"level":4,"sprite_path":"dragon_4","description":"Kingdoms tremble at its shadow","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":350,"xp":400,"nemesis":"demon","nemesis_rate":3},
-    {"level":5,"sprite_path":"dragon_5","description":"Ancient destroyer of worlds (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":600,"xp":700,"nemesis":"demon","nemesis_rate":4}
+    {"level":1,"sprite_path":"dragon_1","description":"A smoldering egg","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":10,"nemesis":"demon","nemesis_rate":0},
+    {"level":2,"sprite_path":"dragon_2","description":"Tiny but fiery","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":60,"hp":100,"xp":80,"nemesis":"demon","nemesis_rate":1},
+    {"level":3,"sprite_path":"dragon_3","description":"Breath melts armor","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":150,"hp":200,"xp":200,"nemesis":"demon","nemesis_rate":2},
+    {"level":4,"sprite_path":"dragon_4","description":"Kingdoms tremble at its shadow","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":350,"hp":350,"xp":400,"nemesis":"demon","nemesis_rate":3},
+    {"level":5,"sprite_path":"dragon_5","description":"Ancient destroyer of worlds (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":600,"hp":500,"xp":700,"nemesis":"demon","nemesis_rate":4}
   ],
   "phoenix": [
-    {"level":1,"sprite_path":"phoenix_1","description":"A glowing ember","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"xp":10,"nemesis":"demon","nemesis_rate":0},
-    {"level":2,"sprite_path":"phoenix_2","description":"Warm to the touch","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":40,"xp":60,"nemesis":"demon","nemesis_rate":1},
-    {"level":3,"sprite_path":"phoenix_3","description":"Burns bright","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":100,"xp":150,"nemesis":"demon","nemesis_rate":2},
-    {"level":4,"sprite_path":"phoenix_4","description":"Reborn from ashes","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":220,"xp":300,"nemesis":"demon","nemesis_rate":3},
-    {"level":5,"sprite_path":"phoenix_5","description":"Immortal flame (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":400,"xp":500,"nemesis":"demon","nemesis_rate":4}
+    {"level":1,"sprite_path":"phoenix_1","description":"A glowing ember","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":0,"hp":0,"xp":10,"nemesis":"demon","nemesis_rate":0},
+    {"level":2,"sprite_path":"phoenix_2","description":"Warm to the touch","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":40,"hp":80,"xp":60,"nemesis":"demon","nemesis_rate":1},
+    {"level":3,"sprite_path":"phoenix_3","description":"Burns bright","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":100,"hp":160,"xp":150,"nemesis":"demon","nemesis_rate":2},
+    {"level":4,"sprite_path":"phoenix_4","description":"Reborn from ashes","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":220,"hp":280,"xp":300,"nemesis":"demon","nemesis_rate":3},
+    {"level":5,"sprite_path":"phoenix_5","description":"Immortal flame (Max level)","maxLVL":5,"resource":"nothing","gen_rate":0,"damage":400,"hp":420,"xp":500,"nemesis":"demon","nemesis_rate":4}
   ]
 }

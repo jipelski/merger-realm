@@ -17,6 +17,11 @@ public class Facility extends GameObject {
     protected int tapCost1;
     protected int tapCost2;
     protected int tapCost3;
+    protected int time_cost;
+
+    // Periodic spawner state
+    private transient float spawnTimer = 0f;
+    private java.util.List<String[]> heldUnits = new java.util.ArrayList<>();
 
     private List<FacilitySpawnConfiguration> spawnRates;
 
@@ -29,13 +34,14 @@ public class Facility extends GameObject {
         this.tapCost1   = 0;
         this.tapCost2   = 0;
         this.tapCost3   = 0;
+        this.time_cost  = 0;
     }
 
     // FULL CONSTRUCTOR
     public Facility(String type, String id, int lvl, int maxLVL, int xPos, int yPos,
                     String sprite, String description,
                     int buildCost1, int buildCost2, int buildCost3, int buildCost4,
-                    int tapCost1, int tapCost2, int tapCost3) {
+                    int tapCost1, int tapCost2, int tapCost3, int time_cost) {
         super(type, id, lvl, maxLVL, xPos, yPos, sprite, description);
         this.buildCost1 = buildCost1;
         this.buildCost2 = buildCost2;
@@ -44,6 +50,7 @@ public class Facility extends GameObject {
         this.tapCost1   = tapCost1;
         this.tapCost2   = tapCost2;
         this.tapCost3   = tapCost3;
+        this.time_cost  = time_cost;
     }
 
     // DATA STRUCTURE CONSTRUCTOR
@@ -57,6 +64,7 @@ public class Facility extends GameObject {
         this.tapCost1   = facilityData.getTapCost1();
         this.tapCost2   = facilityData.getTapCost2();
         this.tapCost3   = facilityData.getTapCost3();
+        this.time_cost  = facilityData.getTimeCost();
     }
 
     // GETTERS
@@ -67,6 +75,7 @@ public class Facility extends GameObject {
     public int getTapCost1()   { return tapCost1;   }
     public int getTapCost2()   { return tapCost2;   }
     public int getTapCost3()   { return tapCost3;   }
+    public int getTimeCost()  { return time_cost;  }
     public List<FacilitySpawnConfiguration> getSpawnRates() { return spawnRates; }
 
     // SETTERS
@@ -77,9 +86,16 @@ public class Facility extends GameObject {
     public void setTapCost1(int tapCost1)     { this.tapCost1   = tapCost1;   }
     public void setTapCost2(int tapCost2)     { this.tapCost2   = tapCost2;   }
     public void setTapCost3(int tapCost3)     { this.tapCost3   = tapCost3;   }
+    public void setTimeCost(int time_cost)    { this.time_cost  = time_cost;  }
     public void setSpawnRates(List<FacilitySpawnConfiguration> spawnRates) {
         this.spawnRates = spawnRates;
     }
+
+    // Timer
+    public float getSpawnTimer() { return spawnTimer; }
+    public void setSpawnTimer(float t) { this.spawnTimer = t; }
+    public void addSpawnTime(float delta) { this.spawnTimer += delta; }
+    public void resetSpawnTimer() { this.spawnTimer = 0f; }
 
     // METHODS
 
@@ -118,5 +134,24 @@ public class Facility extends GameObject {
         FacilitySpawnConfiguration last = spawnRates.get(spawnRates.size() - 1);
         Gdx.app.log(TAG, "spawn: floating point fallback triggered — returning last config");
         return new String[]{last.getUnitType(), String.valueOf(last.getUnitLVL())};
+    }
+
+    // Held units
+    public java.util.List<String[]> getHeldUnits() { return heldUnits; }
+    public int getHeldCount() { return heldUnits.size(); }
+
+    public void addHeldUnit(String type, int level) {
+        heldUnits.add(new String[]{type, String.valueOf(level)});
+    }
+
+    public String[] removeHeldUnit() {
+        if (heldUnits.isEmpty()) return null;
+        return heldUnits.remove(0);
+    }
+
+    public int getHoldCapacity() {
+        // Level 1: 0, Level 2: 3, Level 3: 5, Level 4: 7, Level 5: 9
+        if (getLvl() <= 1) return 0;
+        return getLvl() * 2 - 1;
     }
 }

@@ -1,17 +1,17 @@
 {
   "gremlin": [
-    {"level":1,"sprite_path":"gremlin_1","description":"A mischievous little pest","maxLVL":1,"hp":100,"reward":"nail_chest"}
+    {"level":1,"sprite_path":"gremlin_1","description":"A mischievous little pest","maxLVL":1,"hp":100,"damage":8,"reward":"nail_chest"}
   ],
   "troll": [
-    {"level":1,"sprite_path":"troll_1","description":"Lurks in the wilderness","maxLVL":1,"hp":400,"reward":"slate_chest"}
+    {"level":1,"sprite_path":"troll_1","description":"Lurks in the wilderness","maxLVL":1,"hp":400,"damage":20,"reward":"slate_chest"}
   ],
   "orc": [
-    {"level":1,"sprite_path":"orc_1","description":"Raider from the dark lands","maxLVL":1,"hp":1100,"reward":"ingot_chest"}
+    {"level":1,"sprite_path":"orc_1","description":"Raider from the dark lands","maxLVL":1,"hp":1100,"damage":45,"reward":"ingot_chest"}
   ],
   "wraith": [
-    {"level":1,"sprite_path":"wraith_1","description":"A restless spirit","maxLVL":1,"hp":2000,"reward":"relic_chest"}
+    {"level":1,"sprite_path":"wraith_1","description":"A restless spirit","maxLVL":1,"hp":2000,"damage":80,"reward":"relic_chest"}
   ],
   "demon": [
-    {"level":1,"sprite_path":"demon_1","description":"Evil incarnate","maxLVL":1,"hp":4000,"reward":"relic_chest"}
+    {"level":1,"sprite_path":"demon_1","description":"Evil incarnate","maxLVL":1,"hp":4000,"damage":150,"reward":"relic_chest"}
   ]
 }

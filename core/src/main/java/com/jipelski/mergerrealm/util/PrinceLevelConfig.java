@@ -37,10 +37,10 @@ public class PrinceLevelConfig {
         FACILITY_UNLOCKS.put(4,  "tavernboard");
         FACILITY_UNLOCKS.put(6,  "barracks");
         FACILITY_UNLOCKS.put(9,  "archeryrange");
-        FACILITY_UNLOCKS.put(12, "blacksmith");
-        FACILITY_UNLOCKS.put(15, "ironmine");
+        FACILITY_UNLOCKS.put(15, "forge");
         FACILITY_UNLOCKS.put(20, "griffinnest");
         FACILITY_UNLOCKS.put(25, "monastery");
+        FACILITY_UNLOCKS.put(30, "dragonslair");
     }
 
     // ── Reward chests spawned when a facility unlocks ──
@@ -53,7 +53,8 @@ public class PrinceLevelConfig {
         UNLOCK_REWARD_CHEST.put("tavernboard",    "slate_chest");
         UNLOCK_REWARD_CHEST.put("barracks",       "ingot_chest");
         UNLOCK_REWARD_CHEST.put("archeryrange",     "ingot_chest");
-        UNLOCK_REWARD_CHEST.put("ironmine",     "relic_chest");
+        UNLOCK_REWARD_CHEST.put("forge",       "ingot_chest");
+        UNLOCK_REWARD_CHEST.put("dragonslair", "relic_chest");
         UNLOCK_REWARD_CHEST.put("griffinnest",  "nail_chest");
         UNLOCK_REWARD_CHEST.put("monastery",    "relic_chest");
     }

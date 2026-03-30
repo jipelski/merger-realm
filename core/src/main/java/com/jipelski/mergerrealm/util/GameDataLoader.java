@@ -70,6 +70,7 @@ public class GameDataLoader {
                             toInt(info, "maxLVL"),
                             str(info, "resource"),
                             toInt(info, "gen_rate"),
+                            toInt(info, "hp"),
                             toInt(info, "damage"),
                             toInt(info, "xp"),
                             str(info, "nemesis"),
@@ -104,7 +105,8 @@ public class GameDataLoader {
                             toInt(info, "build_cost4"),
                             toInt(info, "tap_cost1"),
                             toInt(info, "tap_cost2"),
-                            toInt(info, "tap_cost3")));
+                            toInt(info, "tap_cost3"),
+                            toInt(info, "time_cost")));
                 } catch (Exception e) {
                     Gdx.app.error(TAG, "loadFacility: parse error for " + type, e);
                 }
@@ -159,6 +161,7 @@ public class GameDataLoader {
                             str(info, "description"),
                             toInt(info, "maxLVL"),
                             toInt(info, "hp"),
+                            toInt(info, "damage"),
                             str(info, "reward")));
                 } catch (Exception e) {
                     Gdx.app.error(TAG, "loadMonster: parse error for " + type, e);

@@ -1,0 +1,31 @@
+{
+  "sword": [
+    {"level":1,"name":"Rusty Sword","description":"Better than bare fists","bonusDamage":5,"bonusHp":0,"consumable":false,"spritePath":"sword_1"},
+    {"level":2,"name":"Iron Sword","description":"Standard issue","bonusDamage":15,"bonusHp":0,"consumable":false,"spritePath":"sword_2"},
+    {"level":3,"name":"Steel Sword","description":"Sharp and reliable","bonusDamage":35,"bonusHp":0,"consumable":false,"spritePath":"sword_3"},
+    {"level":4,"name":"Mithril Blade","description":"Light as a feather, deadly as a viper","bonusDamage":70,"bonusHp":0,"consumable":false,"spritePath":"sword_4"},
+    {"level":5,"name":"Dragonslayer","description":"Forged in dragonfire (Max level)","bonusDamage":120,"bonusHp":0,"consumable":false,"spritePath":"sword_5"}
+  ],
+  "shield": [
+    {"level":1,"name":"Wooden Buckler","description":"Splinters easily","bonusDamage":0,"bonusHp":15,"consumable":false,"spritePath":"shield_1"},
+    {"level":2,"name":"Iron Shield","description":"Dented but solid","bonusDamage":0,"bonusHp":40,"consumable":false,"spritePath":"shield_2"},
+    {"level":3,"name":"Steel Kite Shield","description":"Covers head to knee","bonusDamage":0,"bonusHp":80,"consumable":false,"spritePath":"shield_3"},
+    {"level":4,"name":"Tower Shield","description":"A wall you can carry","bonusDamage":0,"bonusHp":140,"consumable":false,"spritePath":"shield_4"},
+    {"level":5,"name":"Aegis","description":"Blessed by the gods (Max level)","bonusDamage":0,"bonusHp":220,"consumable":false,"spritePath":"shield_5"}
+  ],
+  "amulet": [
+    {"level":1,"name":"Copper Charm","description":"Slightly warm to the touch","bonusDamage":3,"bonusHp":8,"consumable":false,"spritePath":"amulet_1"},
+    {"level":2,"name":"Silver Pendant","description":"Glimmers in moonlight","bonusDamage":8,"bonusHp":20,"consumable":false,"spritePath":"amulet_2"},
+    {"level":3,"name":"Gold Medallion","description":"A noble's treasure","bonusDamage":18,"bonusHp":45,"consumable":false,"spritePath":"amulet_3"},
+    {"level":4,"name":"Ruby Amulet","description":"Pulses with inner fire","bonusDamage":35,"bonusHp":80,"consumable":false,"spritePath":"amulet_4"},
+    {"level":5,"name":"Crown of Ages","description":"Power of a lost empire (Max level)","bonusDamage":60,"bonusHp":130,"consumable":false,"spritePath":"amulet_5"}
+  ],
+  "potion": [
+    {"level":1,"name":"Weak Potion","description":"Heals unit to full HP","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"potion_1"},
+    {"level":2,"name":"Strong Potion","description":"Heals unit to full HP","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"potion_2"},
+    {"level":3,"name":"Royal Elixir","description":"Heals unit to full HP","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"potion_3"}
+  ],
+  "phoenix_feather": [
+    {"level":1,"name":"Phoenix Feather","description":"Revives a fallen unit during a raid","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"phoenix_feather_1"}
+  ]
+}

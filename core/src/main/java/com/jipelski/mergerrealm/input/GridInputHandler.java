@@ -308,7 +308,17 @@ public class GridInputHandler extends InputAdapter {
     private void handleFacilityTap() {
         if (wasAlreadySelected) {
             // Second tap on same facility — spawn a unit
-            eventManager.spawnFromFacility(draggedObjectId);
+            if (eventManager.isPeriodicFacility(
+                eventManager.getGRID_OBJECT_MANAGER()
+                    .getObject(draggedObjectId).getType())) {
+                // Periodic facility — release a held unit
+                if (!eventManager.releaseHeldUnit(draggedObjectId)) {
+                    Gdx.app.log(TAG, "No held units to release (or no space)");
+                }
+            } else {
+                // Normal facility — spawn a unit (costs resources)
+                eventManager.spawnFromFacility(draggedObjectId);
+            }
             Gdx.app.log(TAG, "Spawning from selected facility: " + draggedObjectId);
         } else {
             // First tap — just selected (already done in touchDown)

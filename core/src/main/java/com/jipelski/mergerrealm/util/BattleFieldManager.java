@@ -165,15 +165,8 @@ public class BattleFieldManager {
                 // Spawn a reward chest with tokens for building it
                 String chestType = PrinceLevelConfig.getRewardChest(unlockedFacility);
                 if (chestType != null) {
-                    // Try to spawn on the board, or add to reward queue
-                    int[] emptyCell = grid.getClosestEmptyCell(0, 0);
-                    if (emptyCell != null) {
-                        eventManager.spawnObject(chestType, 1, emptyCell[0], emptyCell[1]);
-                        Gdx.app.log(TAG, "Reward chest spawned: " + chestType);
-                    } else {
-                        rewardQueue.addLast(new GenData(chestType, "Reward for unlocking " + unlockedFacility, 1));
-                        Gdx.app.log(TAG, "Board full — reward chest queued: " + chestType);
-                    }
+                    rewardQueue.addLast(new GenData(chestType, "Reward for unlocking " + unlockedFacility, 1));
+                    Gdx.app.log(TAG, "Reward chest queued to gate: " + chestType);
                 }
             }
 

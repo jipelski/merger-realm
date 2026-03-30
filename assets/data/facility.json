@@ -12,7 +12,7 @@
     {"level":4,"sprite_path":"lodge_4","description":"Famous across the land (Max level)","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":160,"tap_cost3":0,"time_cost":0}
   ],
   "tavernboard": [
-    {"level":1,"sprite_path":"tavernboard_1","description":"A few notices pinned up","maxLVL":4,"build_cost1":8,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":45},
+    {"level":1,"sprite_path":"tavernboard_1","description":"A few notices pinned up","maxLVL":4,"build_cost1":8,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":1},
     {"level":2,"sprite_path":"tavernboard_2","description":"Mercenaries come faster","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":38},
     {"level":3,"sprite_path":"tavernboard_3","description":"Reputation spreading","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":30},
     {"level":4,"sprite_path":"tavernboard_4","description":"Legendary job board (Max level)","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":22}
