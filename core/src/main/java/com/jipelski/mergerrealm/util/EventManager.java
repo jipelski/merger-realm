@@ -15,6 +15,7 @@ import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.Chest;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.GameObject;
+import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Prince;
 import com.jipelski.mergerrealm.model.Storage;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -41,7 +43,7 @@ public class EventManager {
         "dragon", "phoenix"
     ));
 
-    private static final Set<String> PERIODIC_FACILITIES = new HashSet<>(Arrays.asList(
+    public static final Set<String> PERIODIC_FACILITIES = new HashSet<>(Arrays.asList(
         "tavernboard", "griffinnest", "dragonslair"
     ));
 
@@ -53,6 +55,9 @@ public class EventManager {
     private final GridObjectManager  GRID_OBJECT_MANAGER;
     private final BattleFieldManager BATTLE_FIELD_MANAGER;
 
+    private Inventory inventory;
+    public Inventory getInventory() { return inventory; }
+
     public GameDataLoader getGameDataLoader() { return GDLInstance; }
     public BattleFieldManager getBattleFieldManager() { return BATTLE_FIELD_MANAGER; }
 
@@ -62,6 +67,18 @@ public class EventManager {
         this.GDLInstance         = new GameDataLoader(jsonInstance);
         this.resourceManager     = new ResourceManager(jsonManager);
         this.GRID_OBJECT_MANAGER = new GridObjectManager(jsonManager);
+
+        this.inventory = new Inventory();
+        List<Item> savedItems = jsonManager.loadInventoryItems("inventory_items");
+        if (savedItems != null) {
+            inventory.setItems(savedItems);
+        }
+        Map<String, String> savedEquipped = jsonManager.loadEquippedMap("inventory_equipped");
+        if (savedEquipped != null) {
+            inventory.setEquipped(savedEquipped);
+        }
+        Gdx.app.log(TAG, "Inventory loaded: " + inventory.getItemCount() + " items, "
+            + inventory.getEquipped().size() + " equipped");
 
         java.util.Set<String> savedLocks = jsonManager.loadLockedObjects("locked_objects");
         if (savedLocks != null) {
@@ -156,6 +173,17 @@ public class EventManager {
             spawnObject("archer", 6, 1, 3);
 
             spawnObject("archer", 6, 2, 3);
+
+            Item starterSword = GDLInstance.createItem("sword", 1);
+            if (starterSword != null) {
+                inventory.addItem(starterSword);
+                Gdx.app.log(TAG, "Added starter item: " + starterSword);
+            }
+            Item starterPotion = GDLInstance.createItem("potion", 1);
+            if (starterPotion != null) {
+                inventory.addItem(starterPotion);
+                Gdx.app.log(TAG, "Added starter item: " + starterPotion);
+            }
             //*/
 
         } else {
@@ -359,6 +387,8 @@ public class EventManager {
             BATTLE_FIELD_MANAGER.getCurrent_xp(),
             BATTLE_FIELD_MANAGER.getXp_required()
         });
+        jsonInstance.saveInventoryItems("inventory_items", inventory.getItems());
+        jsonInstance.saveEquippedMap("inventory_equipped", inventory.getEquipped());
     }
 
     public void removeObject(String id) {
@@ -381,10 +411,15 @@ public class EventManager {
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
             case "phoenix": {
-                UnitData unitData = (UnitData) GDLInstance.getGameData(object.getType(), object.getLvl());
+                UnitData unitData = (UnitData) GDLInstance.getGameData(
+                    object.getType(), object.getLvl());
                 if (unitData != null) {
-                    resourceManager.modifyResourceRate(unitData.getResource(), unitData.getGen_rate(), false);
-                    // BATTLE_FIELD_MANAGER.increaseXP(unitData.getXP_Rate()); // XP already added when dismissing to prince, no xp when leveling up the individual units.
+                    resourceManager.modifyResourceRate(
+                        unitData.getResource(), unitData.getGen_rate(), false);
+                }
+                // Unequip item when unit is removed
+                if (inventory != null) {
+                    inventory.onUnitRemoved(id);
                 }
                 break;
             }
@@ -561,7 +596,6 @@ public class EventManager {
             Unit originUnit = (Unit) originGO;
 
             if (originUnit.getDamage() <= 0 || !originUnit.isAlive()) {
-                // No attack power or dead — just swap positions
                 Gdx.app.log(TAG, originUnit.getType() + " can't fight — swapping instead");
                 swapPositions(originGO, targetGO, originId, targetId);
                 return;
@@ -569,8 +603,12 @@ public class EventManager {
 
             Monster monster = (Monster) targetGO;
 
+            // Calculate effective damage with equipment bonus
+            int effectiveDamage = originUnit.getDamage()
+                + inventory.getEquipBonusDamage(originId);
+
             // Unit attacks monster
-            boolean monsterDied = monster.reduceHp(originUnit.getDamage());
+            boolean monsterDied = monster.reduceHp(effectiveDamage);
 
             // Monster attacks unit back (only if monster survived)
             if (!monsterDied) {
@@ -578,7 +616,7 @@ public class EventManager {
                 boolean unitDied = originUnit.takeDamage(monsterDmg);
 
                 Gdx.app.log(TAG, originUnit.getType() + " hit " + monster.getType()
-                    + " for " + originUnit.getDamage() + " (monster HP: " + monster.getHp() + ")"
+                    + " for " + effectiveDamage + " (monster HP: " + monster.getHp() + ")"
                     + " | " + monster.getType() + " hit back for " + monsterDmg
                     + " (unit HP: " + originUnit.getHp() + "/" + originUnit.getMax_hp() + ")");
 
@@ -587,9 +625,7 @@ public class EventManager {
                     removeObject(originId);
                     Gdx.app.log(TAG, originUnit.getType() + " died in combat");
                 }
-                // If unit survived → it stays on its origin cell (snap back automatically)
             } else {
-                // Monster died — award XP and remove monster
                 BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2);
                 removeObject(targetId);
                 Gdx.app.log(TAG, monster.getType() + " defeated by " + originUnit.getType()
@@ -714,30 +750,20 @@ public class EventManager {
             }
         }
 
-        Gdx.app.log(TAG, "EventManager updating periodic facilities " + delta);
         for (Facility facility : periodicList) {
             FacilityData data = (FacilityData) GDLInstance.getGameData(
                 facility.getType(), facility.getLvl());
             if (data == null || data.getTimeCost() <= 0)
             {
-                Gdx.app.log(TAG, "EventManager data is null.");
                 continue;
             }
-
-
-            Gdx.app.log(TAG, "EventManager delta" + delta);
             facility.addSpawnTime(delta);
-
-
-            Gdx.app.log(TAG, "EventManager getSpawnTimer()" + facility.getSpawnTimer());
 
             if (facility.getSpawnTimer() >= data.getTimeCost()) {
                 facility.resetSpawnTimer();
                 periodicSpawn(facility);
             }
         }
-
-        Gdx.app.log(TAG, "EventManager forloop done, no more facilties to update");
     }
 
     /**
@@ -853,6 +879,112 @@ public class EventManager {
             default:
                 return false;
         }
+    }
+
+    /**
+     * Heals all wounded units on the grid by a percentage of their max HP.
+     * Called every resource tick (15 seconds).
+     */
+    public void healWoundedUnits() {
+        List<Unit> wounded = new ArrayList<>();
+        for (GameObject obj : GRID_OBJECT_MANAGER.getObjectMap().values()) {
+            if (obj instanceof Unit) {
+                Unit unit = (Unit) obj;
+                if (unit.isWounded()) {
+                    wounded.add(unit);
+                }
+            }
+        }
+        for (Unit unit : wounded) {
+            int healAmount = Math.max(1, unit.getMax_hp() / 10);
+            unit.heal(healAmount);
+        }
+    }
+
+    /**
+     * Equips an item on a unit and adjusts the unit's max_hp.
+     * Call this instead of inventory.equip() directly.
+     */
+    public void equipItem(String unitId, String itemId) {
+        // Get current equipment to reverse its bonus
+        Item oldItem = inventory.getEquippedItem(unitId);
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+
+        if (obj instanceof Unit) {
+            Unit unit = (Unit) obj;
+
+            // Remove old item's HP bonus
+            if (oldItem != null) {
+                unit.setMax_hp(unit.getMax_hp() - oldItem.getBonusHp());
+                // Clamp current HP if it exceeds new max
+                if (unit.getHp() > unit.getMax_hp()) {
+                    unit.setHp(unit.getMax_hp());
+                }
+            }
+
+            // Equip new item
+            inventory.equip(unitId, itemId);
+
+            // Apply new item's HP bonus
+            Item newItem = inventory.getEquippedItem(unitId);
+            if (newItem != null) {
+                unit.setMax_hp(unit.getMax_hp() + newItem.getBonusHp());
+                // Don't auto-heal — just raise the ceiling
+            }
+        } else {
+            // Unit not on grid (shouldn't happen but handle gracefully)
+            inventory.equip(unitId, itemId);
+        }
+    }
+
+    /**
+     * Unequips the item from a unit and adjusts max_hp.
+     */
+    public void unequipItem(String unitId) {
+        Item oldItem = inventory.getEquippedItem(unitId);
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+
+        if (obj instanceof Unit && oldItem != null) {
+            Unit unit = (Unit) obj;
+            unit.setMax_hp(unit.getMax_hp() - oldItem.getBonusHp());
+            if (unit.getHp() > unit.getMax_hp()) {
+                unit.setHp(unit.getMax_hp());
+            }
+        }
+
+        inventory.unequip(unitId);
+    }
+
+    /**
+     * Uses a potion on a unit to heal it to full HP.
+     * The potion is consumed (removed from inventory).
+     *
+     * @param unitId    the unit to heal
+     * @param potionId  the potion item to consume
+     * @return true if the potion was used successfully
+     */
+    public boolean usePotionOnUnit(String unitId, String potionId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+        if (!(obj instanceof Unit)) {
+            Gdx.app.log(TAG, "usePotionOnUnit: not a unit id=" + unitId);
+            return false;
+        }
+
+        Unit unit = (Unit) obj;
+        if (!unit.isWounded()) {
+            Gdx.app.log(TAG, "usePotionOnUnit: unit is at full HP");
+            return false;
+        }
+
+        Item potion = inventory.useConsumable(potionId);
+        if (potion == null) {
+            return false;
+        }
+
+        unit.healToFull();
+        Gdx.app.log(TAG, "Used " + potion.getName() + " on " + unit.getType()
+            + " — healed to " + unit.getHp() + "/" + unit.getMax_hp());
+        return true;
     }
 
     /**

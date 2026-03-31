@@ -12,6 +12,7 @@ import com.jipelski.mergerrealm.data.TokenData;
 import com.jipelski.mergerrealm.data.UnitData;
 import com.jipelski.mergerrealm.database.JsonManager;
 import com.jipelski.mergerrealm.model.FacilitySpawnConfiguration;
+import com.jipelski.mergerrealm.model.Item;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,6 +29,8 @@ public class GameDataLoader {
     private final Map<String, ArrayList<FacilitySpawnConfiguration>>    configurationMap;
 
     private final JsonManager jsonManager;
+
+    private Map<String, List<Map<String, Object>>> itemDefinitions;
 
     public GameDataLoader(JsonManager jsonManager) {
         this.jsonManager      = jsonManager;
@@ -47,6 +50,7 @@ public class GameDataLoader {
         loadSpawnConfiguration("facility_config");
         loadSpawnConfiguration("chest_config");
         logLoadedData();
+        loadItemDefinitions("items");
     }
 
     // LOAD METHODS
@@ -255,6 +259,23 @@ public class GameDataLoader {
         configurationMap.putAll(jsonData);
     }
 
+    private void loadItemDefinitions(String path) {
+        Map<String, Object> jsonData = jsonManager.loadJsonData(path);
+        if (jsonData == null) {
+            Gdx.app.error(TAG, "loadItemDefinitions: failed to load " + path);
+            itemDefinitions = new java.util.HashMap<>();
+            return;
+        }
+        itemDefinitions = new java.util.HashMap<>();
+        for (Map.Entry<String, Object> entry : jsonData.entrySet()) {
+            List<Map<String, Object>> levels = castLevelList(entry.getValue(), entry.getKey());
+            if (levels != null) {
+                itemDefinitions.put(entry.getKey(), levels);
+            }
+        }
+        Gdx.app.log(TAG, "Loaded item definitions: " + itemDefinitions.keySet());
+    }
+
     // GETTERS
 
     /**
@@ -288,6 +309,45 @@ public class GameDataLoader {
     }
 
     // HELPERS
+
+    /**
+     * Creates a new Item instance from the items.json definition.
+     * Generates a unique ID for the item.
+     *
+     * @param type  "sword", "shield", "amulet", "potion", "phoenix_feather"
+     * @param level 1-5
+     * @return a new Item with a unique ID, or null if the definition wasn't found
+     */
+    public Item createItem(String type, int level) {
+        List<Map<String, Object>> levels = itemDefinitions.get(type);
+        if (levels == null) {
+            Gdx.app.log(TAG, "createItem: no definition for type=" + type);
+            return null;
+        }
+
+        // Find the matching level entry
+        for (Map<String, Object> info : levels) {
+            int entryLevel = toInt(info, "level");
+            if (entryLevel == level) {
+                String id = "item_" + type + "_" + level + "_"
+                    + System.currentTimeMillis() + "_"
+                    + (int)(Math.random() * 10000);
+                return new Item(
+                    id,
+                    type,
+                    level,
+                    str(info, "name"),
+                    str(info, "description"),
+                    toInt(info, "bonusDamage"),
+                    toInt(info, "bonusHp"),
+                    Boolean.TRUE.equals(info.get("consumable")),
+                    str(info, "spritePath")
+                );
+            }
+        }
+        Gdx.app.log(TAG, "createItem: no level " + level + " for type=" + type);
+        return null;
+    }
 
     /** Logs a summary of all loaded types and levels after initialisation. */
     private void logLoadedData() {

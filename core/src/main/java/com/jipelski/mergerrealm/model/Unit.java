@@ -49,6 +49,7 @@ public class Unit extends GameObject {
                 unitData.getSprite_path(), unitData.getDescription());
         this.resource     = unitData.getResource();
         this.gen_rate     = unitData.getGen_rate();
+        this.hp           = unitData.getHp();
         this.max_hp       = unitData.getHp();
         this.damage       = unitData.getDamage();
         this.xp_rate      = unitData.getXP_Rate();

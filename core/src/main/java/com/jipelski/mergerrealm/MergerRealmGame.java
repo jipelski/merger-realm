@@ -1,5 +1,7 @@
 package com.jipelski.mergerrealm;
 
+import static com.jipelski.mergerrealm.util.EventManager.PERIODIC_FACILITIES;
+
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
@@ -26,6 +28,7 @@ import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.input.GridInputHandler;
 import com.jipelski.mergerrealm.model.Chest;
 import com.jipelski.mergerrealm.model.GameObject;
+import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.Unit;
@@ -43,6 +46,8 @@ import com.jipelski.mergerrealm.ui.LayoutConfig;
 import com.jipelski.mergerrealm.ui.UITextureManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class MergerRealmGame extends ApplicationAdapter implements GameEventListener {
@@ -103,6 +108,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private OfflinePopup offlinePopup;
 
     private WallGate wallGate;
+    private Texture whiteTex;
 
     @Override
     public void create() {
@@ -128,6 +134,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         spriteManager = new SpriteManager();
         spriteManager.loadFallback();
+
+        com.badlogic.gdx.graphics.Pixmap px = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        px.setColor(Color.WHITE);
+        px.fill();
+        whiteTex = new Texture(px);
+        px.dispose();
 
         jsonManager = new JsonManager();
         eventManager = new EventManager(jsonManager);
@@ -212,10 +224,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         int periodicSpawned = 0;
         int periodicHeld = 0;
+        List<Facility> periodicList = new ArrayList<>();
         for (GameObject obj : eventManager.getGRID_OBJECT_MANAGER().getObjectMap().values()) {
-            if (!eventManager.isPeriodicFacility(obj.getType())) continue;
+            if (PERIODIC_FACILITIES.contains(obj.getType())) {
+                periodicList.add((Facility) obj);
+            }
+        }
 
-            Facility facility = (Facility) obj;
+        for (Facility facility : periodicList) {
             FacilityData data = (FacilityData) eventManager.getGameDataLoader()
                 .getGameData(facility.getType(), facility.getLvl());
             if (data == null || data.getTimeCost() <= 0) continue;
@@ -301,7 +317,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (!offlinePopup.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
-            Gdx.app.log(TAG, "delta " + delta);
 
             tickTimer += delta;
             if (tickTimer >= TICK_INTERVAL) {
@@ -406,6 +421,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             resourceTimer -= RESOURCE_INTERVAL;
             ResourceManager rm = eventManager.getResourceManager();
             rm.updateResources();
+            eventManager.healWoundedUnits();
         }
         saveDirty = true;
     }
@@ -495,6 +511,29 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 float margin = cellSize * 0.05f;
                 batch.draw(tex, drawX + margin, drawY + margin,
                     cellSize - margin * 2, cellSize - margin * 2);
+                if (obj instanceof Unit) {
+                    Unit unit = (Unit) obj;
+                    if (unit.isWounded()) {
+                        float barWidth = cellSize - margin * 4;
+                        float barHeight = 3f;
+                        float barX = drawX + margin * 2;
+                        float barY = drawY + margin;
+                        float hpRatio = (float) unit.getHp() / unit.getMax_hp();
+
+                        // Background (dark red)
+                        batch.setColor(0.4f, 0.1f, 0.1f, 0.8f);
+                        // Use a 1x1 white pixel texture or uiTex for the bar
+                        batch.draw(whiteTex, barX, barY, barWidth, barHeight);
+
+                        // Fill (green to red based on HP)
+                        float r = 1f - hpRatio;
+                        float g = hpRatio;
+                        batch.setColor(r, g, 0.1f, 0.9f);
+                        batch.draw(whiteTex, barX, barY, barWidth * hpRatio, barHeight);
+
+                        batch.setColor(1f, 1f, 1f, 1f); // reset
+                    }
+                }
             }
         }
     }
@@ -906,12 +945,23 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "paladin": case "griffin": case "wyvern": case "dragon":
             case "phoenix": {
                 UnitData ud = (UnitData) data;
+                Unit u = (Unit) obj;
                 StringBuilder sb = new StringBuilder();
-                if (ud.getDamage() > 0)   sb.append("DMG: ").append(ud.getDamage());
+                // HP display
+                if (u.getMax_hp() > 0) {
+                    sb.append("HP: ").append(u.getHp()).append("/").append(u.getMax_hp());
+                }
+                if (ud.getDamage() > 0) {
+                    if (sb.length() > 0) sb.append(" | ");
+                    int bonusDmg = eventManager.getInventory().getEquipBonusDamage(
+                        inputHandler.getSelectedObjectId());
+                    sb.append("DMG: ").append(ud.getDamage());
+                    if (bonusDmg > 0) sb.append("+").append(bonusDmg);
+                }
                 if (ud.getGen_rate() > 0) {
                     if (sb.length() > 0) sb.append(" | ");
                     sb.append("+").append(ud.getGen_rate()).append(" ")
-                        .append(ud.getResource()).append("/s");
+                        .append(ud.getResource()).append("/tick");
                 }
                 return sb.toString();
             }
@@ -1010,8 +1060,17 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "paladin": case "griffin": case "wyvern": case "dragon":
             case "phoenix": {
                 UnitData ud = (UnitData) data;
-                return "Dismiss XP: " + ud.getXP_Rate()
-                    + " | Provokes: " + capitalize(ud.getNemesis());
+                StringBuilder sb = new StringBuilder();
+                sb.append("XP: ").append(ud.getXP_Rate())
+                    .append(" | ").append(capitalize(ud.getNemesis()));
+
+                // Show equipped item
+                Item equipped = eventManager.getInventory().getEquippedItem(
+                    inputHandler.getSelectedObjectId());
+                if (equipped != null) {
+                    sb.append(" | ").append(equipped.getName());
+                }
+                return sb.toString();
             }
 
             // Facilities: show build cost for upgrade reference
@@ -1158,6 +1217,29 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 float margin = cellSize * 0.05f;
                 batch.draw(tex, drawX + margin, drawY + margin,
                     cellSize - margin * 2, cellSize - margin * 2);
+                if (obj instanceof Unit) {
+                    Unit unit = (Unit) obj;
+                    if (unit.isWounded()) {
+                        float barWidth = cellSize - margin * 4;
+                        float barHeight = 3f;
+                        float barX = drawX + margin * 2;
+                        float barY = drawY + margin;
+                        float hpRatio = (float) unit.getHp() / unit.getMax_hp();
+
+                        // Background (dark red)
+                        batch.setColor(0.4f, 0.1f, 0.1f, 0.8f);
+                        // Use a 1x1 white pixel texture or uiTex for the bar
+                        batch.draw(whiteTex, barX, barY, barWidth, barHeight);
+
+                        // Fill (green to red based on HP)
+                        float r = 1f - hpRatio;
+                        float g = hpRatio;
+                        batch.setColor(r, g, 0.1f, 0.9f);
+                        batch.draw(whiteTex, barX, barY, barWidth * hpRatio, barHeight);
+
+                        batch.setColor(1f, 1f, 1f, 1f); // reset
+                    }
+                }
             }
         }
     }
@@ -1260,6 +1342,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         fontSmall.dispose();
         spriteManager.dispose();
         uiTex.dispose();
+        whiteTex.dispose();
     }
 
     private void saveGame() {
@@ -1298,6 +1381,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             // Locked objects
             jsonManager.saveLockedObjects("locked_objects",
                 eventManager.getGRID_OBJECT_MANAGER().getLockedObjects());
+
+            jsonManager.saveInventoryItems("inventory_items",
+                eventManager.getInventory().getItems());
+            jsonManager.saveEquippedMap("inventory_equipped",
+                eventManager.getInventory().getEquipped());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

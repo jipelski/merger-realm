@@ -50,6 +50,12 @@ public class UITextureManager {
     public NinePatch cardLocked;
     public NinePatch popupPanel;
 
+    //   Pixmap px = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+    //   px.setColor(Color.WHITE);
+    //   px.fill();
+    //   whiteTex = new Texture(px);
+    //   px.dispose();
+
     public void load() {
         Gdx.app.log(TAG, "Loading UI textures...");
 

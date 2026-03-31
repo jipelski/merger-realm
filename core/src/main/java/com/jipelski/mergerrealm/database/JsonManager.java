@@ -13,6 +13,7 @@ import com.jipelski.mergerrealm.model.Prince;
 import com.jipelski.mergerrealm.model.Storage;
 import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.util.RuntimeTypeAdapterFactory;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -22,6 +23,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.List;
 
 public class JsonManager {
 
@@ -223,6 +225,24 @@ public class JsonManager {
         return list != null ? new java.util.HashSet<>(list) : null;
     }
 
+    /**
+     * Loads the inventory item list.
+     */
+    public List<Item> loadInventoryItems(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<List<Item>>() {}.getType());
+    }
+
+    /**
+     * Loads the equipped item map (unitId → itemId).
+     */
+    public Map<String, String> loadEquippedMap(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<Map<String, String>>() {}.getType());
+    }
+
     // ── SAVER METHODS ──
 
     public void saveResources(String filename, Map<String, int[]> resMap) {
@@ -255,5 +275,19 @@ public class JsonManager {
 
     public void saveLockedObjects(String filename, java.util.Set<String> locks) {
         writeJson(filename, new java.util.ArrayList<>(locks));
+    }
+
+    /**
+     * Saves the inventory item list.
+     */
+    public void saveInventoryItems(String filename, List<Item> items) {
+        writeJson(filename, items);
+    }
+
+    /**
+     * Saves the equipped item map (unitId → itemId).
+     */
+    public void saveEquippedMap(String filename, Map<String, String> equipped) {
+        writeJson(filename, equipped);
     }
 }

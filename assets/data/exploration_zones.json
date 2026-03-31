@@ -1,0 +1,198 @@
+{
+  "forest": {
+    "name": "Forest Path",
+    "description": "A quiet trail through ancient woods",
+    "unlockLevel": 1,
+    "eventInterval": 90,
+    "events": [
+      {"type": "resource", "weight": 30},
+      {"type": "token", "weight": 25},
+      {"type": "enemy", "weight": 20},
+      {"type": "item", "weight": 10},
+      {"type": "nothing", "weight": 10},
+      {"type": "heal", "weight": 5}
+    ],
+    "resources": [
+      {"resource": "food", "min": 20, "max": 60, "weight": 60},
+      {"resource": "wood", "min": 15, "max": 45, "weight": 30},
+      {"resource": "iron", "min": 5, "max": 15, "weight": 10}
+    ],
+    "tokens": [
+      {"token": "nail", "min": 1, "max": 2, "weight": 80},
+      {"token": "slate", "min": 1, "max": 1, "weight": 20}
+    ],
+    "enemies": ["boar", "wolf", "bandit"],
+    "itemTier": 1,
+    "healPercent": 20,
+    "flavorTexts": {
+      "nothing": [
+        "Walks through quiet woods",
+        "Listens to birdsong",
+        "Follows a stream for a while",
+        "Rests under an old oak",
+        "Watches clouds through the canopy"
+      ],
+      "heal": [
+        "Found a healing spring!",
+        "Discovered medicinal herbs",
+        "Rested by a blessed stream"
+      ]
+    }
+  },
+  "mountain": {
+    "name": "Mountain Trail",
+    "description": "A treacherous path through jagged peaks",
+    "unlockLevel": 6,
+    "eventInterval": 75,
+    "events": [
+      {"type": "resource", "weight": 25},
+      {"type": "token", "weight": 20},
+      {"type": "enemy", "weight": 25},
+      {"type": "item", "weight": 15},
+      {"type": "nothing", "weight": 5},
+      {"type": "heal", "weight": 10}
+    ],
+    "resources": [
+      {"resource": "food", "min": 15, "max": 50, "weight": 30},
+      {"resource": "wood", "min": 20, "max": 60, "weight": 40},
+      {"resource": "iron", "min": 10, "max": 35, "weight": 30}
+    ],
+    "tokens": [
+      {"token": "nail", "min": 1, "max": 2, "weight": 40},
+      {"token": "slate", "min": 1, "max": 2, "weight": 40},
+      {"token": "ingot", "min": 1, "max": 1, "weight": 20}
+    ],
+    "enemies": ["bandit", "bear", "mountain_troll"],
+    "itemTier": 2,
+    "healPercent": 25,
+    "flavorTexts": {
+      "nothing": [
+        "The wind howls between the peaks",
+        "Careful footing on loose rocks",
+        "Takes in the view from a ridge"
+      ],
+      "heal": [
+        "Found a hot spring in the rocks!",
+        "Mountain herbs ease the pain",
+        "A sheltered cave offers rest"
+      ]
+    }
+  },
+  "mines": {
+    "name": "Underground Mines",
+    "description": "Dark tunnels carved by forgotten hands",
+    "unlockLevel": 12,
+    "eventInterval": 60,
+    "events": [
+      {"type": "resource", "weight": 20},
+      {"type": "token", "weight": 15},
+      {"type": "enemy", "weight": 30},
+      {"type": "item", "weight": 20},
+      {"type": "nothing", "weight": 5},
+      {"type": "trap", "weight": 10}
+    ],
+    "resources": [
+      {"resource": "food", "min": 10, "max": 30, "weight": 15},
+      {"resource": "wood", "min": 10, "max": 30, "weight": 15},
+      {"resource": "iron", "min": 30, "max": 80, "weight": 70}
+    ],
+    "tokens": [
+      {"token": "slate", "min": 1, "max": 2, "weight": 30},
+      {"token": "ingot", "min": 1, "max": 2, "weight": 50},
+      {"token": "relic", "min": 1, "max": 1, "weight": 20}
+    ],
+    "enemies": ["cave_troll", "giant_spider", "basilisk"],
+    "itemTier": 3,
+    "healPercent": 0,
+    "trapDamage": 25,
+    "flavorTexts": {
+      "nothing": [
+        "Dripping water echoes in the dark",
+        "Old mining tracks lead deeper",
+        "Carved runes glow faintly on the walls"
+      ],
+      "trap": [
+        "Stepped on a pressure plate! Darts fly!",
+        "The floor collapses — barely catches the edge!",
+        "Poisonous gas seeps from a crack"
+      ]
+    }
+  },
+  "ruins": {
+    "name": "Cursed Ruins",
+    "description": "Remnants of a kingdom swallowed by darkness",
+    "unlockLevel": 20,
+    "eventInterval": 50,
+    "events": [
+      {"type": "resource", "weight": 15},
+      {"type": "token", "weight": 15},
+      {"type": "enemy", "weight": 35},
+      {"type": "item", "weight": 25},
+      {"type": "heal", "weight": 5},
+      {"type": "curse", "weight": 5}
+    ],
+    "resources": [
+      {"resource": "food", "min": 20, "max": 60, "weight": 30},
+      {"resource": "wood", "min": 20, "max": 60, "weight": 30},
+      {"resource": "iron", "min": 20, "max": 60, "weight": 40}
+    ],
+    "tokens": [
+      {"token": "ingot", "min": 1, "max": 2, "weight": 40},
+      {"token": "relic", "min": 1, "max": 2, "weight": 60}
+    ],
+    "enemies": ["wraith_scout", "skeleton_knight", "cursed_guardian"],
+    "itemTier": 4,
+    "healPercent": 30,
+    "curseDamagePenalty": 0.2,
+    "curseDuration": 3,
+    "flavorTexts": {
+      "nothing": [],
+      "heal": [
+        "A blessed altar still glows with holy light",
+        "Found an untouched prayer chamber"
+      ],
+      "curse": [
+        "A dark whisper saps strength...",
+        "Shadows cling and weaken resolve",
+        "An ancient curse takes hold"
+      ]
+    }
+  },
+  "wastes": {
+    "name": "Demon Wastes",
+    "description": "The scorched borderlands of hell itself",
+    "unlockLevel": 30,
+    "eventInterval": 45,
+    "events": [
+      {"type": "resource", "weight": 10},
+      {"type": "token", "weight": 15},
+      {"type": "enemy", "weight": 40},
+      {"type": "item", "weight": 25},
+      {"type": "nothing", "weight": 5},
+      {"type": "heal", "weight": 5}
+    ],
+    "resources": [
+      {"resource": "food", "min": 40, "max": 120, "weight": 30},
+      {"resource": "wood", "min": 40, "max": 120, "weight": 30},
+      {"resource": "iron", "min": 40, "max": 120, "weight": 40}
+    ],
+    "tokens": [
+      {"token": "ingot", "min": 1, "max": 2, "weight": 20},
+      {"token": "relic", "min": 1, "max": 3, "weight": 80}
+    ],
+    "enemies": ["demon_scout", "hellhound", "infernal"],
+    "itemTier": 5,
+    "healPercent": 100,
+    "flavorTexts": {
+      "nothing": [
+        "Ash falls like snow",
+        "The ground cracks with heat",
+        "Distant roars echo across the wastes"
+      ],
+      "heal": [
+        "An infernal spring — the flames heal rather than burn!",
+        "A pocket of pure air restores vitality"
+      ]
+    }
+  }
+}
