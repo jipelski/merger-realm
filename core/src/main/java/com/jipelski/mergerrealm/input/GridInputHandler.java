@@ -14,6 +14,7 @@ import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
+import com.jipelski.mergerrealm.ui.InventoryMenu;
 
 import java.util.Objects;
 
@@ -69,6 +70,10 @@ public class GridInputHandler extends InputAdapter {
 
     private OfflinePopup offlinePopup;
 
+    private InventoryMenu inventoryMenu;
+    private float invBtnX, invBtnY, invBtnW, invBtnH;
+
+
     private WallGate wallGate;
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
@@ -95,6 +100,16 @@ public class GridInputHandler extends InputAdapter {
         this.offlinePopup = popup;
     }
 
+    public void setInventoryMenu(InventoryMenu menu) {
+        this.inventoryMenu = menu;
+    }
+
+    public void setInventoryButtonBounds(float x, float y, float w, float h) {
+        this.invBtnX = x;
+        this.invBtnY = y;
+        this.invBtnW = w;
+        this.invBtnH = h;
+    }
     public void setLockButtonBounds(float x, float y, float w, float h) {
         this.lockBtnX = x;
         this.lockBtnY = y;
@@ -133,7 +148,35 @@ public class GridInputHandler extends InputAdapter {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
 
+        // ── Inventory menu touches (browsing mode) ──
+        if (inventoryMenu != null && inventoryMenu.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
         toWorldCoords(screenX, screenY);
+
+        if (inventoryMenu != null
+            && worldPos.x >= invBtnX && worldPos.x <= invBtnX + invBtnW
+            && worldPos.y >= invBtnY && worldPos.y <= invBtnY + invBtnH) {
+            inventoryMenu.toggle();
+            return true;
+        }
+
+        // ── Unit selection for inventory item ──
+        if (inventoryMenu != null && inventoryMenu.isSelectingUnit()) {
+            int[] cell = worldToCell(worldPos.x, worldPos.y);
+            if (cell != null) {
+                Grid grid = eventManager.getGridInstance();
+                Cell gridCell = grid.getCell(cell[0], cell[1]);
+                if (!gridCell.isEmpty()) {
+                    String objectId = gridCell.getOccupant();
+                    if (inventoryMenu.canApplyToUnit(objectId)) {
+                        inventoryMenu.onUnitSelected(objectId);
+                    }
+                }
+            }
+            return true; // consume all touches during unit selection
+        }
 
         if (offlinePopup != null && offlinePopup.isVisible()) {
             offlinePopup.handleTouch(worldPos.x, worldPos.y);
@@ -228,6 +271,9 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if (inventoryMenu != null && inventoryMenu.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
         if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
@@ -258,6 +304,9 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        if (inventoryMenu != null && inventoryMenu.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
         if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);

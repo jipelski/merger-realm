@@ -42,6 +42,7 @@ import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import com.jipelski.mergerrealm.ui.BuildMenu;
+import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.LayoutConfig;
 import com.jipelski.mergerrealm.ui.UITextureManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
@@ -102,6 +103,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private BuildMenu buildMenu;
     private boolean buildMenuOpen = false;
 
+    private InventoryMenu inventoryMenu;
+
     private float gridStartYShifted;
 
     private UITextureManager uiTex;
@@ -160,6 +163,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         buildMenu = new BuildMenu(eventManager, spriteManager, viewport, LayoutConfig.WORLD_WIDTH , LayoutConfig.WORLD_HEIGHT );
         inputHandler.setBuildMenu(buildMenu);
+
+        inventoryMenu = new InventoryMenu(eventManager, spriteManager, viewport, uiTex);
+        inputHandler.setInventoryMenu(inventoryMenu);
+        inputHandler.setInventoryButtonBounds(
+            LayoutConfig.getButtonX(1), LayoutConfig.getBtnY(),
+            LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
 
         offlinePopup = new OfflinePopup(uiTex);
 
@@ -314,9 +323,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float delta = Gdx.graphics.getDeltaTime();
 
         // Don't process input/ticks while popup is visible
-        if (!offlinePopup.isVisible()) {
+        if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
+            inventoryMenu.update(delta);
 
             tickTimer += delta;
             if (tickTimer >= TICK_INTERVAL) {
@@ -353,6 +363,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawGridShifted();
             drawDraggedObject();
             buildMenu.drawContent(batch, font, fontSmall);
+            batch.end();
+        } else if (inventoryMenu.isSelectingUnit()) {
+            drawGridBackground();
+            drawSelectionOutline();
+            drawHighlights();
+            drawLockIndicators();
+            drawInventoryTints();
+
+            batch.begin();
+
+            drawGrid();
+            drawDraggedObject();
+
             batch.end();
         } else {
             // Shape pass (only for things not yet converted to textures)
@@ -404,6 +427,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawDraggedObject();
             drawBottomBarTextured();
 
+            batch.end();
+        }
+
+        if (inventoryMenu.isVisible()) {
+            inventoryMenu.drawBackground(shapeRenderer);
+            batch.begin();
+            inventoryMenu.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
@@ -690,13 +720,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         uiTex.drawPanel(batch, uiTex.panelDark, 0, barY, LayoutConfig.WORLD_WIDTH, barH);
 
         // Buttons
-        String[] labels = {"Build", "Shop", "Spells", "Quests"};
+        String[] labels = {"Build", "Items", "Spells", "Quests"};
         for (int i = 0; i < labels.length; i++) {
             float btnX = LayoutConfig.getButtonX(i);
             float btnBY = LayoutConfig.getBtnY();
 
             // Use appropriate button style
-            if (i == 0) {
+            if (i <= 1) {
                 uiTex.drawPanel(batch, uiTex.btnNormal,
                     btnX, btnBY, LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
                 fontSmall.setColor(Color.WHITE);
@@ -947,16 +977,15 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 UnitData ud = (UnitData) data;
                 Unit u = (Unit) obj;
                 StringBuilder sb = new StringBuilder();
-                // HP display
                 if (u.getMax_hp() > 0) {
                     sb.append("HP: ").append(u.getHp()).append("/").append(u.getMax_hp());
                 }
                 if (ud.getDamage() > 0) {
                     if (sb.length() > 0) sb.append(" | ");
-                    int bonusDmg = eventManager.getInventory().getEquipBonusDamage(
+                    int bonus = eventManager.getInventory().getEquipBonusDamage(
                         inputHandler.getSelectedObjectId());
                     sb.append("DMG: ").append(ud.getDamage());
-                    if (bonusDmg > 0) sb.append("+").append(bonusDmg);
+                    if (bonus > 0) sb.append("+").append(bonus);
                 }
                 if (ud.getGen_rate() > 0) {
                     if (sb.length() > 0) sb.append(" | ");
@@ -1061,14 +1090,15 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "phoenix": {
                 UnitData ud = (UnitData) data;
                 StringBuilder sb = new StringBuilder();
-                sb.append("XP: ").append(ud.getXP_Rate())
-                    .append(" | ").append(capitalize(ud.getNemesis()));
+                sb.append("XP: ").append(ud.getXP_Rate());
+                sb.append(" | ").append(capitalize(ud.getNemesis()));
 
-                // Show equipped item
                 Item equipped = eventManager.getInventory().getEquippedItem(
                     inputHandler.getSelectedObjectId());
                 if (equipped != null) {
                     sb.append(" | ").append(equipped.getName());
+                } else if (ud.getHp() > 0) {
+                    sb.append(" | [No item]");
                 }
                 return sb.toString();
             }
@@ -1242,6 +1272,33 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 }
             }
         }
+    }
+
+    private void drawInventoryTints() {
+        Grid grid = eventManager.getGridInstance();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+
+        batch.begin();
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+
+                String objectId = cell.getOccupant();
+                Color tint = inventoryMenu.getUnitTintColor(objectId);
+                if (tint == null) continue;
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+                batch.setColor(tint);
+                batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
+            }
+        }
+        batch.setColor(1f, 1f, 1f, 1f);
+        batch.end();
     }
 
     // ══════════════════════════════════════════════════════════════
