@@ -9,6 +9,7 @@ import com.jipelski.mergerrealm.grid.Cell;
 import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.ui.BuildMenu;
+import com.jipelski.mergerrealm.ui.ExplorePanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
@@ -74,6 +75,9 @@ public class GridInputHandler extends InputAdapter {
     private float invBtnX, invBtnY, invBtnW, invBtnH;
 
 
+    private ExplorePanel explorePanel;
+
+
     private WallGate wallGate;
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
@@ -126,6 +130,9 @@ public class GridInputHandler extends InputAdapter {
         this.wallGate = wallGate;
     }
 
+    public void setExplorePanel(ExplorePanel panel) {
+        this.explorePanel = panel;
+    }
     /**
      * Called every frame from render(). Handles hold-to-spawn timing.
      */
@@ -147,6 +154,28 @@ public class GridInputHandler extends InputAdapter {
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
+
+        // Explore panel touches
+        if (explorePanel != null && explorePanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        // Explore unit selection (grid visible)
+        if (explorePanel != null && explorePanel.isSelectingUnit()) {
+            toWorldCoords(screenX, screenY);
+            int[] cell = worldToCell(worldPos.x, worldPos.y);
+            if (cell != null) {
+                Grid grid = eventManager.getGridInstance();
+                Cell gridCell = grid.getCell(cell[0], cell[1]);
+                if (!gridCell.isEmpty()) {
+                    String objectId = gridCell.getOccupant();
+                    if (explorePanel.canSendUnit(objectId)) {
+                        explorePanel.onUnitSelected(objectId);
+                    }
+                }
+            }
+            return true; // consume all touches during unit selection
+        }
 
         // ── Inventory menu touches (browsing mode) ──
         if (inventoryMenu != null && inventoryMenu.handleTouchDown(screenX, screenY)) {
@@ -271,6 +300,10 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if (explorePanel != null && explorePanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (inventoryMenu != null && inventoryMenu.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -304,6 +337,9 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        if (explorePanel != null && explorePanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
         if (inventoryMenu != null && inventoryMenu.handleTouchUp(screenX, screenY)) {
             return true;
         }

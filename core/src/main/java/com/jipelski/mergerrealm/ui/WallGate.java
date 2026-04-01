@@ -56,6 +56,9 @@ public class WallGate {
     private final UITextureManager uiTex;
     private final GlyphLayout glyphLayout;
 
+
+    private ExplorePanel explorePanel;
+
     // Animation
     private float gateAnimTime = 0f;
     private boolean wasOpen = false;
@@ -106,12 +109,16 @@ public class WallGate {
             return claimNextReward();
         }
 
-        // Check explore button (future — just consume tap)
+        // Check explore button
         if (worldX >= exploreBtnX && worldX <= exploreBtnX + SIDE_BTN_WIDTH
             && worldY >= exploreBtnY && worldY <= exploreBtnY + SIDE_BTN_HEIGHT) {
-            Gdx.app.log(TAG, "Explore — coming soon");
+            if (explorePanel != null) {
+                explorePanel.open();
+                Gdx.app.log(TAG, "Explore panel opened");
+            }
             return true;
         }
+
 
         // Check raid button (future — just consume tap)
         if (worldX >= raidBtnX && worldX <= raidBtnX + SIDE_BTN_WIDTH
@@ -280,7 +287,7 @@ public class WallGate {
         }
 
         // ── Explore button text ──
-        fontSmall.setColor(0.5f, 0.5f, 0.5f, 1f);
+        fontSmall.setColor(0.8f, 0.8f, 0.9f, 1f);
         glyphLayout.setText(fontSmall, "Explore");
         fontSmall.draw(batch, "Explore",
             exploreBtnX + (SIDE_BTN_WIDTH - glyphLayout.width) / 2f,
@@ -304,5 +311,9 @@ public class WallGate {
         float wallY = LayoutConfig.getWallY();
         float wallH = LayoutConfig.getWallHeight();
         return worldY >= wallY && worldY <= wallY + wallH;
+    }
+
+    public void setExplorePanel(ExplorePanel panel) {
+        this.explorePanel = panel;
     }
 }

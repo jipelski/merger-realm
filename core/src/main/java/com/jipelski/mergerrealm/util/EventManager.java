@@ -13,6 +13,7 @@ import com.jipelski.mergerrealm.database.JsonManager;
 import com.jipelski.mergerrealm.grid.Cell;
 import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.Chest;
+import com.jipelski.mergerrealm.model.ExplorationSlot;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
@@ -54,6 +55,7 @@ public class EventManager {
     private final ResourceManager    resourceManager;
     private final GridObjectManager  GRID_OBJECT_MANAGER;
     private final BattleFieldManager BATTLE_FIELD_MANAGER;
+    private ExplorationManager explorationManager;
 
     private Inventory inventory;
     public Inventory getInventory() { return inventory; }
@@ -87,11 +89,29 @@ public class EventManager {
 
         this.BATTLE_FIELD_MANAGER = new BattleFieldManager(this, jsonManager, gridInstance, GRID_OBJECT_MANAGER);
 
+        // Exploration
+        this.explorationManager = new ExplorationManager(this);
+
+        // Load zone and enemy definitions
+        String zoneJson = jsonManager.readRawJson("exploration_zones");
+        String enemyJson = jsonManager.readRawJson("exploration_enemies");
+        explorationManager.loadData(zoneJson, enemyJson);
+
+        // Load saved exploration state
+        java.util.List<ExplorationSlot> savedSlots =
+            jsonManager.loadExplorationSlots("exploration_slots");
+        if (savedSlots != null) {
+            explorationManager.setActiveSlots(savedSlots);
+            Gdx.app.log(TAG, "Loaded " + savedSlots.size() + " exploration slots");
+        }
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.
         spawnInitialObjectsIfNeeded();
     }
+
+
+    public ExplorationManager getExplorationManager() { return explorationManager; }
 
     /**
      * Spawns the starting set of objects only when the saved grid is fully empty.
@@ -389,6 +409,8 @@ public class EventManager {
         });
         jsonInstance.saveInventoryItems("inventory_items", inventory.getItems());
         jsonInstance.saveEquippedMap("inventory_equipped", inventory.getEquipped());
+        jsonInstance.saveExplorationSlots("exploration_slots",
+            explorationManager.getActiveSlots());
     }
 
     public void removeObject(String id) {

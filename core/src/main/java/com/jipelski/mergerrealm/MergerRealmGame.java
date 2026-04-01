@@ -32,6 +32,7 @@ import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.ui.ExplorePanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -105,6 +106,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private InventoryMenu inventoryMenu;
 
+    private ExplorePanel explorePanel;
+
     private float gridStartYShifted;
 
     private UITextureManager uiTex;
@@ -170,6 +173,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             LayoutConfig.getButtonX(1), LayoutConfig.getBtnY(),
             LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT);
 
+        explorePanel = new ExplorePanel(eventManager, spriteManager, viewport, uiTex);
+        inputHandler.setExplorePanel(explorePanel);
+
+        wallGate.setExplorePanel(explorePanel);
+
         offlinePopup = new OfflinePopup(uiTex);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
@@ -230,6 +238,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int foodGained = rm.getAmount("food") - foodBefore;
         int woodGained = rm.getAmount("wood") - woodBefore;
         int ironGained = rm.getAmount("iron") - ironBefore;
+
+        if (eventManager.getExplorationManager() != null) {
+            eventManager.getExplorationManager().update();
+            Gdx.app.log(TAG, "Processed offline exploration events");
+        }
 
         int periodicSpawned = 0;
         int periodicHeld = 0;
@@ -323,7 +336,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float delta = Gdx.graphics.getDeltaTime();
 
         // Don't process input/ticks while popup is visible
-        if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing()) {
+        if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -435,6 +448,25 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.begin();
             inventoryMenu.drawContent(batch, font, fontSmall);
             batch.end();
+        }
+
+        // Exploration tints (during unit selection)
+        if (explorePanel.isSelectingUnit()) {
+            drawExploreTints();
+        }
+
+        // Exploration panel overlay
+        if (explorePanel.isVisible()) {
+            explorePanel.drawBackground(shapeRenderer);
+            batch.begin();
+            explorePanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        // IMPORTANT: Call explorationManager.update() ALWAYS (even when panel is open)
+        // so events process in real time:
+        if (!offlinePopup.isVisible()) {
+            eventManager.getExplorationManager().update();
         }
 
         // Popup always draws on top of everything
@@ -1328,6 +1360,33 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         f.draw(batch, text, centerX - glyphLayout.width / 2f, y);
     }
 
+    private void drawExploreTints() {
+        Grid grid = eventManager.getGridInstance();
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+
+        batch.begin();
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+
+                String objectId = cell.getOccupant();
+                Color tint = explorePanel.getUnitTintColor(objectId);
+                if (tint == null) continue;
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+                batch.setColor(tint);
+                batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
+            }
+        }
+        batch.setColor(1f, 1f, 1f, 1f);
+        batch.end();
+    }
+
     private String getSelectedType() {
         if (!inputHandler.hasSelection()) return null;
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
@@ -1443,6 +1502,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 eventManager.getInventory().getItems());
             jsonManager.saveEquippedMap("inventory_equipped",
                 eventManager.getInventory().getEquipped());
+
+            jsonManager.saveExplorationSlots("exploration_slots",
+                eventManager.getExplorationManager().getActiveSlots());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

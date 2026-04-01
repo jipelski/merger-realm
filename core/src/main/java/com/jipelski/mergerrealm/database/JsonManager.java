@@ -5,6 +5,7 @@ import com.badlogic.gdx.files.FileHandle;
 
 import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.model.Chest;
+import com.jipelski.mergerrealm.model.ExplorationSlot;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.FacilitySpawnConfiguration;
 import com.jipelski.mergerrealm.model.GameObject;
@@ -241,6 +242,30 @@ public class JsonManager {
         String json = readJson(filename);
         if (json == null) return null;
         return gson.fromJson(json, new TypeToken<Map<String, String>>() {}.getType());
+    }
+
+    /**
+     * Saves active exploration slots.
+     */
+    public void saveExplorationSlots(String filename, List<ExplorationSlot> slots) {
+        writeJson(filename, slots);
+    }
+
+    /**
+     * Loads active exploration slots.
+     */
+    public List<ExplorationSlot> loadExplorationSlots(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<List<ExplorationSlot>>() {}.getType());
+    }
+
+    /**
+     * Reads a raw JSON string from a file (for zone/enemy data).
+     * Falls back to bundled assets.
+     */
+    public String readRawJson(String filename) {
+        return readJson(filename);
     }
 
     // ── SAVER METHODS ──
