@@ -16,6 +16,7 @@ import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.Inventory;
+import com.jipelski.mergerrealm.util.LegendaryEvolution;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import java.util.ArrayList;
@@ -143,6 +144,11 @@ public class InventoryMenu {
         boolean success;
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
             success = eventManager.usePotionOnUnit(unitId, selectedItem.getId());
+        } else if (selectedItem.isConsumable()
+            && "amulet_of_ascension".equals(selectedItem.getType())) {
+            // Amulet of Ascension — evolve to legendary
+            success = eventManager.evolveUnit(unitId, selectedItem.getId());
+
         } else if (!selectedItem.isConsumable()) {
             eventManager.equipItem(unitId, selectedItem.getId());
             success = true;
@@ -197,7 +203,9 @@ public class InventoryMenu {
                     || "amulet".equals(item.getType());
             case TAB_CONSUMABLES:
                 return "potion".equals(item.getType())
-                    || "phoenix_feather".equals(item.getType());
+                    || "phoenix_feather".equals(item.getType())
+                    || "amulet_of_ascension".equals(item.getType())
+                    || "ancient_map".equals(item.getType());
             case TAB_FRAGMENTS:
                 return item.getType() != null && item.getType().startsWith("rune_fragment_");
             default:
@@ -271,6 +279,24 @@ public class InventoryMenu {
             return new Color(0.3f, 0.3f, 0.3f, 0.5f);
         }
 
+        // Amulet of Ascension: only max-level non-legendary units
+        if (selectedItem.isConsumable()
+            && "amulet_of_ascension".equals(selectedItem.getType())) {
+            // Must be at max level
+            if (unit.getLvl() < unit.getMaxLVL()) {
+                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — not max level
+            }
+            // Must not already be legendary
+            if (LegendaryEvolution.isLegendary(obj.getType())) {
+                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — already evolved
+            }
+            // Must have an evolution path
+            if (!LegendaryEvolution.canEvolve(obj.getType())) {
+                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — no path
+            }
+            return new Color(1f, 0.85f, 0.2f, 0.4f); // gold tint — can evolve!
+        }
+
         // Potions: only wounded units
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
             if (!unit.isWounded()) {
@@ -293,8 +319,8 @@ public class InventoryMenu {
     public boolean canApplyToUnit(String objectId) {
         Color tint = getUnitTintColor(objectId);
         if (tint == null) return false;
-        // Green (g > 0.5) or blue (b > 0.7) means eligible
-        return tint.g > 0.5f || tint.b > 0.7f;
+        // Green (g > 0.5), blue (b > 0.7), or gold (r > 0.9 && g > 0.7)
+        return tint.g > 0.5f || tint.b > 0.7f || (tint.r > 0.9f && tint.g > 0.7f);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -614,6 +640,11 @@ public class InventoryMenu {
         fontSmall.draw(batch, "●", 205f, top - 68f);
         fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
         fontSmall.draw(batch, "Ineligible", 217f, top - 68f);
+
+        fontSmall.setColor(1f, 0.85f, 0.2f, 1f);
+        fontSmall.draw(batch, "●", 12f, top - 68f);  // adjust positioning
+        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
+        fontSmall.draw(batch, "Can evolve", 24f, top - 68f);
 
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);

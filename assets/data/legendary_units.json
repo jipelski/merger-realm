@@ -1,0 +1,53 @@
+{
+  "elder_villager": [
+    {"level":1,"sprite_path":"elder_villager_1","description":"Heart of two worlds — generates Food and Wood","maxLVL":1,"resource":"food","gen_rate":13,"hp":168,"damage":49,"xp":200,"nemesis":"gremlin","nemesis_rate":6,"secondary_resource":"wood","secondary_gen_rate":5}
+  ],
+  "lumberlord": [
+    {"level":1,"sprite_path":"lumberlord_1","description":"The forest bends to his will — generates Wood and Iron","maxLVL":1,"resource":"wood","gen_rate":13,"hp":168,"damage":49,"xp":200,"nemesis":"gremlin","nemesis_rate":6,"secondary_resource":"iron","secondary_gen_rate":5}
+  ],
+  "grand_chef": [
+    {"level":1,"sprite_path":"grand_chef_1","description":"Feasts that heal the soul — doubled Food generation","maxLVL":1,"resource":"food","gen_rate":24,"hp":56,"damage":0,"xp":180,"nemesis":"gremlin","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "ore_master": [
+    {"level":1,"sprite_path":"ore_master_1","description":"The mountain yields everything — doubled Iron generation","maxLVL":1,"resource":"iron","gen_rate":14,"hp":154,"damage":77,"xp":240,"nemesis":"troll","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "war_veteran": [
+    {"level":1,"sprite_path":"war_veteran_1","description":"A hundred battles forged this warrior","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":225,"damage":180,"xp":440,"nemesis":"gremlin","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "master_builder": [
+    {"level":1,"sprite_path":"master_builder_1","description":"Every plank placed with perfection — doubled Wood generation","maxLVL":1,"resource":"wood","gen_rate":24,"hp":56,"damage":0,"xp":300,"nemesis":"troll","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "royal_knight": [
+    {"level":1,"sprite_path":"royal_knight_1","description":"The crown's chosen champion — reduces monster damage by 20%","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":525,"damage":480,"xp":700,"nemesis":"orc","nemesis_rate":6,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "beastmaster": [
+    {"level":1,"sprite_path":"beastmaster_1","description":"Commands both blade and beast — generates Food with deadly force","maxLVL":1,"resource":"food","gen_rate":11,"hp":154,"damage":112,"xp":260,"nemesis":"troll","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "shadowbow": [
+    {"level":1,"sprite_path":"shadowbow_1","description":"Arrows from the shadows — strikes twice in raids","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":330,"damage":500,"xp":600,"nemesis":"orc","nemesis_rate":6,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "forgemaster": [
+    {"level":1,"sprite_path":"forgemaster_1","description":"The ultimate smith — doubled Iron generation","maxLVL":1,"resource":"iron","gen_rate":28,"hp":56,"damage":0,"xp":400,"nemesis":"orc","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "ironclad": [
+    {"level":1,"sprite_path":"ironclad_1","description":"An immovable fortress — reflects 10% damage in raids","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":675,"damage":600,"xp":800,"nemesis":"wraith","nemesis_rate":6,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "high_priest": [
+    {"level":1,"sprite_path":"high_priest_1","description":"Channel of divine light — heals party in raids","maxLVL":1,"resource":"food","gen_rate":12,"hp":390,"damage":450,"xp":800,"nemesis":"wraith","nemesis_rate":6,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "archangel": [
+    {"level":1,"sprite_path":"archangel_1","description":"Heaven's wrath made manifest — immune to curses","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":570,"damage":675,"xp":1000,"nemesis":"wraith","nemesis_rate":6,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "storm_griffin": [
+    {"level":1,"sprite_path":"storm_griffin_1","description":"Rides the thunder — ignores traps in exploration","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":450,"damage":450,"xp":700,"nemesis":"wraith","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "venom_drake": [
+    {"level":1,"sprite_path":"venom_drake_1","description":"Toxic and relentless — poisons enemies over time","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":495,"damage":510,"xp":760,"nemesis":"wraith","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "elder_dragon": [
+    {"level":1,"sprite_path":"elder_dragon_1","description":"Ancient destroyer of worlds — the mightiest creature alive","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":800,"damage":960,"xp":1400,"nemesis":"demon","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ],
+  "eternal_phoenix": [
+    {"level":1,"sprite_path":"eternal_phoenix_1","description":"Undying flame — auto-revives once per raid","maxLVL":1,"resource":"nothing","gen_rate":0,"hp":630,"damage":600,"xp":1000,"nemesis":"demon","nemesis_rate":5,"secondary_resource":"none","secondary_gen_rate":0}
+  ]
+}

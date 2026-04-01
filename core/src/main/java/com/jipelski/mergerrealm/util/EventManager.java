@@ -23,6 +23,7 @@ import com.jipelski.mergerrealm.model.Storage;
 import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
+import com.jipelski.mergerrealm.util.LegendaryEvolution;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,10 +39,17 @@ public class EventManager {
 
     // Used for type checks — avoids the broken string.contains() pattern
     private static final Set<String> UNIT_TYPES = new HashSet<>(Arrays.asList(
+        // Base units
         "villager", "woodsman", "cook", "prospector", "mercenary",
         "carpenter", "knight", "hunter", "archer", "blacksmith",
         "bulwark", "monk", "paladin", "griffin", "wyvern",
-        "dragon", "phoenix"
+        "dragon", "phoenix",
+        // Legendary units
+        "elder_villager", "lumberlord", "grand_chef", "ore_master",
+        "war_veteran", "master_builder", "royal_knight", "beastmaster",
+        "shadowbow", "forgemaster", "ironclad", "high_priest",
+        "archangel", "storm_griffin", "venom_drake", "elder_dragon",
+        "eternal_phoenix"
     ));
 
     public static final Set<String> PERIODIC_FACILITIES = new HashSet<>(Arrays.asList(
@@ -306,7 +314,12 @@ public class EventManager {
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix": {
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix": {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(type, level);
                 if (unitData == null) {
                     Gdx.app.error(TAG, "spawnObject: no UnitData for " + type + " lvl " + level);
@@ -432,7 +445,12 @@ public class EventManager {
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix": {
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix":{
                 UnitData unitData = (UnitData) GDLInstance.getGameData(
                     object.getType(), object.getLvl());
                 if (unitData != null) {
@@ -510,7 +528,12 @@ public class EventManager {
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix":
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix":
             case "silo": case "timberyard": case "ironvault":
             case "gremlin": case "troll": case "orc":
             case "wraith": case "demon": {
@@ -583,6 +606,16 @@ public class EventManager {
         if ("prince".equals(originGO.getType())) {
             swapPositions(originGO, targetGO, originId, targetId);
             return;
+        }
+
+        // Legendary units cannot merge
+        if (LegendaryEvolution.isLegendary(originGO.getType())
+            && LegendaryEvolution.isLegendary(targetGO.getType())) {
+            if (Objects.equals(originGO.getType(), targetGO.getType())) {
+                Gdx.app.log(TAG, "Legendary units cannot merge");
+                swapPositions(originGO, targetGO, originId, targetId);
+                return;
+            }
         }
 
         // ── Merge check: same type, same level, below max ──
@@ -684,7 +717,12 @@ public class EventManager {
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix": {
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix":{
                 UnitData unitData = (UnitData) GDLInstance.getGameData(type, object.getLvl());
                 if (unitData != null) {
                     int xpGain = unitData.getXP_Rate();
@@ -1008,6 +1046,82 @@ public class EventManager {
             + " — healed to " + unit.getHp() + "/" + unit.getMax_hp());
         return true;
     }
+
+    /**
+     * Evolves a max-level unit into its legendary form using an
+     * Amulet of Ascension. The amulet is consumed, the base unit
+     * is removed, and the legendary unit spawns in its place.
+     *
+     * @param unitId   the unit to evolve (must be at max level)
+     * @param amuletId the Amulet of Ascension item to consume
+     * @return true if evolution was successful
+     */
+    public boolean evolveUnit(String unitId, String amuletId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+        if (obj == null || !(obj instanceof Unit)) {
+            Gdx.app.log(TAG, "evolveUnit: not a unit id=" + unitId);
+            return false;
+        }
+
+        Unit unit = (Unit) obj;
+        String baseType = unit.getType();
+
+        // Must be at max level
+        if (unit.getLvl() < unit.getMaxLVL()) {
+            Gdx.app.log(TAG, "evolveUnit: " + baseType + " is not max level ("
+                + unit.getLvl() + "/" + unit.getMaxLVL() + ")");
+            return false;
+        }
+
+        // Must have a legendary evolution path
+        String legendaryType = LegendaryEvolution.getLegendaryType(baseType);
+        if (legendaryType == null) {
+            Gdx.app.log(TAG, "evolveUnit: no legendary form for " + baseType);
+            return false;
+        }
+
+        // Already legendary
+        if (LegendaryEvolution.isLegendary(baseType)) {
+            Gdx.app.log(TAG, "evolveUnit: " + baseType + " is already legendary");
+            return false;
+        }
+
+        // Consume the amulet
+        Item amulet = inventory.useConsumable(amuletId);
+        if (amulet == null) {
+            Gdx.app.log(TAG, "evolveUnit: amulet not found or not consumable");
+            return false;
+        }
+
+        // Remember position and equipped item
+        int x = unit.getxPos();
+        int y = unit.getyPos();
+        String equippedItemId = null;
+        if (inventory.hasEquippedItem(unitId)) {
+            equippedItemId = inventory.getEquippedItem(unitId).getId();
+        }
+
+        // Remove the base unit
+        removeObject(unitId);
+
+        // Spawn the legendary unit at the same position
+        spawnObject(legendaryType, 1, x, y);
+
+        // Re-equip the item on the new unit if it had one
+        if (equippedItemId != null) {
+            // Find the newly spawned legendary unit at position (x, y)
+            String newOccupant = gridInstance.getCell(x, y).getOccupant();
+            if (newOccupant != null && !newOccupant.equals("default_tile")) {
+                equipItem(newOccupant, equippedItemId);
+            }
+        }
+
+        Gdx.app.log(TAG, "LEGENDARY EVOLUTION: " + baseType + " → " + legendaryType
+            + " at [" + x + "," + y + "]");
+
+        return true;
+    }
+
 
     /**
      * Swaps the grid cell occupants and updates GridObjectManager positions

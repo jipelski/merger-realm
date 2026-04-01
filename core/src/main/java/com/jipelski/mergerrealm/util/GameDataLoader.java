@@ -41,6 +41,7 @@ public class GameDataLoader {
 
     private void initialiseData() {
         loadUnit("unit");
+        loadUnit("legendary_units");
         loadFacility("facility");
         loadStorage("storage");
         loadMonster("monster");

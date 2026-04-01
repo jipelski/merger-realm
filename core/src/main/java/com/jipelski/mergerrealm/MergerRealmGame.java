@@ -1005,7 +1005,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix": {
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix":{
                 UnitData ud = (UnitData) data;
                 Unit u = (Unit) obj;
                 StringBuilder sb = new StringBuilder();
@@ -1119,7 +1124,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "mercenary": case "carpenter": case "knight": case "hunter":
             case "archer": case "blacksmith": case "bulwark": case "monk":
             case "paladin": case "griffin": case "wyvern": case "dragon":
-            case "phoenix": {
+            case "phoenix": case "elder_villager": case "lumberlord": case "grand_chef":
+            case "ore_master": case "war_veteran": case "master_builder":
+            case "royal_knight": case "beastmaster": case "shadowbow":
+            case "forgemaster": case "ironclad": case "high_priest":
+            case "archangel": case "storm_griffin": case "venom_drake":
+            case "elder_dragon": case "eternal_phoenix":{
                 UnitData ud = (UnitData) data;
                 StringBuilder sb = new StringBuilder();
                 sb.append("XP: ").append(ud.getXP_Rate());
