@@ -50,6 +50,62 @@ public class ExplorationManager {
     // Slot unlock levels
     private static final int[] SLOT_UNLOCK_LEVELS = {1, 5, 10, 15, 20, 25, 30};
 
+    /**
+     * Rare drop rates per zone. Each entry is checked independently
+     * after EVERY exploration event (not just item finds).
+     *
+     * Format: RARE_DROPS[zoneIndex][dropIndex] = probability (0.0 to 1.0)
+     *
+     * Zone indices:  0=forest, 1=mountain, 2=mines, 3=ruins, 4=wastes
+     * Drop indices:  0=phoenix_feather, 1=amulet_of_ascension,
+     *                2=rune_fragment, 3=ancient_map
+     */
+    private static final double[][] RARE_DROP_RATES = {
+        //              feather  ascension  fragment  map
+        /* forest   */ { 0.000,   0.000,     0.005,   0.000 },
+        /* mountain */ { 0.000,   0.000,     0.010,   0.000 },
+        /* mines    */ { 0.000,   0.000,     0.020,   0.005 },
+        /* ruins    */ { 0.005,   0.000,     0.030,   0.010 },
+        /* wastes   */ { 0.020,   0.005,     0.050,   0.020 },
+    };
+
+    private static final String[] ZONE_INDEX_MAP = {
+        "forest", "mountain", "mines", "ruins", "wastes"
+    };
+
+    private static final String[] RUNE_FRAGMENT_TYPES = {
+        "rune_fragment_might", "rune_fragment_vitality",
+        "rune_fragment_fortune", "rune_fragment_swiftness"
+    };
+
+    // Flavor text for rare drops
+    private static final String[][] RARE_DROP_TEXTS = {
+        // Phoenix Feather
+        {
+            "A glowing feather drifts down from the sky!",
+            "Embers swirl into the shape of a feather!",
+            "A Phoenix Feather materializes in a flash of flame!"
+        },
+        // Amulet of Ascension
+        {
+            "The air crackles with ancient power — an Amulet of Ascension!",
+            "A golden amulet pulses with transcendent energy!",
+            "Hidden in the ruins of a forgotten altar — the Amulet of Ascension!"
+        },
+        // Rune Fragment
+        {
+            "A rune fragment glimmers among the debris!",
+            "Ancient energy crystallizes into a fragment!",
+            "A shard of runic power catches the light!"
+        },
+        // Ancient Map
+        {
+            "A weathered scroll reveals a hidden path — an Ancient Map!",
+            "Carved into the wall — directions to a forgotten temple!",
+            "An Ancient Map crumbles free from a sealed chest!"
+        }
+    };
+
     public ExplorationManager(EventManager eventManager) {
         this.eventManager = eventManager;
         this.gson = new Gson();
@@ -248,11 +304,20 @@ public class ExplorationManager {
                     rm.addAmount(l.getType(), l.getAmount());
                     break;
                 case "item":
-                    if (inv != null && l.getItemId() != null) {
-                        // Item was already created during event processing
-                        // It should already be in inventory
-                        Gdx.app.log(TAG, "Item delivered: " + l.getType()
-                            + " lv" + l.getLevel());
+                    if (inv != null) {
+                        // Create the actual Item object from the data definition
+                        GameDataLoader gdl = eventManager.getGameDataLoader();
+                        Item createdItem = gdl.createItem(l.getType(), l.getLevel());
+                        if (createdItem != null) {
+                            // Override the ID with the one generated during exploration
+                            if (l.getItemId() != null) {
+                                createdItem.setId(l.getItemId());
+                            }
+                            inv.addItem(createdItem);
+                            Gdx.app.log(TAG, "Item delivered to inventory: " + createdItem.getName());
+                        } else {
+                            Gdx.app.log(TAG, "Could not create item: " + l.getType() + " lv" + l.getLevel());
+                        }
                     }
                     break;
             }
@@ -375,6 +440,11 @@ public class ExplorationManager {
                 break;
         }
 
+        // ── Rare drop check — runs after EVERY event ──
+        if (!slot.isDead()) {
+            checkRareDrops(slot, eventTimeMs);
+        }
+
         // Decrement curse counter after each event
         if (slot.getCursedEncounters() > 0) {
             slot.setCursedEncounters(slot.getCursedEncounters() - 1);
@@ -484,13 +554,6 @@ public class ExplorationManager {
         slot.addLoot(ExplorationLoot.item(itemType, level, itemId));
         slot.addEvent(timeMs, "Found a " + capitalize(itemType)
             + " (Lv." + level + ")!", "loot");
-
-        // Phoenix Feather rare drop in Demon Wastes
-        if ("wastes".equals(slot.getZone()) && Math.random() < 0.05) {
-            String featherId = "feather_" + System.currentTimeMillis();
-            slot.addLoot(ExplorationLoot.item("phoenix_feather", 1, featherId));
-            slot.addEvent(timeMs, "A Phoenix Feather glows in the ash!", "loot");
-        }
     }
 
     private void processHeal(ExplorationSlot slot, long timeMs) {
@@ -545,6 +608,72 @@ public class ExplorationManager {
         if (text.isEmpty()) text = "Continues exploring...";
         slot.addEvent(timeMs, text, "nothing");
     }
+
+    /**
+     * Rolls for rare drops after every exploration event.
+     * Each rare drop type is checked independently — a single event
+     * can theoretically yield multiple rare drops (astronomically unlikely).
+     *
+     * Rare drops are added to the slot's loot and logged as special events.
+     */
+    private void checkRareDrops(ExplorationSlot slot, long eventTimeMs) {
+        String zone = slot.getZone();
+        int zoneIndex = getZoneIndex(zone);
+        if (zoneIndex < 0) return;
+
+        double[] rates = RARE_DROP_RATES[zoneIndex];
+
+        // ── Phoenix Feather ──
+        if (rates[0] > 0 && Math.random() < rates[0]) {
+            String id = "phoenix_feather_" + System.currentTimeMillis()
+                + "_" + (int)(Math.random() * 10000);
+            slot.addLoot(ExplorationLoot.item("phoenix_feather", 1, id));
+            slot.addEvent(eventTimeMs, getRandomRareText(0), "loot");
+        }
+
+        // ── Amulet of Ascension ──
+        if (rates[1] > 0 && Math.random() < rates[1]) {
+            String id = "amulet_of_ascension_" + System.currentTimeMillis()
+                + "_" + (int)(Math.random() * 10000);
+            slot.addLoot(ExplorationLoot.item("amulet_of_ascension", 1, id));
+            slot.addEvent(eventTimeMs, getRandomRareText(1), "loot");
+        }
+
+        // ── Rune Fragment (random type) ──
+        if (rates[2] > 0 && Math.random() < rates[2]) {
+            String fragmentType = RUNE_FRAGMENT_TYPES[
+                (int)(Math.random() * RUNE_FRAGMENT_TYPES.length)];
+            String id = fragmentType + "_" + System.currentTimeMillis()
+                + "_" + (int)(Math.random() * 10000);
+            slot.addLoot(ExplorationLoot.item(fragmentType, 1, id));
+
+            // Include which type in the log
+            String typeName = fragmentType.replace("rune_fragment_", "");
+            slot.addEvent(eventTimeMs,
+                getRandomRareText(2) + " (" + capitalize(typeName) + ")", "loot");
+        }
+
+        // ── Ancient Map ──
+        if (rates[3] > 0 && Math.random() < rates[3]) {
+            String id = "ancient_map_" + System.currentTimeMillis()
+                + "_" + (int)(Math.random() * 10000);
+            slot.addLoot(ExplorationLoot.item("ancient_map", 1, id));
+            slot.addEvent(eventTimeMs, getRandomRareText(3), "loot");
+        }
+    }
+
+    private int getZoneIndex(String zone) {
+        for (int i = 0; i < ZONE_INDEX_MAP.length; i++) {
+            if (ZONE_INDEX_MAP[i].equals(zone)) return i;
+        }
+        return -1;
+    }
+
+    private String getRandomRareText(int dropIndex) {
+        String[] texts = RARE_DROP_TEXTS[dropIndex];
+        return texts[(int)(Math.random() * texts.length)];
+    }
+
 
     // ── Zone data helpers ──
 

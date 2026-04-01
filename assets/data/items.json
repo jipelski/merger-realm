@@ -26,6 +26,24 @@
     {"level":3,"name":"Royal Elixir","description":"Heals unit to full HP","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"potion_3"}
   ],
   "phoenix_feather": [
-    {"level":1,"name":"Phoenix Feather","description":"Revives a fallen unit during a raid","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"phoenix_feather_1"}
+    {"level":1,"name":"Phoenix Feather","description":"Revives a fallen unit during a raid at 50% HP","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"phoenix_feather_1"}
+  ],
+  "amulet_of_ascension": [
+    {"level":1,"name":"Amulet of Ascension","description":"Evolves a max-level unit into its legendary form","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"amulet_of_ascension_1"}
+  ],
+  "ancient_map": [
+    {"level":1,"name":"Ancient Map","description":"Reveals the path to the Hidden Temple","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"ancient_map_1"}
+  ],
+  "rune_fragment_might": [
+    {"level":1,"name":"Might Fragment","description":"A shard of ancient power. Collect 5 to forge a Rune of Might (+3% damage)","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"rune_fragment_might_1"}
+  ],
+  "rune_fragment_vitality": [
+    {"level":1,"name":"Vitality Fragment","description":"Pulsing with life force. Collect 5 to forge a Rune of Vitality (+3% HP)","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"rune_fragment_vitality_1"}
+  ],
+  "rune_fragment_fortune": [
+    {"level":1,"name":"Fortune Fragment","description":"Shimmers with golden light. Collect 5 to forge a Rune of Fortune (+3% resource gen)","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"rune_fragment_fortune_1"}
+  ],
+  "rune_fragment_swiftness": [
+    {"level":1,"name":"Swiftness Fragment","description":"Hums with kinetic energy. Collect 5 to forge a Rune of Swiftness (+5% exploration speed)","bonusDamage":0,"bonusHp":0,"consumable":true,"spritePath":"rune_fragment_swiftness_1"}
   ]
 }

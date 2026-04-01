@@ -199,7 +199,7 @@ public class InventoryMenu {
                 return "potion".equals(item.getType())
                     || "phoenix_feather".equals(item.getType());
             case TAB_FRAGMENTS:
-                return "rune_fragment".equals(item.getType());
+                return item.getType() != null && item.getType().startsWith("rune_fragment_");
             default:
                 return false;
         }
