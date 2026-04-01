@@ -24,6 +24,7 @@ import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 import com.jipelski.mergerrealm.util.LegendaryEvolution;
+import com.jipelski.mergerrealm.util.RuneSystem;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,12 +72,15 @@ public class EventManager {
     public GameDataLoader getGameDataLoader() { return GDLInstance; }
     public BattleFieldManager getBattleFieldManager() { return BATTLE_FIELD_MANAGER; }
 
+    private RuneSystem runeSystem;
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
         this.GDLInstance         = new GameDataLoader(jsonInstance);
         this.resourceManager     = new ResourceManager(jsonManager);
         this.GRID_OBJECT_MANAGER = new GridObjectManager(jsonManager);
+        this.runeSystem = new RuneSystem();
 
         this.inventory = new Inventory();
         List<Item> savedItems = jsonManager.loadInventoryItems("inventory_items");
@@ -112,6 +116,19 @@ public class EventManager {
             explorationManager.setActiveSlots(savedSlots);
             Gdx.app.log(TAG, "Loaded " + savedSlots.size() + " exploration slots");
         }
+
+        // Load saved state
+        Map<String, Integer> savedFragments = jsonManager.loadRuneFragments("rune_fragments");
+        if (savedFragments != null) runeSystem.setFragmentCounts(savedFragments);
+
+        Map<String, Integer> savedCrafted = jsonManager.loadRuneCrafted("rune_crafted");
+        if (savedCrafted != null) runeSystem.setCraftedRunes(savedCrafted);
+
+        Map<String, Map<String, Integer>> savedApplied =
+            jsonManager.loadRuneApplications("rune_applications");
+        if (savedApplied != null) runeSystem.setAppliedRunes(savedApplied);
+
+        Gdx.app.log(TAG, "RuneSystem loaded");
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.
@@ -424,6 +441,10 @@ public class EventManager {
         jsonInstance.saveEquippedMap("inventory_equipped", inventory.getEquipped());
         jsonInstance.saveExplorationSlots("exploration_slots",
             explorationManager.getActiveSlots());
+        jsonInstance.saveRuneFragments("rune_fragments", runeSystem.getFragmentCounts());
+        jsonInstance.saveRuneCrafted("rune_crafted", runeSystem.getCraftedRunes());
+        jsonInstance.saveRuneApplications("rune_applications", runeSystem.getAppliedRunes());
+
     }
 
     public void removeObject(String id) {
@@ -659,8 +680,9 @@ public class EventManager {
             Monster monster = (Monster) targetGO;
 
             // Calculate effective damage with equipment bonus
-            int effectiveDamage = originUnit.getDamage()
+            int baseDamage = originUnit.getDamage()
                 + inventory.getEquipBonusDamage(originId);
+            int effectiveDamage = runeSystem.getBoostedDamage(originId, baseDamage);
 
             // Unit attacks monster
             boolean monsterDied = monster.reduceHp(effectiveDamage);
@@ -921,6 +943,9 @@ public class EventManager {
         return null;
     }
 
+
+    public RuneSystem getRuneSystem() { return runeSystem; }
+
     /**
      * Returns true if this is a periodic (timer-based) facility.
      */
@@ -1120,6 +1145,28 @@ public class EventManager {
             + " at [" + x + "," + y + "]");
 
         return true;
+    }
+
+    /**
+     * Returns the effective max HP for a unit, including rune bonuses.
+     */
+    public int getEffectiveMaxHp(String unitId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+        if (!(obj instanceof Unit)) return 0;
+        Unit unit = (Unit) obj;
+        int base = unit.getMax_hp(); // already includes equipment bonus
+        return runeSystem.getBoostedMaxHp(unitId, base);
+    }
+
+    /**
+     * Returns the effective damage for a unit, including equipment + rune bonuses.
+     */
+    public int getEffectiveDamage(String unitId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+        if (!(obj instanceof Unit)) return 0;
+        Unit unit = (Unit) obj;
+        int base = unit.getDamage() + inventory.getEquipBonusDamage(unitId);
+        return runeSystem.getBoostedDamage(unitId, base);
     }
 
 

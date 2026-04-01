@@ -40,6 +40,7 @@ import com.jipelski.mergerrealm.util.GameDataLoader;
 import com.jipelski.mergerrealm.util.GameEventListener;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
+import com.jipelski.mergerrealm.util.RuneSystem;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import com.jipelski.mergerrealm.ui.BuildMenu;
@@ -1013,6 +1014,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "elder_dragon": case "eternal_phoenix":{
                 UnitData ud = (UnitData) data;
                 Unit u = (Unit) obj;
+                RuneSystem rs = eventManager.getRuneSystem();
                 StringBuilder sb = new StringBuilder();
                 if (u.getMax_hp() > 0) {
                     sb.append("HP: ").append(u.getHp()).append("/").append(u.getMax_hp());
@@ -1021,8 +1023,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     if (sb.length() > 0) sb.append(" | ");
                     int bonus = eventManager.getInventory().getEquipBonusDamage(
                         inputHandler.getSelectedObjectId());
-                    sb.append("DMG: ").append(ud.getDamage());
-                    if (bonus > 0) sb.append("+").append(bonus);
+                    int baseDmg = ud.getDamage() + bonus;
+                    int boosted = rs.getBoostedDamage(inputHandler.getSelectedObjectId(), baseDmg);
+                    sb.append("DMG: ").append(boosted);
+                    if (boosted > ud.getDamage()) {
+                        sb.append(" (base ").append(ud.getDamage()).append(")");
+                    }
                 }
                 if (ud.getGen_rate() > 0) {
                     if (sb.length() > 0) sb.append(" | ");
@@ -1142,6 +1148,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 } else if (ud.getHp() > 0) {
                     sb.append(" | [No item]");
                 }
+
+                RuneSystem rs = eventManager.getRuneSystem();
+                String runeSummary = rs.getRuneSummary(inputHandler.getSelectedObjectId());
+                if (runeSummary != null) {
+                    sb.append(" | Runes: ").append(runeSummary);
+                }
+
                 return sb.toString();
             }
 
@@ -1515,6 +1528,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
             jsonManager.saveExplorationSlots("exploration_slots",
                 eventManager.getExplorationManager().getActiveSlots());
+
+            RuneSystem rs = eventManager.getRuneSystem();
+            jsonManager.saveRuneFragments("rune_fragments", rs.getFragmentCounts());
+            jsonManager.saveRuneCrafted("rune_crafted", rs.getCraftedRunes());
+            jsonManager.saveRuneApplications("rune_applications", rs.getAppliedRunes());
+
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

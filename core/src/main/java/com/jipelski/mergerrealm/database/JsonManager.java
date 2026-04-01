@@ -16,6 +16,7 @@ import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.util.RuntimeTypeAdapterFactory;
+import com.jipelski.mergerrealm.util.RuneSystem;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -242,6 +243,47 @@ public class JsonManager {
         String json = readJson(filename);
         if (json == null) return null;
         return gson.fromJson(json, new TypeToken<Map<String, String>>() {}.getType());
+    }
+
+    public Map<String, Map<String, Integer>> loadRuneApplications(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json,
+            new TypeToken<Map<String, Map<String, Integer>>>() {}.getType());
+    }
+
+    /**
+     * Saves rune fragment counts: { "might": 3, "vitality": 1, ... }
+     */
+    public void saveRuneFragments(String filename, Map<String, Integer> fragments) {
+        writeJson(filename, fragments);
+    }
+
+    public Map<String, Integer> loadRuneFragments(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<Map<String, Integer>>() {}.getType());
+    }
+
+    /**
+     * Saves crafted rune counts: { "might": 1, "vitality": 0, ... }
+     */
+    public void saveRuneCrafted(String filename, Map<String, Integer> crafted) {
+        writeJson(filename, crafted);
+    }
+
+    public Map<String, Integer> loadRuneCrafted(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<Map<String, Integer>>() {}.getType());
+    }
+
+    /**
+     * Saves applied runes: { "unitId": { "might": 3, "vitality": 2 }, ... }
+     */
+    public void saveRuneApplications(String filename,
+                                     Map<String, Map<String, Integer>> applied) {
+        writeJson(filename, applied);
     }
 
     /**

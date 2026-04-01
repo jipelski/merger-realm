@@ -305,6 +305,15 @@ public class ExplorationManager {
                     break;
                 case "item":
                     if (inv != null) {
+                        // Check if this is a rune fragment
+                        String runeType = RuneSystem.getRuneTypeFromFragmentType(l.getType());
+                        if (runeType != null) {
+                            // Add to RuneSystem fragment count (not inventory)
+                            eventManager.getRuneSystem().addFragment(runeType);
+                            Gdx.app.log(TAG, "Rune fragment delivered: " + runeType);
+                            break; // don't create an Item for fragments
+                        }
+
                         // Create the actual Item object from the data definition
                         GameDataLoader gdl = eventManager.getGameDataLoader();
                         Item createdItem = gdl.createItem(l.getType(), l.getLevel());

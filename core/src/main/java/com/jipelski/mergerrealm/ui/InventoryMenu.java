@@ -17,6 +17,7 @@ import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.Inventory;
 import com.jipelski.mergerrealm.util.LegendaryEvolution;
+import com.jipelski.mergerrealm.util.RuneSystem;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import java.util.ArrayList;
@@ -93,6 +94,8 @@ public class InventoryMenu {
     // ── Cached filtered items ──
     private final List<Item> filteredItems = new ArrayList<>();
 
+    private String selectedRuneType = null;
+
     public InventoryMenu(EventManager eventManager, SpriteManager spriteManager,
                          Viewport viewport, UITextureManager uiTex) {
         this.eventManager = eventManager;
@@ -142,6 +145,19 @@ public class InventoryMenu {
         if (state != State.SELECTING_UNIT || selectedItem == null) return false;
 
         boolean success;
+        // Rune application
+        if (selectedRuneType != null) {
+            RuneSystem rs = eventManager.getRuneSystem();
+            boolean applied = rs.applyRune(unitId, selectedRuneType);
+            if (applied) {
+                Gdx.app.log(TAG, "Rune of " + selectedRuneType + " applied to " + unitId);
+                selectedRuneType = null;
+                state = State.BROWSING;
+                refreshFilteredItems();
+                return true;
+            }
+            return false;
+        }
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
             success = eventManager.usePotionOnUnit(unitId, selectedItem.getId());
         } else if (selectedItem.isConsumable()
@@ -297,6 +313,16 @@ public class InventoryMenu {
             return new Color(1f, 0.85f, 0.2f, 0.4f); // gold tint — can evolve!
         }
 
+        if (selectedRuneType != null) {
+            RuneSystem rs = eventManager.getRuneSystem();
+            if (rs.canApplyRune(objectId, selectedRuneType)) {
+                return new Color(getRuneColor(selectedRuneType).r,
+                    getRuneColor(selectedRuneType).g,
+                    getRuneColor(selectedRuneType).b, 0.4f);
+            }
+            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — capped TODO: do it to another color that signifies max cap reached
+        }
+
         // Potions: only wounded units
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
             if (!unit.isWounded()) {
@@ -319,8 +345,9 @@ public class InventoryMenu {
     public boolean canApplyToUnit(String objectId) {
         Color tint = getUnitTintColor(objectId);
         if (tint == null) return false;
+        return tint.a < 0.6f && tint.a > 0.2f; // all our eligible tints use alpha 0.35-0.4
         // Green (g > 0.5), blue (b > 0.7), or gold (r > 0.9 && g > 0.7)
-        return tint.g > 0.5f || tint.b > 0.7f || (tint.r > 0.9f && tint.g > 0.7f);
+        //return tint.g > 0.5f || tint.b > 0.7f || (tint.r > 0.9f && tint.g > 0.7f);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -439,7 +466,11 @@ public class InventoryMenu {
             getTabY() + TAB_HEIGHT - 10f);
 
         // Item grid
-        drawItemGrid(batch, fontSmall);
+        if (activeTab == TAB_FRAGMENTS) {
+            drawFragmentsTab(batch, font, fontSmall);
+        } else {
+            drawItemGrid(batch, fontSmall);
+        }
 
         // Equipped section
         drawEquippedSection(batch, fontSmall);
@@ -650,6 +681,113 @@ public class InventoryMenu {
         fontSmall.setColor(Color.WHITE);
     }
 
+    private void drawFragmentsTab(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
+        RuneSystem rs = eventManager.getRuneSystem();
+        float x = getMenuX() + 16f;
+        float y = getItemAreaTop() - 20f;
+        float barWidth = 120f;
+        float barHeight = 10f;
+        float rowHeight = 56f;
+
+        // ── Fragment counts ──
+        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
+        fontSmall.draw(batch, "FRAGMENTS:", x, y);
+        y -= 24f;
+
+        String[] displayNames = {"Might", "Vitality", "Fortune", "Swiftness"};
+
+        for (int i = 0; i < RuneSystem.RUNE_TYPES.length; i++) {
+            String type = RuneSystem.RUNE_TYPES[i];
+            int count = rs.getFragmentCount(type);
+            boolean canCraft = rs.canCraft(type);
+
+            // Name
+            fontSmall.setColor(0.8f, 0.8f, 0.9f, 1f);
+            fontSmall.draw(batch, displayNames[i] + ":", x, y);
+
+            // Count
+            fontSmall.setColor(canCraft
+                ? new Color(0.3f, 0.9f, 0.3f, 1f)
+                : new Color(0.7f, 0.7f, 0.8f, 1f));
+            fontSmall.draw(batch, count + "/" + RuneSystem.FRAGMENTS_PER_RUNE,
+                x + 90f, y);
+
+            // Progress blocks (■■■□□)
+            float blockX = x + 130f;
+            float blockSize = 12f;
+            float blockGap = 3f;
+            for (int b = 0; b < RuneSystem.FRAGMENTS_PER_RUNE; b++) {
+                if (b < count) {
+                    fontSmall.setColor(getRuneColor(type));
+                } else {
+                    fontSmall.setColor(0.3f, 0.3f, 0.35f, 1f);
+                }
+                fontSmall.draw(batch, "■", blockX + b * (blockSize + blockGap), y);
+            }
+
+            // [Craft] button
+            if (canCraft) {
+                fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+                fontSmall.draw(batch, "[Craft]",
+                    getMenuX() + getMenuWidth() - 60f, y);
+            }
+
+            y -= rowHeight;
+        }
+
+        // ── Crafted runes ──
+        y -= 10f;
+        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
+        fontSmall.draw(batch, "CRAFTED RUNES:", x, y);
+        y -= 24f;
+
+        boolean hasCrafted = false;
+        for (int i = 0; i < RuneSystem.RUNE_TYPES.length; i++) {
+            String type = RuneSystem.RUNE_TYPES[i];
+            int crafted = rs.getCraftedCount(type);
+            if (crafted <= 0) continue;
+
+            hasCrafted = true;
+
+            fontSmall.setColor(getRuneColor(type));
+            String boostText;
+            if (RuneSystem.SWIFTNESS.equals(type)) {
+                boostText = "+" + (int)(RuneSystem.BOOST_SWIFTNESS * 100) + "% explore speed";
+            } else {
+                String stat = RuneSystem.MIGHT.equals(type) ? "damage"
+                    : RuneSystem.VITALITY.equals(type) ? "HP" : "resource gen";
+                boostText = "+" + (int)(RuneSystem.BOOST_STANDARD * 100) + "% " + stat;
+            }
+
+            fontSmall.draw(batch, "Rune of " + displayNames[i] + " x" + crafted
+                + "  (" + boostText + ")", x, y);
+
+            // [Apply] button
+            fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            fontSmall.draw(batch, "[Apply]",
+                getMenuX() + getMenuWidth() - 60f, y);
+
+            y -= 28f;
+        }
+
+        if (!hasCrafted) {
+            fontSmall.setColor(0.4f, 0.4f, 0.5f, 1f);
+            fontSmall.draw(batch, "No runes crafted yet", x, y);
+        }
+
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    private Color getRuneColor(String runeType) {
+        switch (runeType) {
+            case "might":     return new Color(0.9f, 0.3f, 0.3f, 1f); // red
+            case "vitality":  return new Color(0.3f, 0.9f, 0.3f, 1f); // green
+            case "fortune":   return new Color(0.9f, 0.85f, 0.2f, 1f); // gold
+            case "swiftness": return new Color(0.3f, 0.7f, 0.9f, 1f); // blue
+            default:          return Color.WHITE;
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════
     // TOUCH HANDLING
     // ══════════════════════════════════════════════════════════════
@@ -768,7 +906,7 @@ public class InventoryMenu {
         int idx = getItemIndexAt(touchPos.x, touchPos.y);
         if (idx >= 0 && idx < filteredItems.size()) {
             if (activeTab == TAB_FRAGMENTS) {
-                // TODO: rune fragment crafting
+                handleFragmentTabTouch();
                 return true;
             }
             selectedItem = filteredItems.get(idx);
@@ -793,6 +931,46 @@ public class InventoryMenu {
         }
 
         return true;
+    }
+
+    private void handleFragmentTabTouch() {
+        RuneSystem rs = eventManager.getRuneSystem();
+        float x = getMenuX() + 16f;
+        float y = getItemAreaTop() - 44f;
+        float rowHeight = 56f;
+        float btnX = getMenuX() + getMenuWidth() - 70f;
+
+        // Check [Craft] buttons
+        for (int i = 0; i < RuneSystem.RUNE_TYPES.length; i++) {
+            String type = RuneSystem.RUNE_TYPES[i];
+            float rowY = y - i * rowHeight;
+
+            if (touchPos.x >= btnX && touchPos.y >= rowY - 12f && touchPos.y <= rowY + 12f) {
+                if (rs.canCraft(type)) {
+                    rs.craftRune(type);
+                    Gdx.app.log(TAG, "Crafted rune: " + type);
+                }
+                return;
+            }
+        }
+
+        // Check [Apply] buttons for crafted runes
+        float craftedY = y - RuneSystem.RUNE_TYPES.length * rowHeight - 34f;
+        for (int i = 0; i < RuneSystem.RUNE_TYPES.length; i++) {
+            String type = RuneSystem.RUNE_TYPES[i];
+            int crafted = rs.getCraftedCount(type);
+            if (crafted <= 0) continue;
+
+            if (touchPos.x >= btnX && touchPos.y >= craftedY - 12f
+                && touchPos.y <= craftedY + 12f) {
+                // Switch to unit selection mode for rune application
+                selectedRuneType = type;
+                state = State.SELECTING_UNIT;
+                Gdx.app.log(TAG, "Applying rune: " + type + " — select a unit");
+                return;
+            }
+            craftedY -= 28f;
+        }
     }
 
     // ══════════════════════════════════════════════════════════════
