@@ -72,7 +72,10 @@ public class EventManager {
     public GameDataLoader getGameDataLoader() { return GDLInstance; }
     public BattleFieldManager getBattleFieldManager() { return BATTLE_FIELD_MANAGER; }
 
+    public RaidManager getRaidManager() { return raidManager; }
     private RuneSystem runeSystem;
+
+    private RaidManager raidManager;
 
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
@@ -116,6 +119,23 @@ public class EventManager {
             explorationManager.setActiveSlots(savedSlots);
             Gdx.app.log(TAG, "Loaded " + savedSlots.size() + " exploration slots");
         }
+
+        this.raidManager = new RaidManager(this);
+        String raidChaptersJson = jsonManager.readRawJson("raid_chapters");
+        String raidEnemiesJson = jsonManager.readRawJson("raid_enemies");
+        raidManager.loadData(raidChaptersJson, raidEnemiesJson);
+
+        // Load saved raid state
+        Map<String, Integer> savedCompletion = jsonManager.loadRuneFragments("raid_completion");
+        if (savedCompletion != null) raidManager.setCompletionMap(savedCompletion);
+
+        int[] savedRaidCurrency = jsonManager.loadArray("raid_currency");
+        if (savedRaidCurrency != null && savedRaidCurrency.length >= 2) {
+            raidManager.setWarTrophies(savedRaidCurrency[0]);
+            raidManager.setBossTokens(savedRaidCurrency[1]);
+        }
+
+        Gdx.app.log(TAG, "RaidManager loaded");
 
         // Load saved state
         Map<String, Integer> savedFragments = jsonManager.loadRuneFragments("rune_fragments");
@@ -444,7 +464,10 @@ public class EventManager {
         jsonInstance.saveRuneFragments("rune_fragments", runeSystem.getFragmentCounts());
         jsonInstance.saveRuneCrafted("rune_crafted", runeSystem.getCraftedRunes());
         jsonInstance.saveRuneApplications("rune_applications", runeSystem.getAppliedRunes());
-
+        jsonInstance.saveRuneFragments("raid_completion", raidManager.getCompletionMap());
+        jsonInstance.saveArray("raid_currency", new int[]{
+            raidManager.getWarTrophies(), raidManager.getBossTokens()
+        });
     }
 
     public void removeObject(String id) {
@@ -1145,6 +1168,60 @@ public class EventManager {
             + " at [" + x + "," + y + "]");
 
         return true;
+    }
+
+    /**
+     * Removes a unit from the grid for a raid. Unlike removeObject(),
+     * this does NOT unequip items or reduce resource rates permanently.
+     * The unit will be returned after the raid.
+     */
+    public void removeUnitForRaid(String unitId) {
+        GameObject obj = GRID_OBJECT_MANAGER.getObject(unitId);
+        if (obj == null) return;
+
+        int x = obj.getxPos();
+        int y = obj.getyPos();
+
+        // Reduce resource rate temporarily
+        if (obj instanceof Unit) {
+            Unit unit = (Unit) obj;
+            resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), false);
+        }
+
+        // Remove from grid and object manager but keep equipped item mapping
+        gridInstance.setOnCell("default_tile", x, y);
+        GRID_OBJECT_MANAGER.removeObject(unitId);
+
+        Gdx.app.log(TAG, "Unit removed for raid: " + unitId);
+    }
+
+    /**
+     * Returns a unit to the grid after a raid.
+     * Respawns the unit with the given HP.
+     */
+    public void returnUnitFromRaid(String unitId, String type, int level, int currentHp) {
+        // Spawn a new unit of the same type/level
+        UnitData unitData = (UnitData) GDLInstance.getGameData(type, level);
+        if (unitData == null) {
+            Gdx.app.log(TAG, "returnUnitFromRaid: no data for " + type + " lv" + level);
+            return;
+        }
+
+        int[] pos = gridInstance.getClosestEmptyCell(0, 0);
+        if (pos == null) {
+            Gdx.app.log(TAG, "returnUnitFromRaid: grid full, unit lost!");
+            // TODO: add to reward queue
+            return;
+        }
+
+        Unit unit = new Unit(unitData, type, unitId, level, pos[0], pos[1]);
+        unit.setHp(Math.max(1, currentHp)); // at least 1 HP
+        gridInstance.setOnCell(unitId, pos[0], pos[1]);
+        GRID_OBJECT_MANAGER.addObject(unitId, unit);
+        resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), true);
+
+        Gdx.app.log(TAG, "Unit returned from raid: " + unitId + " (" + type
+            + " lv" + level + ") HP=" + currentHp + " at [" + pos[0] + "," + pos[1] + "]");
     }
 
     /**

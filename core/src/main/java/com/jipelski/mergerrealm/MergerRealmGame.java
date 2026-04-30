@@ -33,6 +33,7 @@ import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
+import com.jipelski.mergerrealm.ui.RaidPanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -117,6 +118,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private WallGate wallGate;
     private Texture whiteTex;
 
+
+    private RaidPanel raidPanel;
+
     @Override
     public void create() {
         Gdx.app.log(TAG, "=== MergerRealm starting ===");
@@ -179,6 +183,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         wallGate.setExplorePanel(explorePanel);
 
+        raidPanel = new RaidPanel(eventManager, spriteManager, viewport, uiTex);
+        inputHandler.setRaidPanel(raidPanel);
+
         offlinePopup = new OfflinePopup(uiTex);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
@@ -199,6 +206,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);*/
 
         inputHandler.setWallGate(wallGate);
+
 
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         // calculateGridLayout();

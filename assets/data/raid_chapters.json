@@ -1,0 +1,294 @@
+{
+  "chapters": [
+    {
+      "id": "goblin_warrens",
+      "name": "Goblin Warrens",
+      "unlockLevel": 5,
+      "nodes": [
+        {
+          "id": "gw_outpost", "name": "Outpost", "type": "main", "order": 1,
+          "firstClearTrophies": 10, "repeatTrophies": 5,
+          "rooms": [
+            {"enemies": ["goblin_grunt", "goblin_grunt"], "lootChance": 0.3},
+            {"enemies": ["goblin_grunt", "goblin_archer"], "lootChance": 0.4},
+            {"enemies": ["goblin_brute"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "gw_tunnels", "name": "Tunnels", "type": "main", "order": 2,
+          "firstClearTrophies": 12, "repeatTrophies": 6,
+          "rooms": [
+            {"enemies": ["goblin_grunt", "goblin_grunt", "goblin_archer"], "lootChance": 0.3},
+            {"enemies": ["goblin_brute", "goblin_archer"], "lootChance": 0.4},
+            {"enemies": ["goblin_shaman"], "lootChance": 0.5},
+            {"enemies": ["goblin_brute", "goblin_brute"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "gw_treasure", "name": "Treasure Room", "type": "side", "order": 2,
+          "firstClearTrophies": 15, "repeatTrophies": 8,
+          "enchantedDropChance": 0.3,
+          "rooms": [
+            {"enemies": ["goblin_brute", "goblin_archer", "goblin_archer"], "lootChance": 0.5},
+            {"enemies": ["goblin_shaman", "goblin_brute"], "lootChance": 0.6},
+            {"enemies": ["goblin_elite"], "lootChance": 0.8}
+          ]
+        },
+        {
+          "id": "gw_den", "name": "Den", "type": "main", "order": 3,
+          "firstClearTrophies": 15, "repeatTrophies": 7,
+          "rooms": [
+            {"enemies": ["goblin_brute", "goblin_shaman"], "lootChance": 0.4},
+            {"enemies": ["goblin_elite", "goblin_archer"], "lootChance": 0.5},
+            {"enemies": ["goblin_brute", "goblin_brute", "goblin_shaman"], "lootChance": 0.6},
+            {"enemies": ["goblin_elite", "goblin_brute"], "lootChance": 0.7}
+          ]
+        },
+        {
+          "id": "gw_boss", "name": "Goblin King", "type": "boss", "order": 4,
+          "firstClearTrophies": 30, "repeatTrophies": 15,
+          "enchantedDropChance": 0.5, "enchantedSet": "dragonscale",
+          "bossTokenReward": 1,
+          "rooms": [
+            {"enemies": ["goblin_elite", "goblin_shaman", "goblin_archer"], "lootChance": 0.5},
+            {"enemies": ["goblin_elite", "goblin_elite"], "lootChance": 0.6},
+            {"enemies": ["goblin_brute", "goblin_brute", "goblin_shaman", "goblin_archer"], "lootChance": 0.6},
+            {"enemies": ["goblin_king"], "lootChance": 1.0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "undead_crypts",
+      "name": "Undead Crypts",
+      "unlockLevel": 12,
+      "nodes": [
+        {
+          "id": "uc_gates", "name": "Gates", "type": "main", "order": 1,
+          "firstClearTrophies": 12, "repeatTrophies": 6,
+          "rooms": [
+            {"enemies": ["skeleton", "skeleton"], "lootChance": 0.3},
+            {"enemies": ["skeleton", "zombie", "zombie"], "lootChance": 0.4},
+            {"enemies": ["skeleton_warrior"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "uc_tombs", "name": "Tombs", "type": "main", "order": 2,
+          "firstClearTrophies": 15, "repeatTrophies": 7,
+          "rooms": [
+            {"enemies": ["zombie", "zombie", "zombie"], "lootChance": 0.3},
+            {"enemies": ["skeleton_warrior", "skeleton"], "lootChance": 0.4},
+            {"enemies": ["wraith_minor", "skeleton"], "lootChance": 0.5},
+            {"enemies": ["skeleton_warrior", "skeleton_warrior"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "uc_vault", "name": "Hidden Vault", "type": "side", "order": 2,
+          "firstClearTrophies": 18, "repeatTrophies": 10,
+          "enchantedDropChance": 0.35,
+          "rooms": [
+            {"enemies": ["skeleton_warrior", "wraith_minor"], "lootChance": 0.5},
+            {"enemies": ["wraith_minor", "wraith_minor"], "lootChance": 0.6},
+            {"enemies": ["bone_golem"], "lootChance": 0.8}
+          ]
+        },
+        {
+          "id": "uc_ritual", "name": "Ritual Hall", "type": "main", "order": 3,
+          "firstClearTrophies": 18, "repeatTrophies": 8,
+          "rooms": [
+            {"enemies": ["wraith_minor", "skeleton_warrior", "zombie"], "lootChance": 0.4},
+            {"enemies": ["bone_golem", "skeleton"], "lootChance": 0.5},
+            {"enemies": ["wraith_minor", "wraith_minor", "skeleton_warrior"], "lootChance": 0.6},
+            {"enemies": ["bone_golem", "wraith_minor"], "lootChance": 0.7}
+          ]
+        },
+        {
+          "id": "uc_boss", "name": "The Lich", "type": "boss", "order": 4,
+          "firstClearTrophies": 35, "repeatTrophies": 18,
+          "enchantedDropChance": 0.5, "enchantedSet": "holy_radiance",
+          "bossTokenReward": 1,
+          "rooms": [
+            {"enemies": ["bone_golem", "wraith_minor", "skeleton_warrior"], "lootChance": 0.5},
+            {"enemies": ["bone_golem", "bone_golem"], "lootChance": 0.6},
+            {"enemies": ["wraith_minor", "wraith_minor", "wraith_minor"], "lootChance": 0.6},
+            {"enemies": ["lich"], "lootChance": 1.0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "orc_stronghold",
+      "name": "Orc Stronghold",
+      "unlockLevel": 20,
+      "nodes": [
+        {
+          "id": "os_walls", "name": "Walls", "type": "main", "order": 1,
+          "firstClearTrophies": 15, "repeatTrophies": 7,
+          "rooms": [
+            {"enemies": ["orc_warrior", "orc_warrior"], "lootChance": 0.3},
+            {"enemies": ["orc_warrior", "orc_archer", "orc_archer"], "lootChance": 0.4},
+            {"enemies": ["orc_berserker"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "os_arena", "name": "Arena", "type": "main", "order": 2,
+          "firstClearTrophies": 18, "repeatTrophies": 9,
+          "rooms": [
+            {"enemies": ["orc_berserker", "orc_warrior"], "lootChance": 0.3},
+            {"enemies": ["orc_berserker", "orc_archer", "orc_archer"], "lootChance": 0.4},
+            {"enemies": ["orc_champion"], "lootChance": 0.5},
+            {"enemies": ["orc_berserker", "orc_berserker"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "os_armory", "name": "Armory", "type": "side", "order": 2,
+          "firstClearTrophies": 20, "repeatTrophies": 12,
+          "enchantedDropChance": 0.4,
+          "rooms": [
+            {"enemies": ["orc_champion", "orc_warrior"], "lootChance": 0.5},
+            {"enemies": ["orc_champion", "orc_berserker"], "lootChance": 0.6},
+            {"enemies": ["orc_warlord_guard"], "lootChance": 0.8}
+          ]
+        },
+        {
+          "id": "os_warroom", "name": "War Room", "type": "main", "order": 3,
+          "firstClearTrophies": 18, "repeatTrophies": 9,
+          "rooms": [
+            {"enemies": ["orc_champion", "orc_archer", "orc_archer"], "lootChance": 0.4},
+            {"enemies": ["orc_warlord_guard", "orc_berserker"], "lootChance": 0.5},
+            {"enemies": ["orc_champion", "orc_champion"], "lootChance": 0.6},
+            {"enemies": ["orc_warlord_guard", "orc_champion"], "lootChance": 0.7}
+          ]
+        },
+        {
+          "id": "os_boss", "name": "Warchief", "type": "boss", "order": 4,
+          "firstClearTrophies": 40, "repeatTrophies": 20,
+          "enchantedDropChance": 0.5, "enchantedSet": "shadowsteel",
+          "bossTokenReward": 1,
+          "rooms": [
+            {"enemies": ["orc_warlord_guard", "orc_champion", "orc_archer"], "lootChance": 0.5},
+            {"enemies": ["orc_warlord_guard", "orc_warlord_guard"], "lootChance": 0.6},
+            {"enemies": ["orc_champion", "orc_champion", "orc_berserker", "orc_berserker"], "lootChance": 0.6},
+            {"enemies": ["orc_warchief"], "lootChance": 1.0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shadow_realm",
+      "name": "Shadow Realm",
+      "unlockLevel": 28,
+      "nodes": [
+        {
+          "id": "sr_rift", "name": "Rift", "type": "main", "order": 1,
+          "firstClearTrophies": 18, "repeatTrophies": 9,
+          "rooms": [
+            {"enemies": ["shadow_stalker", "shadow_stalker"], "lootChance": 0.3},
+            {"enemies": ["shadow_stalker", "void_wisp", "void_wisp"], "lootChance": 0.4},
+            {"enemies": ["shadow_knight"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "sr_void", "name": "Void", "type": "main", "order": 2,
+          "firstClearTrophies": 20, "repeatTrophies": 10,
+          "rooms": [
+            {"enemies": ["shadow_knight", "void_wisp", "void_wisp"], "lootChance": 0.3},
+            {"enemies": ["shadow_knight", "shadow_stalker"], "lootChance": 0.4},
+            {"enemies": ["void_colossus"], "lootChance": 0.5},
+            {"enemies": ["shadow_knight", "shadow_knight"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "sr_archive", "name": "Forbidden Archive", "type": "side", "order": 2,
+          "firstClearTrophies": 25, "repeatTrophies": 15,
+          "enchantedDropChance": 0.45,
+          "rooms": [
+            {"enemies": ["void_colossus", "shadow_stalker"], "lootChance": 0.5},
+            {"enemies": ["shadow_knight", "shadow_knight", "void_wisp"], "lootChance": 0.6},
+            {"enemies": ["void_colossus", "void_colossus"], "lootChance": 0.8}
+          ]
+        },
+        {
+          "id": "sr_throne", "name": "Throne", "type": "main", "order": 3,
+          "firstClearTrophies": 22, "repeatTrophies": 11,
+          "rooms": [
+            {"enemies": ["void_colossus", "shadow_knight", "void_wisp"], "lootChance": 0.4},
+            {"enemies": ["void_colossus", "shadow_knight", "shadow_stalker"], "lootChance": 0.5},
+            {"enemies": ["void_colossus", "void_colossus", "shadow_knight"], "lootChance": 0.6},
+            {"enemies": ["void_colossus", "void_colossus", "shadow_stalker", "shadow_stalker"], "lootChance": 0.7}
+          ]
+        },
+        {
+          "id": "sr_boss", "name": "Shadow Lord", "type": "boss", "order": 4,
+          "firstClearTrophies": 45, "repeatTrophies": 22,
+          "enchantedDropChance": 0.5, "enchantedSet": "infernal",
+          "bossTokenReward": 1,
+          "rooms": [
+            {"enemies": ["void_colossus", "void_colossus", "shadow_knight"], "lootChance": 0.5},
+            {"enemies": ["void_colossus", "shadow_knight", "shadow_knight", "void_wisp"], "lootChance": 0.6},
+            {"enemies": ["void_colossus", "void_colossus", "void_colossus"], "lootChance": 0.6},
+            {"enemies": ["shadow_lord"], "lootChance": 1.0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "infernal_citadel",
+      "name": "Infernal Citadel",
+      "unlockLevel": 35,
+      "nodes": [
+        {
+          "id": "ic_gates", "name": "Gates of Hell", "type": "main", "order": 1,
+          "firstClearTrophies": 22, "repeatTrophies": 11,
+          "rooms": [
+            {"enemies": ["hellhound_raid", "hellhound_raid"], "lootChance": 0.3},
+            {"enemies": ["hellhound_raid", "fire_imp", "fire_imp"], "lootChance": 0.4},
+            {"enemies": ["infernal_knight"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "ic_forge", "name": "Lava Forge", "type": "main", "order": 2,
+          "firstClearTrophies": 25, "repeatTrophies": 12,
+          "rooms": [
+            {"enemies": ["infernal_knight", "fire_imp", "fire_imp"], "lootChance": 0.3},
+            {"enemies": ["infernal_knight", "hellhound_raid"], "lootChance": 0.4},
+            {"enemies": ["lava_golem"], "lootChance": 0.5},
+            {"enemies": ["infernal_knight", "infernal_knight"], "lootChance": 0.6}
+          ]
+        },
+        {
+          "id": "ic_hoard", "name": "Dragon's Hoard", "type": "side", "order": 2,
+          "firstClearTrophies": 30, "repeatTrophies": 18,
+          "enchantedDropChance": 0.5,
+          "rooms": [
+            {"enemies": ["lava_golem", "infernal_knight"], "lootChance": 0.5},
+            {"enemies": ["lava_golem", "lava_golem"], "lootChance": 0.6},
+            {"enemies": ["infernal_knight", "infernal_knight", "hellhound_raid", "hellhound_raid"], "lootChance": 0.8}
+          ]
+        },
+        {
+          "id": "ic_sanctum", "name": "Inner Sanctum", "type": "main", "order": 3,
+          "firstClearTrophies": 28, "repeatTrophies": 14,
+          "rooms": [
+            {"enemies": ["lava_golem", "infernal_knight", "fire_imp"], "lootChance": 0.4},
+            {"enemies": ["lava_golem", "lava_golem", "hellhound_raid"], "lootChance": 0.5},
+            {"enemies": ["lava_golem", "infernal_knight", "infernal_knight"], "lootChance": 0.6},
+            {"enemies": ["lava_golem", "lava_golem", "infernal_knight", "fire_imp"], "lootChance": 0.7}
+          ]
+        },
+        {
+          "id": "ic_boss", "name": "Arch-Demon", "type": "boss", "order": 4,
+          "firstClearTrophies": 50, "repeatTrophies": 25,
+          "enchantedDropChance": 0.6, "enchantedSet": "any",
+          "bossTokenReward": 1,
+          "rooms": [
+            {"enemies": ["lava_golem", "lava_golem", "infernal_knight", "infernal_knight"], "lootChance": 0.5},
+            {"enemies": ["lava_golem", "lava_golem", "lava_golem"], "lootChance": 0.6},
+            {"enemies": ["infernal_knight", "infernal_knight", "infernal_knight", "hellhound_raid", "hellhound_raid"], "lootChance": 0.6},
+            {"enemies": ["arch_demon"], "lootChance": 1.0}
+          ]
+        }
+      ]
+    }
+  ]
+}
