@@ -133,8 +133,27 @@ public class ExplorePanel {
     }
 
     /**
+     * Returns true if the given unit is alive, has HP, and can deal damage
+     * (base + equipped weapon) — the single source of truth for SELECT_UNIT
+     * eligibility. {@link #getUnitTintColor} derives its color FROM this,
+     * never the reverse. Sendable at any level (e.g. lv2 mercenary/griffin),
+     * but excludes 0-damage resource units unless equipped with a weapon.
+     */
+    public boolean canSendUnit(String objectId) {
+        if (state != State.SELECT_UNIT) return false;
+
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(objectId);
+        if (obj == null || !(obj instanceof Unit)) return false;
+
+        Unit unit = (Unit) obj;
+        return unit.getMax_hp() > 0 && unit.isAlive()
+            && eventManager.getEffectiveDamage(objectId) > 0;
+    }
+
+    /**
      * Returns the tint color for a grid cell during unit selection.
-     * Green = eligible (lv3+, alive, has HP)
+     * Green = eligible (alive, has HP, can deal damage)
      * Grey = ineligible
      */
     public Color getUnitTintColor(String objectId) {
@@ -145,22 +164,14 @@ public class ExplorePanel {
         if (obj == null) return null;
 
         if (!(obj instanceof Unit)) {
-            return new Color(0.15f, 0.15f, 0.15f, 0.6f);
+            return new Color(0.15f, 0.15f, 0.15f, 0.6f); // dark — non-unit
         }
 
-        Unit unit = (Unit) obj;
-
-        // Must be lv3+, alive, and have HP
-        if (unit.getLvl() < 3 || unit.getMax_hp() <= 0 || !unit.isAlive()) {
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        if (!canSendUnit(objectId)) {
+            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — ineligible
         }
 
-        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green
-    }
-
-    public boolean canSendUnit(String objectId) {
-        Color tint = getUnitTintColor(objectId);
-        return tint != null && tint.g > 0.5f;
+        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green — eligible
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -472,7 +483,7 @@ public class ExplorePanel {
             80f, top - 14f);
 
         fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
-        fontSmall.draw(batch, "Tap a unit (Lv3+, alive) to send exploring",
+        fontSmall.draw(batch, "Tap a unit with HP & damage to send exploring",
             80f, top - 34f);
 
         // Legend

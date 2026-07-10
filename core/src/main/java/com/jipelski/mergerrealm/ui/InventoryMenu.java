@@ -272,9 +272,54 @@ public class InventoryMenu {
     // ══════════════════════════════════════════════════════════════
 
     /**
+     * Returns true if the given unit can receive the currently selected item.
+     * This is the single source of truth for eligibility — game state only,
+     * never derived from a tint color. {@link #getUnitTintColor} derives its
+     * color FROM this predicate, not the other way around.
+     */
+    public boolean isEligibleTarget(String objectId) {
+        if (state != State.SELECTING_UNIT || selectedItem == null) return false;
+
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(objectId);
+        if (obj == null) return false;
+
+        // Non-units can't receive items
+        if (!(obj instanceof Unit)) return false;
+
+        Unit unit = (Unit) obj;
+
+        // Pre-units (hp=0) or dead units can't equip
+        if (unit.getMax_hp() <= 0 || !unit.isAlive()) return false;
+
+        // Amulet of Ascension: only max-level, evolvable, non-legendary units
+        if (selectedItem.isConsumable()
+            && "amulet_of_ascension".equals(selectedItem.getType())) {
+            if (unit.getLvl() < unit.getMaxLVL()) return false; // not max level
+            if (LegendaryEvolution.isLegendary(obj.getType())) return false; // already evolved
+            return LegendaryEvolution.canEvolve(obj.getType()); // must have a path
+        }
+
+        // Rune application: rune system's own cap check
+        if (selectedRuneType != null) {
+            RuneSystem rs = eventManager.getRuneSystem();
+            return rs.canApplyRune(objectId, selectedRuneType);
+        }
+
+        // Potions: only wounded units
+        if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
+            return unit.isWounded();
+        }
+
+        // Equipment: always eligible (no item vs replacing is visual-only)
+        return true;
+    }
+
+    /**
      * Returns the tint color for a grid cell's object during unit selection.
      *   GREEN  — eligible, no item equipped
      *   BLUE   — eligible, already has item (will replace)
+     *   GOLD   — eligible, can evolve (Amulet of Ascension)
      *   GREY   — cannot equip (non-unit, pre-unit, dead, etc.)
      *   null   — state is not SELECTING_UNIT
      */
@@ -290,46 +335,24 @@ public class InventoryMenu {
             return new Color(0.15f, 0.15f, 0.15f, 0.6f);
         }
 
-        Unit unit = (Unit) obj;
-
-        // Pre-units (hp=0) or dead units can't equip
-        if (unit.getMax_hp() <= 0 || !unit.isAlive()) {
+        // Ineligible — grey, regardless of item type or reason
+        if (!isEligibleTarget(objectId)) {
             return new Color(0.3f, 0.3f, 0.3f, 0.5f);
         }
 
-        // Amulet of Ascension: only max-level non-legendary units
+        // Eligible — color matches the action
         if (selectedItem.isConsumable()
             && "amulet_of_ascension".equals(selectedItem.getType())) {
-            // Must be at max level
-            if (unit.getLvl() < unit.getMaxLVL()) {
-                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — not max level
-            }
-            // Must not already be legendary
-            if (LegendaryEvolution.isLegendary(obj.getType())) {
-                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — already evolved
-            }
-            // Must have an evolution path
-            if (!LegendaryEvolution.canEvolve(obj.getType())) {
-                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — no path
-            }
             return new Color(1f, 0.85f, 0.2f, 0.4f); // gold tint — can evolve!
         }
 
         if (selectedRuneType != null) {
-            RuneSystem rs = eventManager.getRuneSystem();
-            if (rs.canApplyRune(objectId, selectedRuneType)) {
-                return new Color(getRuneColor(selectedRuneType).r,
-                    getRuneColor(selectedRuneType).g,
-                    getRuneColor(selectedRuneType).b, 0.4f);
-            }
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — capped TODO: do it to another color that signifies max cap reached
+            Color runeColor = getRuneColor(selectedRuneType);
+            return new Color(runeColor.r, runeColor.g, runeColor.b, 0.4f);
         }
 
-        // Potions: only wounded units
+        // Potions: only wounded units (already confirmed eligible above)
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
-            if (!unit.isWounded()) {
-                return new Color(0.3f, 0.3f, 0.3f, 0.5f); // full HP, can't heal
-            }
             return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green
         }
 
@@ -345,11 +368,7 @@ public class InventoryMenu {
      * Returns true if the given unit can receive the currently selected item.
      */
     public boolean canApplyToUnit(String objectId) {
-        Color tint = getUnitTintColor(objectId);
-        if (tint == null) return false;
-        return tint.a < 0.6f && tint.a > 0.2f; // all our eligible tints use alpha 0.35-0.4
-        // Green (g > 0.5), blue (b > 0.7), or gold (r > 0.9 && g > 0.7)
-        //return tint.g > 0.5f || tint.b > 0.7f || (tint.r > 0.9f && tint.g > 0.7f);
+        return isEligibleTarget(objectId);
     }
 
     // ══════════════════════════════════════════════════════════════

@@ -185,9 +185,12 @@ public class ExplorationManager {
 
         Unit unit = (Unit) obj;
 
-        // Must be lv3+ (real unit, not pre-unit)
-        if (unit.getLvl() < 3 || unit.getMax_hp() <= 0) {
-            Gdx.app.log(TAG, "sendUnit: unit too weak (pre-unit or no HP)");
+        // Must be able to fight: has HP and effective damage > 0 (base +
+        // equipment). Lets low-level combat units (e.g. mercenary/griffin L2)
+        // and equipped resource units (e.g. cook + sword) explore; still
+        // excludes pre-units and unarmed 0-damage resource units.
+        if (unit.getMax_hp() <= 0 || eventManager.getEffectiveDamage(unitId) <= 0) {
+            Gdx.app.log(TAG, "sendUnit: unit can't fight (pre-unit, no HP, or 0 damage)");
             return false;
         }
 

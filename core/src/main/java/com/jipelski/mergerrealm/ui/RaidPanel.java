@@ -137,6 +137,28 @@ public class RaidPanel {
     }
 
     /**
+     * Returns true if the given unit is a valid, alive combat unit not
+     * already in the party — the single source of truth for FORM_PARTY
+     * selection. {@link #getUnitTintColor} derives its color FROM this,
+     * never the reverse.
+     */
+    public boolean canSelectUnit(String objectId) {
+        if (state != State.FORM_PARTY) return false;
+
+        // Already in party — not re-selectable (rendered as its own blue tint)
+        for (String id : partyUnitIds) {
+            if (objectId.equals(id)) return false;
+        }
+
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        GameObject obj = gom.getObject(objectId);
+        if (obj == null || !(obj instanceof Unit)) return false;
+
+        Unit unit = (Unit) obj;
+        return unit.getMax_hp() > 0 && unit.isAlive() && unit.getDamage() > 0;
+    }
+
+    /**
      * Returns tint color for grid cells during party formation.
      * Green = eligible, Grey = ineligible, Blue = already selected
      */
@@ -153,20 +175,14 @@ public class RaidPanel {
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         GameObject obj = gom.getObject(objectId);
         if (obj == null || !(obj instanceof Unit)) {
-            return new Color(0.15f, 0.15f, 0.15f, 0.6f);
+            return new Color(0.15f, 0.15f, 0.15f, 0.6f); // dark — non-unit
         }
 
-        Unit unit = (Unit) obj;
-        if (unit.getMax_hp() <= 0 || !unit.isAlive() || unit.getDamage() <= 0) {
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        if (!canSelectUnit(objectId)) {
+            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — ineligible
         }
 
-        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green
-    }
-
-    public boolean canSelectUnit(String objectId) {
-        Color tint = getUnitTintColor(objectId);
-        return tint != null && tint.g > 0.5f;
+        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green — eligible
     }
 
     // ══════════════════════════════════════════════════════════════
