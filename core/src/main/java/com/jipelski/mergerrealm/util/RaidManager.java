@@ -784,13 +784,14 @@ public class RaidManager {
     }
 
     /**
-     * Abandons the raid. Units return with current HP.
+     * Abandons the raid. Marks it failed so the results screen can display;
+     * units are returned to the grid later when the player taps Continue
+     * (which calls endRaid()).
      */
     public void abandonRaid() {
         if (activeRaid == null) return;
         addLog("Raid abandoned!");
         activeRaid.setFailed(true);
-        endRaid();
     }
 
     // ══════════════════════════════════════════════════════════════
