@@ -7,6 +7,7 @@ import com.jipelski.mergerrealm.data.FacilityData;
 import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.data.MonsterData;
 import com.jipelski.mergerrealm.data.PrinceData;
+import com.jipelski.mergerrealm.data.ResourcePouchData;
 import com.jipelski.mergerrealm.data.StorageData;
 import com.jipelski.mergerrealm.data.TokenData;
 import com.jipelski.mergerrealm.data.UnitData;
@@ -47,6 +48,7 @@ public class GameDataLoader {
         loadMonster("monster");
         loadChest("chest");
         loadToken("token");
+        loadResourcePouch("resource_pouch");
         loadPrince("prince");
         loadSpawnConfiguration("facility_config");
         loadSpawnConfiguration("chest_config");
@@ -69,6 +71,14 @@ public class GameDataLoader {
             for (Map<String, Object> info : levels) {
                 try {
                     int level = toInt(info, "level");
+                    // Optional — only legendary_units.json entries have these
+                    // (dual-resource legendaries like elder_villager). Default to
+                    // "none"/0 rather than toInt()'s throw-on-missing, since plain
+                    // unit.json entries don't have the keys at all.
+                    String secondaryResource = info.containsKey("secondary_resource")
+                        ? str(info, "secondary_resource") : "none";
+                    int secondaryGenRate = info.containsKey("secondary_gen_rate")
+                        ? toInt(info, "secondary_gen_rate") : 0;
                     levelMap.put(level, new UnitData(
                             str(info, "sprite_path"),
                             str(info, "description"),
@@ -79,7 +89,9 @@ public class GameDataLoader {
                             toInt(info, "damage"),
                             toInt(info, "xp"),
                             str(info, "nemesis"),
-                            toInt(info, "nemesis_rate")));
+                            toInt(info, "nemesis_rate"),
+                            secondaryResource,
+                            secondaryGenRate));
                 } catch (Exception e) {
                     Gdx.app.error(TAG, "loadUnit: parse error for " + unitType, e);
                 }
@@ -227,6 +239,32 @@ public class GameDataLoader {
         }
     }
 
+    private void loadResourcePouch(String path) {
+        Map<String, Object> jsonData = jsonManager.loadJsonData(path);
+        if (jsonData == null) { Gdx.app.error(TAG, "loadResourcePouch: failed to load " + path); return; }
+
+        for (Map.Entry<String, Object> entry : jsonData.entrySet()) {
+            String type = entry.getKey();
+            List<Map<String, Object>> levels = castLevelList(entry.getValue(), type);
+            if (levels == null) continue;
+
+            Map<Integer, GenData> levelMap = objectDataMap.computeIfAbsent(type, k -> new HashMap<>());
+            for (Map<String, Object> info : levels) {
+                try {
+                    int level = toInt(info, "level");
+                    levelMap.put(level, new ResourcePouchData(
+                            str(info, "sprite_path"),
+                            str(info, "description"),
+                            toInt(info, "maxLVL"),
+                            toInt(info, "fill_percent"),
+                            str(info, "resource_type")));
+                } catch (Exception e) {
+                    Gdx.app.error(TAG, "loadResourcePouch: parse error for " + type, e);
+                }
+            }
+        }
+    }
+
     private void loadPrince(String path) {
         Map<String, Object> jsonData = jsonManager.loadJsonData(path);
         if (jsonData == null) { Gdx.app.error(TAG, "loadPrince: failed to load " + path); return; }
@@ -328,22 +366,29 @@ public class GameDataLoader {
 
         // Find the matching level entry
         for (Map<String, Object> info : levels) {
-            int entryLevel = toInt(info, "level");
-            if (entryLevel == level) {
-                String id = "item_" + type + "_" + level + "_"
-                    + System.currentTimeMillis() + "_"
-                    + (int)(Math.random() * 10000);
-                return new Item(
-                    id,
-                    type,
-                    level,
-                    str(info, "name"),
-                    str(info, "description"),
-                    toInt(info, "bonusDamage"),
-                    toInt(info, "bonusHp"),
-                    Boolean.TRUE.equals(info.get("consumable")),
-                    str(info, "spritePath")
-                );
+            try {
+                int entryLevel = toInt(info, "level");
+                if (entryLevel == level) {
+                    String id = "item_" + type + "_" + level + "_"
+                        + System.currentTimeMillis() + "_"
+                        + (int)(Math.random() * 10000);
+                    return new Item(
+                        id,
+                        type,
+                        level,
+                        str(info, "name"),
+                        str(info, "description"),
+                        toInt(info, "bonusDamage"),
+                        toInt(info, "bonusHp"),
+                        Boolean.TRUE.equals(info.get("consumable")),
+                        str(info, "spritePath")
+                    );
+                }
+            } catch (Exception e) {
+                // Matches the per-entry try/catch used by loadUnit/loadFacility/etc —
+                // this was previously the one toInt() call site left unguarded,
+                // so a malformed "level" in items.json would throw uncaught here.
+                Gdx.app.error(TAG, "createItem: parse error for " + type + " entry", e);
             }
         }
         Gdx.app.log(TAG, "createItem: no level " + level + " for type=" + type);

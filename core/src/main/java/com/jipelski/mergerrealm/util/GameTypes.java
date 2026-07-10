@@ -82,6 +82,11 @@ public final class GameTypes {
         "nail_token", "slate_token", "ingot_token", "relic_token"
     );
 
+    // ── Resource pouches (mergeable lv1->4; dismiss to Prince fills food/wood/iron) ──
+    public static final Set<String> RESOURCE_POUCHES = unmodifiable(
+        "food_pouch", "wood_pouch", "iron_pouch"
+    );
+
     // ══════════════════════════════════════════════════════════════
     // PREDICATES — use these everywhere instead of local switch/case
     // ══════════════════════════════════════════════════════════════
@@ -97,6 +102,9 @@ public final class GameTypes {
     public static boolean isMonster(String type)  { return type != null && MONSTERS.contains(type); }
     public static boolean isChest(String type)    { return type != null && CHESTS.contains(type); }
     public static boolean isToken(String type)    { return type != null && TOKENS.contains(type); }
+    public static boolean isResourcePouch(String type) {
+        return type != null && RESOURCE_POUCHES.contains(type);
+    }
 
     // ══════════════════════════════════════════════════════════════
     // HELPERS

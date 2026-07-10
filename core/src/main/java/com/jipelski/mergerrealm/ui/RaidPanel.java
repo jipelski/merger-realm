@@ -98,6 +98,17 @@ public class RaidPanel {
     public boolean isCombatActive() { return state == State.COMBAT; }
 
     public void open() {
+        // A raid can already be in progress here if it was restored from disk
+        // after the process was killed mid-raid (RaidManager.resumeFromSave) —
+        // jump straight into combat/results instead of resetting to
+        // chapter-select, which would strand the resumed RaidState with no
+        // way back into its own view. drawCombat()'s own isCompleted()/
+        // isFailed() check auto-transitions to RESULTS if it already resolved.
+        if (eventManager.getRaidManager().getActiveRaid() != null) {
+            arena.reset();
+            state = State.COMBAT;
+            return;
+        }
         state = State.SELECT_CHAPTER;
         selectedChapterId = null;
         selectedNodeId = null;

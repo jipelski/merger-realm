@@ -345,31 +345,26 @@ public class ExplorationManager {
         if (unitSurvived || maxLevelSave) {
             int respawnHp = unitSurvived ? slot.getUnitCurrentHp() : 1;
 
-            // Spawn unit back on grid
-            int[] empty = eventManager.getGridInstance().getClosestEmptyCell(0, 0);
-            if (empty != null) {
-                eventManager.spawnObject(slot.getUnitType(), slot.getUnitLevel(),
-                    empty[0], empty[1]);
+            // Respawn REUSING the original unit id (not spawnObject(), which
+            // always mints a fresh one) — runes (RuneSystem.appliedRunes) and
+            // the equipped-item link (Inventory.equipped) are both keyed by
+            // unit id, so a fresh id would silently orphan both.
+            boolean respawned = eventManager.respawnUnitWithId(
+                slot.getUnitId(), slot.getUnitType(), slot.getUnitLevel(), respawnHp);
 
-                // Set HP on the newly spawned unit
-                // The unit is freshly created by spawnObject with full HP,
-                // so we need to find it and set its current HP
-                GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
-                // The newest object of this type at this position
-                String cellOccupant = eventManager.getGridInstance()
-                    .getCell(empty[0], empty[1]).getOccupant();
-                com.jipelski.mergerrealm.model.GameObject spawnedObj =
-                    gom.getObject(cellOccupant);
-                if (spawnedObj instanceof Unit) {
-                    ((Unit) spawnedObj).setHp(respawnHp);
+            if (respawned) {
+                // sendUnit()'s removeObject() call unequipped the item (it stays
+                // in inventory, just unlinked) — re-link it now that the same id
+                // is back on the grid.
+                if (slot.getEquippedItemId() != null && inv != null) {
+                    inv.equip(slot.getUnitId(), slot.getEquippedItemId());
                 }
 
-                Gdx.app.log(TAG, slot.getUnitType() + " returned to grid at ["
-                    + empty[0] + "," + empty[1] + "] with "
+                Gdx.app.log(TAG, slot.getUnitType() + " returned to grid with "
                     + respawnHp + " HP"
                     + (maxLevelSave ? " (max level saved from death)" : ""));
             } else {
-                // Grid full — queue the unit as a reward
+                // Grid full (or data missing) — queue the unit as a reward
                 com.jipelski.mergerrealm.data.GenData reward =
                     new com.jipelski.mergerrealm.data.GenData(
                         slot.getUnitType(), "Returning explorer", slot.getUnitLevel());
@@ -408,7 +403,10 @@ public class ExplorationManager {
             int eventInterval = getZoneEventInterval(slot.getZone());
             if (eventInterval <= 0) continue;
 
-            long eventIntervalMs = eventInterval * 1000L;
+            // Swiftness runes shorten the event interval (faster exploration cadence)
+            float speedMultiplier = eventManager.getRuneSystem()
+                .getExplorationSpeedMultiplier(slot.getUnitId());
+            long eventIntervalMs = (long) (eventInterval * 1000L / speedMultiplier);
             long elapsed = now - slot.getStartTimeMs();
             long nextEventAt = slot.getLastEventTimeMs() + eventIntervalMs;
 

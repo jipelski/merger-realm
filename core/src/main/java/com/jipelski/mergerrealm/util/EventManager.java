@@ -6,6 +6,7 @@ import com.jipelski.mergerrealm.data.ChestData;
 import com.jipelski.mergerrealm.data.FacilityData;
 import com.jipelski.mergerrealm.data.MonsterData;
 import com.jipelski.mergerrealm.data.PrinceData;
+import com.jipelski.mergerrealm.data.ResourcePouchData;
 import com.jipelski.mergerrealm.data.StorageData;
 import com.jipelski.mergerrealm.data.TokenData;
 import com.jipelski.mergerrealm.data.UnitData;
@@ -19,6 +20,8 @@ import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Prince;
+import com.jipelski.mergerrealm.model.RaidState;
+import com.jipelski.mergerrealm.model.ResourcePouch;
 import com.jipelski.mergerrealm.model.Storage;
 import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
@@ -148,6 +151,11 @@ public class EventManager {
             raidManager.setWarTrophies(savedRaidCurrency[0]);
             raidManager.setBossTokens(savedRaidCurrency[1]);
         }
+
+        // Restore an in-progress raid (e.g. process was killed mid-raid) so
+        // the party isn't permanently lost — see RaidManager.resumeFromSave.
+        RaidState savedActiveRaid = jsonManager.loadRaidState("raid_active_state");
+        raidManager.resumeFromSave(savedActiveRaid);
 
         Gdx.app.log(TAG, "RaidManager loaded");
 
@@ -441,6 +449,12 @@ public class EventManager {
                 gridInstance.setOnCell(id, XoY[0], XoY[1]);
                 GRID_OBJECT_MANAGER.addObject(id, unit);
                 resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), true);
+                // Dual-resource legendaries (elder_villager, lumberlord, ...) also
+                // generate a second resource — "none"/0 for everything else.
+                if (unitData.getSecondaryGenRate() > 0) {
+                    resourceManager.modifyResourceRate(
+                        unitData.getSecondaryResource(), unitData.getSecondaryGenRate(), true);
+                }
                 //BATTLE_FIELD_MANAGER.increaseCounter(unitData.getNemesis(), unitData.getNemesis_Rate());
                 break;
             }
@@ -503,6 +517,17 @@ public class EventManager {
                 Token token = new Token(tokenData, type, id, level, XoY[0], XoY[1]);
                 gridInstance.setOnCell(id, XoY[0], XoY[1]);
                 GRID_OBJECT_MANAGER.addObject(id, token);
+                break;
+            }
+            case "food_pouch": case "wood_pouch": case "iron_pouch": {
+                ResourcePouchData pouchData = (ResourcePouchData) GDLInstance.getGameData(type, level);
+                if (pouchData == null) {
+                    Gdx.app.error(TAG, "spawnObject: no ResourcePouchData for " + type + " lvl " + level);
+                    return;
+                }
+                ResourcePouch pouch = new ResourcePouch(pouchData, type, id, level, XoY[0], XoY[1]);
+                gridInstance.setOnCell(id, XoY[0], XoY[1]);
+                GRID_OBJECT_MANAGER.addObject(id, pouch);
                 break;
             }
             case "prince": {
@@ -587,8 +612,21 @@ public class EventManager {
                 UnitData unitData = (UnitData) GDLInstance.getGameData(
                     object.getType(), object.getLvl());
                 if (unitData != null) {
+                    // Subtract the rune-boosted rate (Fortune), not the base rate,
+                    // so it exactly cancels whatever was actually contributed —
+                    // see spawnObject (base, fresh id) and the Fortune-apply bump
+                    // in InventoryMenu.onUnitSelected.
+                    int effectiveGenRate = runeSystem.getBoostedGenRate(id, unitData.getGen_rate());
                     resourceManager.modifyResourceRate(
-                        unitData.getResource(), unitData.getGen_rate(), false);
+                        unitData.getResource(), effectiveGenRate, false);
+                    // Dual-resource legendaries also generate a second resource —
+                    // subtract raw (not rune-boosted): Fortune's InventoryMenu bump
+                    // only ever adjusts the primary rate, so nothing beyond the raw
+                    // secondary rate was ever added for it.
+                    if (unitData.getSecondaryGenRate() > 0) {
+                        resourceManager.modifyResourceRate(
+                            unitData.getSecondaryResource(), unitData.getSecondaryGenRate(), false);
+                    }
                 }
                 // Unequip item when unit is removed
                 if (inventory != null) {
@@ -634,6 +672,10 @@ public class EventManager {
                 //}
                 break;
             }
+            case "food_pouch": case "wood_pouch": case "iron_pouch": {
+                // Consumed via dismissToPrince, not removal — nothing to refund here
+                break;
+            }
             case "prince": {
                 // Prince cannot be removed — put it back where it was
                 PrinceData princeData = (PrinceData) GDLInstance.getGameData(object.getType(), object.getLvl());
@@ -669,8 +711,10 @@ public class EventManager {
             case "elder_dragon": case "eternal_phoenix":
             case "silo": case "timberyard": case "ironvault":
             case "gremlin": case "troll": case "orc":
-            case "wraith": case "demon": {
+            case "wraith": case "demon":
+            case "food_pouch": case "wood_pouch": case "iron_pouch": {
                 // No tap action for these types TODO: implement some sort of action like a puulling up a stats card
+                // Resource pouches are consumed by dragging onto the Prince, not by tapping.
                 break;
             }
             case "homestead": case "lodge": case "tavernboard":
@@ -918,6 +962,18 @@ public class EventManager {
             case "ingot_chest": case "relic_chest": {
                 removeObject(objectId);
                 Gdx.app.log(TAG, "Prince dismissed chest: " + type);
+                break;
+            }
+
+            // ── Resource pouches: emptied into the royal stores ──
+            case "food_pouch": case "wood_pouch": case "iron_pouch": {
+                ResourcePouchData pouchData = (ResourcePouchData) GDLInstance.getGameData(type, object.getLvl());
+                if (pouchData != null) {
+                    resourceManager.fillByPercent(pouchData.getResource_type(), pouchData.getFill_percent());
+                    Gdx.app.log(TAG, "Prince emptied " + type + " lvl " + object.getLvl()
+                        + " — +" + pouchData.getFill_percent() + "% " + pouchData.getResource_type());
+                }
+                removeObject(objectId);
                 break;
             }
 
@@ -1267,10 +1323,12 @@ public class EventManager {
         int x = obj.getxPos();
         int y = obj.getyPos();
 
-        // Reduce resource rate temporarily
+        // Reduce resource rate temporarily — use the rune-boosted (Fortune) rate
+        // so it exactly cancels what returnUnitFromRaid re-adds for this same id.
         if (obj instanceof Unit) {
             Unit unit = (Unit) obj;
-            resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), false);
+            int effectiveGenRate = runeSystem.getBoostedGenRate(unitId, unit.getGen_rate());
+            resourceManager.modifyResourceRate(unit.getResource(), effectiveGenRate, false);
         }
 
         // Remove from grid and object manager but keep equipped item mapping
@@ -1281,32 +1339,42 @@ public class EventManager {
     }
 
     /**
-     * Returns a unit to the grid after a raid.
-     * Respawns the unit with the given HP.
+     * Respawns a unit on the grid REUSING its original id, at the given HP.
+     * Used to bring a unit back after a temporary removal (raid, exploration)
+     * without losing anything keyed by unit id — runes (RuneSystem.appliedRunes)
+     * and equipped-item links (Inventory.equipped) both key off this exact id,
+     * so calling spawnObject() instead (which always mints a fresh id) silently
+     * orphans both.
+     *
+     * @return true if the unit was respawned; false if the type/level data was
+     *         missing or the grid was full (caller should handle as "unit lost"
+     *         or queue it, same as any other spawn-blocked-by-full-grid case).
      */
-    public void returnUnitFromRaid(String unitId, String type, int level, int currentHp) {
-        // Spawn a new unit of the same type/level
+    public boolean respawnUnitWithId(String unitId, String type, int level, int currentHp) {
         UnitData unitData = (UnitData) GDLInstance.getGameData(type, level);
         if (unitData == null) {
-            Gdx.app.log(TAG, "returnUnitFromRaid: no data for " + type + " lv" + level);
-            return;
+            Gdx.app.log(TAG, "respawnUnitWithId: no data for " + type + " lv" + level);
+            return false;
         }
 
         int[] pos = gridInstance.getClosestEmptyCell(0, 0);
         if (pos == null) {
-            Gdx.app.log(TAG, "returnUnitFromRaid: grid full, unit lost!");
-            // TODO: add to reward queue
-            return;
+            Gdx.app.log(TAG, "respawnUnitWithId: grid full, cannot respawn " + unitId);
+            return false;
         }
 
         Unit unit = new Unit(unitData, type, unitId, level, pos[0], pos[1]);
         unit.setHp(Math.max(1, currentHp)); // at least 1 HP
         gridInstance.setOnCell(unitId, pos[0], pos[1]);
         GRID_OBJECT_MANAGER.addObject(unitId, unit);
-        resourceManager.modifyResourceRate(unit.getResource(), unit.getGen_rate(), true);
+        // Same id as removeUnitForRaid/removeObject subtracted — re-add the same
+        // rune-boosted rate.
+        int effectiveGenRate = runeSystem.getBoostedGenRate(unitId, unit.getGen_rate());
+        resourceManager.modifyResourceRate(unit.getResource(), effectiveGenRate, true);
 
-        Gdx.app.log(TAG, "Unit returned from raid: " + unitId + " (" + type
+        Gdx.app.log(TAG, "Unit respawned: " + unitId + " (" + type
             + " lv" + level + ") HP=" + currentHp + " at [" + pos[0] + "," + pos[1] + "]");
+        return true;
     }
 
     /**

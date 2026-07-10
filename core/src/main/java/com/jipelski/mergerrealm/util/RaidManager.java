@@ -161,6 +161,50 @@ public class RaidManager {
     public Map<String, Integer> getCompletionMap() { return completionMap; }
     public void setCompletionMap(Map<String, Integer> map) { this.completionMap = map; }
 
+    /**
+     * Restores an in-progress raid after an app relaunch (e.g. the process
+     * was killed by the OS mid-raid, rather than a normal background/close).
+     * Reconstructs the fields startRaid() derives from static content
+     * (currentNode/currentRooms from chapterId+nodeId, setBonuses from the
+     * party's still-equipped gear — equipment can't change while a unit is
+     * off-grid mid-raid, so this recomputes identically to what was active
+     * at raid start) around the persisted RaidState.
+     *
+     * combatLog / furyOscTimer / setHealTimer are intentionally NOT restored
+     * — they're cosmetic/animation timing, not gameplay state that could be
+     * lost. Worst case: the recent-log panel starts empty and a Holy
+     * Radiance heal tick is delayed by up to one interval after resuming.
+     *
+     * No-op if there's no saved raid, or the raid was already resolved
+     * (RaidPanel's own isCompleted()/isFailed() auto-transition to RESULTS
+     * handles that case using only fields already on RaidState).
+     */
+    @SuppressWarnings("unchecked")
+    public void resumeFromSave(RaidState restored) {
+        if (restored == null) return;
+
+        activeRaid = restored;
+
+        String chapterId = activeRaid.getChapterId();
+        String nodeId = activeRaid.getNodeId();
+        for (Map<String, Object> node : getNodes(chapterId)) {
+            if (nodeId.equals(node.get("id"))) {
+                currentNode = node;
+                currentRooms = (List<Map<String, Object>>) node.get("rooms");
+                break;
+            }
+        }
+
+        setBonuses = eventManager.getEnchantedSetManager()
+            .checkSetBonuses(activeRaid.getPartyUnitIds());
+
+        combatLog.clear();
+        addLog("Raid resumed");
+
+        Gdx.app.log(TAG, "Resumed active raid: " + chapterId + "/" + nodeId
+            + " room " + (activeRaid.getCurrentRoomIndex() + 1));
+    }
+
     // ══════════════════════════════════════════════════════════════
     // CHAPTER / NODE ACCESS
     // ══════════════════════════════════════════════════════════════
@@ -714,16 +758,18 @@ public class RaidManager {
     public boolean usePotion(int slot, String potionId) {
         if (!isRaidActive()) return false;
 
+        // Validate + apply BEFORE consuming the item — previously this consumed
+        // the potion first, so a rejected heal (e.g. target already at full HP)
+        // still silently burned it with no effect. RaidPanel already pre-checks
+        // this same condition before calling, so this is currently a latent
+        // guard rather than a reachable-through-the-UI bug.
+        if (!activeRaid.usePotion(slot)) return false;
+
         Inventory inv = eventManager.getInventory();
         Item potion = inv.useConsumable(potionId);
-        if (potion == null) return false;
-
-        if (activeRaid.usePotion(slot)) {
-            addLog("Used " + potion.getName() + " on "
-                + capitalize(activeRaid.getPartyTypes()[slot]));
-            return true;
-        }
-        return false;
+        addLog("Used " + (potion != null ? potion.getName() : "potion") + " on "
+            + capitalize(activeRaid.getPartyTypes()[slot]));
+        return true;
     }
 
     /**
@@ -732,16 +778,14 @@ public class RaidManager {
     public boolean usePhoenixFeather(int slot, String featherId) {
         if (!isRaidActive()) return false;
 
+        // Validate + apply BEFORE consuming the item — see usePotion above.
+        if (!activeRaid.usePhoenixFeather(slot)) return false;
+
         Inventory inv = eventManager.getInventory();
         Item feather = inv.useConsumable(featherId);
-        if (feather == null) return false;
-
-        if (activeRaid.usePhoenixFeather(slot)) {
-            addLog("Phoenix Feather revives "
-                + capitalize(activeRaid.getPartyTypes()[slot]) + "!");
-            return true;
-        }
-        return false;
+        addLog("Phoenix Feather revives "
+            + capitalize(activeRaid.getPartyTypes()[slot]) + "!");
+        return true;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -768,11 +812,11 @@ public class RaidManager {
                 // Dead unit — check if it should be lost permanently
                 // (Non-max units lv3-6 are lost; max-level survives at 1HP)
                 // For simplicity, return all with 1 HP
-                eventManager.returnUnitFromRaid(unitIds[i], types[i], levels[i], 1);
+                eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], 1);
                 addLog(capitalize(types[i]) + " returned barely alive");
             } else {
                 // Alive — return with current HP
-                eventManager.returnUnitFromRaid(unitIds[i], types[i], levels[i], currentHp[i]);
+                eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], currentHp[i]);
             }
         }
 

@@ -241,16 +241,24 @@ public class GridInputHandler extends InputAdapter {
 
         toWorldCoords(screenX, screenY);
 
+        // Bottom bar buttons sit at y ~[0, bottomBarHeight], which BuildMenu
+        // (0..MENU_HEIGHT=160) fully covers when open — must not fire underneath it.
+        // Also not drawn during Inventory's own SELECTING_UNIT mode (see
+        // MergerRealmGame's render branch), so it must not be hit-testable then either.
         if (inventoryMenu != null
+            && (buildMenu == null || !buildMenu.isVisible())
+            && !inventoryMenu.isSelectingUnit()
             && worldPos.x >= invBtnX && worldPos.x <= invBtnX + invBtnW
             && worldPos.y >= invBtnY && worldPos.y <= invBtnY + invBtnH) {
             inventoryMenu.toggle();
             return true;
         }
 
+        // The actual open() happens on touchUp, not here — the chip sits in the
+        // same top-right corner as the shop panel's own close button, so opening
+        // immediately would let this same gesture's touchUp be misread as a tap
+        // on the now-visible panel's close button, closing it right back.
         if (goldShopPanel != null && isGoldChipTap(worldPos.x, worldPos.y)) {
-            goldShopPanel.open();
-            clearSelection();
             return true;
         }
 
@@ -292,9 +300,13 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        // The actual action fires on touchUp, not here — WallGate's Raid button
+        // opens RaidPanel, whose chapter-select rows sit in the same Y-band as
+        // the button itself. Opening on touchDown would let this same gesture's
+        // touchUp be misread as a tap on whichever chapter row aligns with the
+        // button's Y (RaidPanel's row hit-test is Y-only, by design — rows are
+        // meant to span the full menu width), skipping chapter-select entirely.
         if (wallGate != null && wallGate.isInWallArea(worldPos.y)) {
-            wallGate.handleTouch(worldPos.x, worldPos.y);
-            clearSelection();
             return true;
         }
 
@@ -433,6 +445,33 @@ public class GridInputHandler extends InputAdapter {
         if (pointer != 0) return false;
 
         toWorldCoords(screenX, screenY);
+
+        // Open the gold shop here (not on touchDown — see touchDown for why).
+        // goldShopPanel.handleTouchUp() above already returned for the visible
+        // case, so reaching here means it's still closed.
+        // Guard against the three "pick a unit from the grid" header modes —
+        // their compact headers cover the top of the screen (where the chip
+        // sits) and deliberately return false here so grid taps fall through;
+        // without this guard that fallthrough pops the shop open over them.
+        boolean pickingUnitFromGrid =
+            (inventoryMenu != null && inventoryMenu.isSelectingUnit())
+            || (explorePanel != null && explorePanel.isSelectingUnit())
+            || (raidPanel != null && raidPanel.isFormingParty());
+        if (goldShopPanel != null && !pickingUnitFromGrid
+            && isGoldChipTap(worldPos.x, worldPos.y)) {
+            goldShopPanel.open();
+            clearSelection();
+            return true;
+        }
+
+        // Open the wall-gate action here (not on touchDown — see touchDown for
+        // why). raidPanel/explorePanel.handleTouchUp() above already returned
+        // for the visible case, so reaching here means nothing is open yet.
+        if (wallGate != null && wallGate.isInWallArea(worldPos.y)) {
+            wallGate.handleTouch(worldPos.x, worldPos.y);
+            clearSelection();
+            return true;
+        }
 
         // Forward to build menu
         if (buildMenu != null && buildMenu.isVisible()) {

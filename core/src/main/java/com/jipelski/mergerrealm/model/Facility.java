@@ -20,7 +20,10 @@ public class Facility extends GameObject {
     protected int time_cost;
 
     // Periodic spawner state
-    private transient float spawnTimer = 0f;
+    // Was `transient` — meant in-progress spawn countdown reset to 0 on every
+    // save/load. Persisting it is backward-compatible: old saves without this
+    // field just deserialize it to the 0f default below.
+    private float spawnTimer = 0f;
     private java.util.List<String[]> heldUnits = new java.util.ArrayList<>();
 
     private List<FacilitySpawnConfiguration> spawnRates;

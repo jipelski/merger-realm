@@ -120,6 +120,7 @@ public class InventoryMenu {
         state = State.BROWSING;
         activeTab = TAB_EQUIPMENT;
         selectedItem = null;
+        selectedRuneType = null;
         scrollY = 0f;
         showingPreview = false;
         refreshFilteredItems();
@@ -128,6 +129,7 @@ public class InventoryMenu {
     public void close() {
         state = State.CLOSED;
         selectedItem = null;
+        selectedRuneType = null;
         showingPreview = false;
         holding = false;
     }
@@ -143,14 +145,39 @@ public class InventoryMenu {
      * Returns true if the item was successfully applied.
      */
     public boolean onUnitSelected(String unitId) {
-        if (state != State.SELECTING_UNIT || selectedItem == null) return false;
+        // A rune selection has no Item (selectedItem stays null the whole time —
+        // see handleFragmentTabTouch), so it must be accepted here too, not just
+        // an item selection.
+        if (state != State.SELECTING_UNIT
+            || (selectedItem == null && selectedRuneType == null)) return false;
 
         boolean success;
         // Rune application
         if (selectedRuneType != null) {
             RuneSystem rs = eventManager.getRuneSystem();
+
+            // Fortune boosts resource-gen rate, which ResourceManager maintains as
+            // a running accumulator (ticked every 15s) rather than recomputing it
+            // live — so applying the rune must nudge that accumulator by exactly
+            // the delta the new application count adds, or the boost has no effect
+            // until the unit is re-spawned.
+            Unit fortuneUnit = null;
+            int genRateBefore = 0;
+            if (RuneSystem.FORTUNE.equals(selectedRuneType)) {
+                GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(unitId);
+                if (obj instanceof Unit) {
+                    fortuneUnit = (Unit) obj;
+                    genRateBefore = rs.getBoostedGenRate(unitId, fortuneUnit.getGen_rate());
+                }
+            }
+
             boolean applied = rs.applyRune(unitId, selectedRuneType);
             if (applied) {
+                if (fortuneUnit != null) {
+                    int genRateAfter = rs.getBoostedGenRate(unitId, fortuneUnit.getGen_rate());
+                    eventManager.getResourceManager()
+                        .addRate(fortuneUnit.getResource(), genRateAfter - genRateBefore);
+                }
                 Gdx.app.log(TAG, "Rune of " + selectedRuneType + " applied to " + unitId);
                 selectedRuneType = null;
                 state = State.BROWSING;
@@ -278,7 +305,10 @@ public class InventoryMenu {
      * color FROM this predicate, not the other way around.
      */
     public boolean isEligibleTarget(String objectId) {
-        if (state != State.SELECTING_UNIT || selectedItem == null) return false;
+        // A rune selection has no Item (selectedItem stays null — see
+        // handleFragmentTabTouch), so it must be accepted here too.
+        if (state != State.SELECTING_UNIT
+            || (selectedItem == null && selectedRuneType == null)) return false;
 
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         GameObject obj = gom.getObject(objectId);
@@ -293,7 +323,7 @@ public class InventoryMenu {
         if (unit.getMax_hp() <= 0 || !unit.isAlive()) return false;
 
         // Amulet of Ascension: only max-level, evolvable, non-legendary units
-        if (selectedItem.isConsumable()
+        if (selectedItem != null && selectedItem.isConsumable()
             && "amulet_of_ascension".equals(selectedItem.getType())) {
             if (unit.getLvl() < unit.getMaxLVL()) return false; // not max level
             if (LegendaryEvolution.isLegendary(obj.getType())) return false; // already evolved
@@ -324,7 +354,10 @@ public class InventoryMenu {
      *   null   — state is not SELECTING_UNIT
      */
     public Color getUnitTintColor(String objectId) {
-        if (state != State.SELECTING_UNIT || selectedItem == null) return null;
+        // A rune selection has no Item (selectedItem stays null — see
+        // handleFragmentTabTouch), so it must be accepted here too.
+        if (state != State.SELECTING_UNIT
+            || (selectedItem == null && selectedRuneType == null)) return null;
 
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         GameObject obj = gom.getObject(objectId);
@@ -341,7 +374,7 @@ public class InventoryMenu {
         }
 
         // Eligible — color matches the action
-        if (selectedItem.isConsumable()
+        if (selectedItem != null && selectedItem.isConsumable()
             && "amulet_of_ascension".equals(selectedItem.getType())) {
             return new Color(1f, 0.85f, 0.2f, 0.4f); // gold tint — can evolve!
         }
@@ -531,8 +564,10 @@ public class InventoryMenu {
 
             Item item = filteredItems.get(i);
 
-            // Item sprite
-            Texture tex = spriteManager.getTexture(item.getSpritePath(), 1);
+            // Item sprite — spritePath is already a full "type_level" key (e.g.
+            // "sword_3"); getTexture(type, level) would append a redundant "_1"
+            // and always miss, falling back to the placeholder.
+            Texture tex = spriteManager.getTextureByKey(item.getSpritePath());
             float sprMargin = 6f;
             batch.draw(tex, ix + sprMargin, iy + sprMargin + 12f,
                 ITEM_SIZE - sprMargin * 2, ITEM_SIZE - sprMargin * 2 - 12f);
@@ -667,7 +702,7 @@ public class InventoryMenu {
     }
 
     private void drawSelectingContent(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
-        if (selectedItem == null) return;
+        if (selectedItem == null && selectedRuneType == null) return;
 
         float top = getWorldHeight();
 
@@ -675,24 +710,36 @@ public class InventoryMenu {
         fontSmall.setColor(0.6f, 0.8f, 0.6f, 1f);
         fontSmall.draw(batch, "< Back", 12f, top - 14f);
 
-        // Item name
-        font.setColor(1f, 0.9f, 0.4f, 1f);
-        String title = (selectedItem.isConsumable() ? "Use: " : "Equip: ")
-            + selectedItem.getName();
-        font.draw(batch, title, 80f, top - 14f);
+        if (selectedRuneType != null) {
+            // Rune selection has no backing Item — its own header
+            Color runeColor = getRuneColor(selectedRuneType);
+            font.setColor(runeColor.r, runeColor.g, runeColor.b, 1f);
+            font.draw(batch, "Apply: Rune of " + capitalize(selectedRuneType), 80f, top - 14f);
 
-        // Stats
-        fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-        StringBuilder stats = new StringBuilder();
-        if (selectedItem.getBonusDamage() > 0) stats.append("+").append(selectedItem.getBonusDamage()).append(" DMG  ");
-        if (selectedItem.getBonusHp() > 0) stats.append("+").append(selectedItem.getBonusHp()).append(" HP  ");
-        fontSmall.draw(batch, stats.toString(), 80f, top - 34f);
+            fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
+            String hint = "Tap a unit";
+            glyphLayout.setText(fontSmall, hint);
+            fontSmall.draw(batch, hint, getWorldWidth() - glyphLayout.width - 12f, top - 54f);
+        } else {
+            // Item name
+            font.setColor(1f, 0.9f, 0.4f, 1f);
+            String title = (selectedItem.isConsumable() ? "Use: " : "Equip: ")
+                + selectedItem.getName();
+            font.draw(batch, title, 80f, top - 14f);
 
-        // Hint
-        fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-        String hint = selectedItem.isConsumable() ? "Tap a wounded unit" : "Tap a unit to equip";
-        glyphLayout.setText(fontSmall, hint);
-        fontSmall.draw(batch, hint, getWorldWidth() - glyphLayout.width - 12f, top - 54f);
+            // Stats
+            fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            StringBuilder stats = new StringBuilder();
+            if (selectedItem.getBonusDamage() > 0) stats.append("+").append(selectedItem.getBonusDamage()).append(" DMG  ");
+            if (selectedItem.getBonusHp() > 0) stats.append("+").append(selectedItem.getBonusHp()).append(" HP  ");
+            fontSmall.draw(batch, stats.toString(), 80f, top - 34f);
+
+            // Hint
+            fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
+            String hint = selectedItem.isConsumable() ? "Tap a wounded unit" : "Tap a unit to equip";
+            glyphLayout.setText(fontSmall, hint);
+            fontSmall.draw(batch, hint, getWorldWidth() - glyphLayout.width - 12f, top - 54f);
+        }
 
         // Legend
         fontSmall.setColor(0.2f, 0.85f, 0.2f, 1f);
@@ -845,6 +892,7 @@ public class InventoryMenu {
                 if (touchPos.x < 80f) {
                     state = State.BROWSING;
                     selectedItem = null;
+                    selectedRuneType = null;
                     refreshFilteredItems();
                     return true;
                 }

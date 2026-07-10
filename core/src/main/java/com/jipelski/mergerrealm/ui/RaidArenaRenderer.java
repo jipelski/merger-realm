@@ -433,7 +433,12 @@ public class RaidArenaRenderer {
             else batch.setColor(1f, 1f, 1f, fade);
 
             float size = e.boss ? SPRITE_SIZE * 1.4f : SPRITE_SIZE;
-            Texture tex = spriteManager.getTexture(e.sprite != null ? e.sprite : e.type, 1);
+            // e.sprite is already a full "type_level" key (from raid_enemies.json) —
+            // passing it through getTexture(type, level) would append a redundant
+            // "_1" and always miss, falling back to the placeholder.
+            Texture tex = e.sprite != null
+                ? spriteManager.getTextureByKey(e.sprite)
+                : spriteManager.getTexture(e.type, 1);
             batch.draw(tex, pos[0] - size / 2f, pos[1] - size / 2f + lungeY, size, size);
 
             // Name label
@@ -461,9 +466,13 @@ public class RaidArenaRenderer {
             else if (raid.getPartyDead()[i]) batch.setColor(0.5f, 0.5f, 0.5f, fade);
             else batch.setColor(1f, 1f, 1f, fade);
 
+            // sprite is already a full "type_level" key (Unit.getSprite() ==
+            // UnitData.sprite_path, e.g. "archer_6") — same double-suffix bug
+            // as the enemy sprite lookup below if run through getTexture(type, level).
             String sprite = raid.getPartySprites()[i];
-            Texture tex = spriteManager.getTexture(
-                sprite != null ? sprite : raid.getPartyTypes()[i], 1);
+            Texture tex = sprite != null
+                ? spriteManager.getTextureByKey(sprite)
+                : spriteManager.getTexture(raid.getPartyTypes()[i], raid.getPartyLevels()[i]);
             batch.draw(tex, pos[0] - SPRITE_SIZE / 2f,
                 pos[1] - SPRITE_SIZE / 2f + lungeY, SPRITE_SIZE, SPRITE_SIZE);
 

@@ -23,6 +23,7 @@ import com.jipelski.mergerrealm.data.TokenData;
 import com.jipelski.mergerrealm.data.UnitData;
 import com.jipelski.mergerrealm.data.ChestData;
 import com.jipelski.mergerrealm.data.PrinceData;
+import com.jipelski.mergerrealm.data.ResourcePouchData;
 import com.jipelski.mergerrealm.grid.Cell;
 import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.input.GridInputHandler;
@@ -197,6 +198,16 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         wallGate.setRaidPanel(raidPanel);
 
+        // If a raid was restored from disk (process killed mid-raid — see
+        // EventManager's constructor / RaidManager.resumeFromSave), reopen the
+        // panel straight into it. Raid combat only ticks while the panel is in
+        // COMBAT state (see render()'s raidPanel.isCombatActive() gate), so
+        // without this the resumed raid would just sit frozen until the player
+        // happened to tap the Raid button themselves.
+        if (eventManager.getRaidManager().getActiveRaid() != null) {
+            raidPanel.open();
+        }
+
         trophyShopPanel = new TrophyShopPanel(eventManager, viewport, uiTex);
         inputHandler.setTrophyShopPanel(trophyShopPanel);
 
@@ -230,6 +241,17 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         // calculateGridLayout();
         processOfflineProgress();
+
+        // DEBUG: temporary — resource pouches have no real spawn source yet.
+        // Remove this block once they're wired into a chest/facility/exploration reward.
+        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
+        if (!gom.hasObjectOfType("food_pouch")
+            && !gom.hasObjectOfType("wood_pouch")
+            && !gom.hasObjectOfType("iron_pouch")) {
+            eventManager.spawnObject("food_pouch", 1, 0, 0);
+            eventManager.spawnObject("wood_pouch", 1, 0, 0);
+            eventManager.spawnObject("iron_pouch", 1, 0, 0);
+        }
 
         Gdx.app.log(TAG, "=== Init complete ===");
     }
@@ -326,6 +348,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         // Show popup instead of timed message
         offlinePopup.show(cappedSeconds, foodGained, woodGained, ironGained);
+
+        // Re-stamp "now" immediately after applying gains. Without this, create()
+        // and resume() — which both call this method, and both fire on a cold
+        // Android launch with no pause() in between — would read the same stale
+        // timestamp and double-apply the same offline batch (resources, facility
+        // spawns). Re-stamping makes the second call compute ~0 elapsed and no-op
+        // via the cappedSeconds < 15 guard above.
+        saveTimestamp();
 
         saveDirty = true;
         Gdx.app.log(TAG, "Offline: " + cappedSeconds + "s, food+"
@@ -1118,6 +1148,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     sb.append("+").append(ud.getGen_rate()).append(" ")
                         .append(ud.getResource()).append("/tick");
                 }
+                if (ud.getSecondaryGenRate() > 0) {
+                    if (sb.length() > 0) sb.append(" | ");
+                    sb.append("+").append(ud.getSecondaryGenRate()).append(" ")
+                        .append(ud.getSecondaryResource()).append("/tick");
+                }
                 return sb.toString();
             }
 
@@ -1186,6 +1221,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             case "ingot_token": case "relic_token": {
                 TokenData td = (TokenData) data;
                 return "Value: +" + td.getValue() + " " + td.getTokenType();
+            }
+
+            // Resource pouches
+            case "food_pouch": case "wood_pouch": case "iron_pouch": {
+                ResourcePouchData pd = (ResourcePouchData) data;
+                return "Fills: +" + pd.getFill_percent() + "% " + pd.getResource_type();
             }
 
             // Prince
@@ -1648,6 +1689,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             jsonManager.saveArray("raid_currency", new int[]{
                 raidMgr.getWarTrophies(), raidMgr.getBossTokens()
             });
+            // Always written, even when null (no active raid) — see
+            // JsonManager.saveRaidState. Lets a raid resume after the process
+            // is killed mid-raid instead of losing the party permanently.
+            jsonManager.saveRaidState("raid_active_state", raidMgr.getActiveRaid());
 
             Map<String, Object> shopSave = new java.util.HashMap<>();
             shopSave.put("stock", eventManager.getTrophyShop().getCurrentStock());

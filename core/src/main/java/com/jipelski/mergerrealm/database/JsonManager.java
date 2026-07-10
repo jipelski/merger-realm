@@ -11,6 +11,8 @@ import com.jipelski.mergerrealm.model.FacilitySpawnConfiguration;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Prince;
+import com.jipelski.mergerrealm.model.RaidState;
+import com.jipelski.mergerrealm.model.ResourcePouch;
 import com.jipelski.mergerrealm.model.Storage;
 import com.jipelski.mergerrealm.model.Token;
 import com.jipelski.mergerrealm.model.Unit;
@@ -47,6 +49,7 @@ public class JsonManager {
                 .registerSubtype(Monster.class,  "Monster")
                 .registerSubtype(Chest.class,    "Chest")
                 .registerSubtype(Token.class,    "Token")
+                .registerSubtype(ResourcePouch.class, "ResourcePouch")
                 .registerSubtype(Prince.class,   "Prince")
         )
         .create();
@@ -291,6 +294,24 @@ public class JsonManager {
      */
     public void saveExplorationSlots(String filename, List<ExplorationSlot> slots) {
         writeJson(filename, slots);
+    }
+
+    /**
+     * Saves the active raid, if any (null while no raid is in progress —
+     * written unconditionally every autosave/pause/dispose, same as the
+     * other "always write, even if empty" state, so relaunching never has
+     * to distinguish "no file" from "no active raid"). Lets a raid resume
+     * exactly where it left off if the process is killed mid-raid instead
+     * of losing the party permanently.
+     */
+    public void saveRaidState(String filename, RaidState raid) {
+        writeJson(filename, raid);
+    }
+
+    public RaidState loadRaidState(String filename) {
+        String json = readJson(filename);
+        if (json == null || "null".equals(json.trim())) return null;
+        return gson.fromJson(json, RaidState.class);
     }
 
     /**

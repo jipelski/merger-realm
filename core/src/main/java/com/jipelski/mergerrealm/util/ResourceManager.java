@@ -116,6 +116,20 @@ public class ResourceManager {
     }
 
     /**
+     * Adds a percentage of the resource's pool size (or the base 1000 cap when
+     * no storage is built yet) to its current amount, clamped to that cap.
+     * Called when a resource pouch is dismissed to the Prince.
+     */
+    public void fillByPercent(String resource, int percent) {
+        int[] value = consumableMap.get(resource);
+        if (value == null) { Gdx.app.log(TAG, "fillByPercent: unknown resource=" + resource); return; }
+        int cap = value[2] > 0 ? value[2] : 1000;
+        int amountToAdd = cap * percent / 100;
+        value[0] = Math.min(value[0] + amountToAdd, cap);
+        Gdx.app.log(TAG, "Filled " + resource + " by " + percent + "% (+" + amountToAdd + ")");
+    }
+
+    /**
      * Deducts food, wood, and iron if all three are available.
      * Returns true on success, false if any resource is insufficient.
      */
@@ -148,7 +162,9 @@ public class ResourceManager {
             Gdx.app.log(TAG, "modifyResourcePoolSize: unknown resource=" + resource);
             return;
         }
-        value[2] = increase ? value[2] + amount : value[2] - amount;
+        // Not reachable via normal add/remove ordering today (pool = base 1000 +
+        // sum of present storages' sizes), but guard the floor defensively anyway.
+        value[2] = Math.max(0, increase ? value[2] + amount : value[2] - amount);
         // Clamp current amount if it now exceeds the new cap
         if (value[2] > 0 && value[0] > value[2]) {
             value[0] = value[2];
