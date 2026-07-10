@@ -10,8 +10,12 @@ import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.ui.BuildMenu;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
+import com.jipelski.mergerrealm.ui.GoldShopPanel;
+import com.jipelski.mergerrealm.ui.RaidPanel;
+import com.jipelski.mergerrealm.ui.TrophyShopPanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.EventManager;
+import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
@@ -80,6 +84,9 @@ public class GridInputHandler extends InputAdapter {
 
     private WallGate wallGate;
 
+    private GoldShopPanel goldShopPanel;
+    private float goldChipX, goldChipY, goldChipW, goldChipH;
+
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
         this.eventManager = eventManager;
         this.viewport = viewport;
@@ -133,6 +140,26 @@ public class GridInputHandler extends InputAdapter {
     public void setExplorePanel(ExplorePanel panel) {
         this.explorePanel = panel;
     }
+
+    private RaidPanel raidPanel;
+    public void setRaidPanel(RaidPanel panel) { this.raidPanel = panel; }
+
+    private TrophyShopPanel trophyShopPanel;
+    public void setTrophyShopPanel(TrophyShopPanel panel) {
+        this.trophyShopPanel = panel;
+    }
+
+    public void setGoldShopPanel(GoldShopPanel panel) { this.goldShopPanel = panel; }
+
+    public void setGoldChipBounds(float x, float y, float w, float h) {
+        this.goldChipX = x; this.goldChipY = y; this.goldChipW = w; this.goldChipH = h;
+    }
+
+    private boolean isGoldChipTap(float wx, float wy) {
+        return wx >= goldChipX && wx <= goldChipX + goldChipW
+            && wy >= goldChipY && wy <= goldChipY + goldChipH;
+    }
+
     /**
      * Called every frame from render(). Handles hold-to-spawn timing.
      */
@@ -154,6 +181,36 @@ public class GridInputHandler extends InputAdapter {
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
+
+        if (goldShopPanel != null && goldShopPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (trophyShopPanel != null && trophyShopPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        // Raid panel touches
+        if (raidPanel != null && raidPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        // Raid party formation — unit selection from grid
+        if (raidPanel != null && raidPanel.isFormingParty()) {
+            toWorldCoords(screenX, screenY);
+            int[] cell = worldToCell(worldPos.x, worldPos.y);
+            if (cell != null) {
+                Grid grid = eventManager.getGridInstance();
+                Cell gridCell = grid.getCell(cell[0], cell[1]);
+                if (!gridCell.isEmpty()) {
+                    String objectId = gridCell.getOccupant();
+                    if (raidPanel.canSelectUnit(objectId)) {
+                        raidPanel.onUnitSelected(objectId);
+                    }
+                }
+            }
+            return true;
+        }
 
         // Explore panel touches
         if (explorePanel != null && explorePanel.handleTouchDown(screenX, screenY)) {
@@ -188,6 +245,12 @@ public class GridInputHandler extends InputAdapter {
             && worldPos.x >= invBtnX && worldPos.x <= invBtnX + invBtnW
             && worldPos.y >= invBtnY && worldPos.y <= invBtnY + invBtnH) {
             inventoryMenu.toggle();
+            return true;
+        }
+
+        if (goldShopPanel != null && isGoldChipTap(worldPos.x, worldPos.y)) {
+            goldShopPanel.open();
+            clearSelection();
             return true;
         }
 
@@ -300,6 +363,18 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if (goldShopPanel != null && goldShopPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
+        if (trophyShopPanel != null && trophyShopPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
+        if (raidPanel != null && raidPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (explorePanel != null && explorePanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -337,6 +412,18 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        if (goldShopPanel != null && goldShopPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (trophyShopPanel != null && trophyShopPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (raidPanel != null && raidPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
         if (explorePanel != null && explorePanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -396,12 +483,13 @@ public class GridInputHandler extends InputAdapter {
             if (eventManager.isPeriodicFacility(
                 eventManager.getGRID_OBJECT_MANAGER()
                     .getObject(draggedObjectId).getType())) {
-                // Periodic facility — release a held unit
+                // Periodic facility — release a held unit TODO: implement gold usage for instantly spawn a unit when neither are being held
                 if (!eventManager.releaseHeldUnit(draggedObjectId)) {
                     Gdx.app.log(TAG, "No held units to release (or no space)");
+                    eventManager.getGoldManager().instantPeriodicSpawn(draggedObjectId);
                 }
             } else {
-                // Normal facility — spawn a unit (costs resources)
+                // Normal facility — spawn a unit (costs resources) // TODO: implement gold when resources are not enough for spawning an unit
                 eventManager.spawnFromFacility(draggedObjectId);
             }
             Gdx.app.log(TAG, "Spawning from selected facility: " + draggedObjectId);
@@ -519,7 +607,7 @@ public class GridInputHandler extends InputAdapter {
         holdFacilityId = null;
     }
 
-    private boolean isFacility(String type) {
+    /*private boolean isFacility(String type) {
         switch (type) {
             case "homestead": case "lodge": case "tavernboard":
             case "barracks": case "archeryrange": case "forge":
@@ -537,7 +625,10 @@ public class GridInputHandler extends InputAdapter {
             default:
                 return false;
         }
-    }
+    }*/
+
+    private boolean isFacility(String type) { return GameTypes.isFacility(type); }
+    private boolean isChest(String type)    { return GameTypes.isChest(type); }
 
     private void moveToEmptyCell(int targetX, int targetY) {
         Grid grid = eventManager.getGridInstance();

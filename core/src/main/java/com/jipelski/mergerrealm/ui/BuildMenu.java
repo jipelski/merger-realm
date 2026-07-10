@@ -76,8 +76,9 @@ public class BuildMenu {
 
     // All buildable types in display order
     private static final String[] ALL_BUILDABLES = {
-        "homestead", "lodge", "tavernboard", "barracks",
-        "archeryrange", "forge", "monastery", "griffinnest", "dragonslair"
+        "homestead", "silo", "lodge", "timberyard", "tavernboard",
+        "barracks", "ironvault", "archeryrange", "forge",
+        "monastery", "griffinnest", "dragonslair"
     };
 
     public BuildMenu(EventManager eventManager, SpriteManager spriteManager,

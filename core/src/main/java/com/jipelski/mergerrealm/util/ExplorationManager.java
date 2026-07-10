@@ -155,7 +155,10 @@ public class ExplorationManager {
      */
     public boolean hasAvailableSlot() {
         int princeLvl = eventManager.getBattleFieldManager().getLevel();
-        return getUsedSlotCount() < getSlotsForLevel(princeLvl);
+        int baseSlots = getSlotsForLevel(princeLvl);
+        int extraSlots = eventManager.getGoldManager().getExtraExploreSlots();
+        int maxSlots = baseSlots + extraSlots;
+        return getUsedSlotCount() < maxSlots;
     }
 
     // ── Sending a unit ──
@@ -668,6 +671,17 @@ public class ExplorationManager {
                 + "_" + (int)(Math.random() * 10000);
             slot.addLoot(ExplorationLoot.item("ancient_map", 1, id));
             slot.addEvent(eventTimeMs, getRandomRareText(3), "loot");
+        }
+
+        // ── Gold nugget rare find ──
+        // Only in ruins (1%) and wastes (2%)
+        double goldDropRate = 0;
+        if ("ruins".equals(zone)) goldDropRate = 0.01;
+        else if ("wastes".equals(zone)) goldDropRate = 0.02;
+
+        if (goldDropRate > 0 && Math.random() < goldDropRate) {
+            eventManager.getGoldManager().onExplorationGoldFind();
+            slot.addEvent(eventTimeMs, "A gold nugget glints in the rubble!", "loot");
         }
     }
 

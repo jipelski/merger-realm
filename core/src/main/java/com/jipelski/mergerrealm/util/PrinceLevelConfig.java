@@ -33,9 +33,12 @@ public class PrinceLevelConfig {
     private static final Map<Integer, String> FACILITY_UNLOCKS = new HashMap<>();
     static {
         FACILITY_UNLOCKS.put(1,  "homestead");
+        FACILITY_UNLOCKS.put(2, "silo");
         FACILITY_UNLOCKS.put(3,  "lodge");
         FACILITY_UNLOCKS.put(4,  "tavernboard");
+        FACILITY_UNLOCKS.put(5, "timberyard");
         FACILITY_UNLOCKS.put(6,  "barracks");
+        FACILITY_UNLOCKS.put(8, "ironvault");
         FACILITY_UNLOCKS.put(9,  "archeryrange");
         FACILITY_UNLOCKS.put(15, "forge");
         FACILITY_UNLOCKS.put(20, "griffinnest");

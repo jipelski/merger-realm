@@ -31,15 +31,21 @@ import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Monster;
 import com.jipelski.mergerrealm.model.Facility;
+import com.jipelski.mergerrealm.model.RaidState;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
+import com.jipelski.mergerrealm.ui.GoldShopPanel;
 import com.jipelski.mergerrealm.ui.RaidPanel;
+import com.jipelski.mergerrealm.ui.TrophyShopPanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameDataLoader;
 import com.jipelski.mergerrealm.util.GameEventListener;
+import com.jipelski.mergerrealm.util.GameTypes;
+import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
+import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
 import com.jipelski.mergerrealm.util.SpriteManager;
@@ -118,8 +124,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private WallGate wallGate;
     private Texture whiteTex;
 
-
+    private float goldChipX, goldChipY, goldChipW, goldChipH;
+    private GoldShopPanel goldShopPanel;
     private RaidPanel raidPanel;
+
+    private TrophyShopPanel trophyShopPanel;
 
     @Override
     public void create() {
@@ -186,6 +195,16 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         raidPanel = new RaidPanel(eventManager, spriteManager, viewport, uiTex);
         inputHandler.setRaidPanel(raidPanel);
 
+        wallGate.setRaidPanel(raidPanel);
+
+        trophyShopPanel = new TrophyShopPanel(eventManager, viewport, uiTex);
+        inputHandler.setTrophyShopPanel(trophyShopPanel);
+
+        raidPanel.setTrophyShopPanel(trophyShopPanel);
+
+        goldShopPanel = new GoldShopPanel(eventManager, viewport, uiTex);
+        inputHandler.setGoldShopPanel(goldShopPanel);
+
         offlinePopup = new OfflinePopup(uiTex);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
@@ -230,7 +249,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         long elapsedMs = now - savedTime;
         if (elapsedMs <= 0) return;
 
-        long cappedSeconds = elapsedMs / 1000;
+        long cappedSeconds = Math.min(elapsedMs / 1000, MAX_OFFLINE_SECONDS);
         if (cappedSeconds < 15) return;
 
         long ticks = cappedSeconds / 15;
@@ -345,7 +364,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float delta = Gdx.graphics.getDeltaTime();
 
         // Don't process input/ticks while popup is visible
-        if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()) {
+        if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
+            && !raidPanel.isVisible() && !trophyShopPanel.isVisible()  && !goldShopPanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -362,6 +382,21 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     saveGame();
                     saveDirty = false;
                     saveTimer = 0f;
+                }
+            }
+        }
+
+        // ALWAYS update raid combat (real-time):
+        if (raidPanel.isCombatActive()) {
+            eventManager.getRaidManager().update(delta);
+            raidPanel.update(delta);
+            // Check if raid ended
+            RaidState raid = eventManager.getRaidManager().getActiveRaid();
+            if (raid != null && (raid.isCompleted() || raid.isFailed())) {
+                // RaidPanel will detect this and switch to RESULTS state
+                if (raidPanel.isCombatActive()) {
+                    // Force state transition
+                    // This is handled in RaidPanel.drawCombat by checking raid state
                 }
             }
         }
@@ -391,7 +426,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawSelectionOutline();
             drawHighlights();
             drawLockIndicators();
-            drawInventoryTints();
 
             batch.begin();
 
@@ -399,6 +433,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawDraggedObject();
 
             batch.end();
+
+            drawInventoryTints();
         } else {
             // Shape pass (only for things not yet converted to textures)
             drawGridBackground();
@@ -472,9 +508,30 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.end();
         }
 
+        if (raidPanel.isFormingParty()) {
+            drawRaidPartyTints();
+        }
+        if (raidPanel.isVisible()) {
+            raidPanel.draw(shapeRenderer, batch, font, fontSmall);
+        }
+
+        if (trophyShopPanel.isVisible()) {
+            trophyShopPanel.drawBackground(shapeRenderer);
+            batch.begin();
+            trophyShopPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (goldShopPanel.isVisible()) {
+            goldShopPanel.drawBackground(shapeRenderer);
+            batch.begin();
+            goldShopPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
         // IMPORTANT: Call explorationManager.update() ALWAYS (even when panel is open)
         // so events process in real time:
-        if (!offlinePopup.isVisible()) {
+        if (!offlinePopup.isVisible() && eventManager.getExplorationManager() != null) {
             eventManager.getExplorationManager().update();
         }
 
@@ -642,6 +699,20 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         fontSmall.draw(batch, "Slate: " + rm.getAmount("slate"), 130f, LayoutConfig.getResourcesRow2Y());
         fontSmall.draw(batch, "Ingot: " + rm.getAmount("ingot"), 240f, LayoutConfig.getResourcesRow2Y());
         fontSmall.draw(batch, "Relic: " + rm.getAmount("relic"), 350f, LayoutConfig.getResourcesRow2Y());
+
+        // Gold chip — right-aligned on the top resource row, tappable to open shop
+        int goldAmt = eventManager.getGoldManager().getGold();
+        String goldStr = "Gold: " + goldAmt;
+        fontSmall.setColor(1f, 0.85f, 0.25f, 1f); // gold color
+        glyphLayout.setText(fontSmall, goldStr);
+        goldChipW = glyphLayout.width + 16f;
+        goldChipH = 20f;
+        goldChipX = LayoutConfig.WORLD_WIDTH - goldChipW - 8f;
+        goldChipY = LayoutConfig.getResourcesY() - 15f;
+        uiTex.drawPanel(batch, uiTex.panelMedium, goldChipX, goldChipY, goldChipW, goldChipH);
+        fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
+        fontSmall.draw(batch, goldStr, goldChipX + 8f, goldChipY + goldChipH - 5f);
+        inputHandler.setGoldChipBounds(goldChipX, goldChipY, goldChipW, goldChipH);
         fontSmall.setColor(Color.WHITE);
     }
 
@@ -978,7 +1049,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         shapeRenderer.rect(x + size, y - thickness, thickness, size + thickness * 2);
     }
 
-    private boolean isUnitType(String type) {
+    /*private boolean isUnitType(String type) {
         switch (type) {
             case "villager": case "woodsman": case "cook": case "prospector":
             case "mercenary": case "carpenter": case "knight": case "hunter":
@@ -989,9 +1060,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             default:
                 return false;
         }
-    }
+    }*/
 
-    private boolean isMonsterType(String type) {
+    private boolean isUnitType(String type)    { return GameTypes.isUnit(type); }
+
+    /*private boolean isMonsterType(String type) {
         switch (type) {
             case "gremlin": case "troll": case "orc":
             case "wraith": case "demon":
@@ -999,7 +1072,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             default:
                 return false;
         }
-    }
+    }*/
+
+    private boolean isMonsterType(String type) { return GameTypes.isMonster(type); }
 
 
     /**
@@ -1418,6 +1493,32 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         batch.end();
     }
 
+    private void drawRaidPartyTints() {
+        Grid grid = eventManager.getGridInstance();
+        int cols = grid.getWidth();
+        int rows = grid.getHeight();
+
+        batch.begin();
+        for (int x = 0; x < cols; x++) {
+            for (int y = 0; y < rows; y++) {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isEmpty()) continue;
+
+                String objectId = cell.getOccupant();
+                Color tint = raidPanel.getUnitTintColor(objectId);
+                if (tint == null) continue;
+
+                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+                batch.setColor(tint);
+                batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
+            }
+        }
+        batch.setColor(1f, 1f, 1f, 1f);
+        batch.end();
+    }
+
     private String getSelectedType() {
         if (!inputHandler.hasSelection()) return null;
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
@@ -1541,6 +1642,27 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             jsonManager.saveRuneFragments("rune_fragments", rs.getFragmentCounts());
             jsonManager.saveRuneCrafted("rune_crafted", rs.getCraftedRunes());
             jsonManager.saveRuneApplications("rune_applications", rs.getAppliedRunes());
+
+            RaidManager raidMgr = eventManager.getRaidManager();
+            jsonManager.saveRuneFragments("raid_completion", raidMgr.getCompletionMap());
+            jsonManager.saveArray("raid_currency", new int[]{
+                raidMgr.getWarTrophies(), raidMgr.getBossTokens()
+            });
+
+            Map<String, Object> shopSave = new java.util.HashMap<>();
+            shopSave.put("stock", eventManager.getTrophyShop().getCurrentStock());
+            shopSave.put("lastDailyRefresh", eventManager.getTrophyShop().getLastDailyRefresh());
+            shopSave.put("lastWeeklyRefresh", eventManager.getTrophyShop().getLastWeeklyRefresh());
+            jsonManager.saveShopState("trophy_shop", shopSave);
+
+            // Gold
+            GoldManager gm = eventManager.getGoldManager();
+            long loginMs2 = gm.getLastDailyLoginMs();
+            jsonManager.saveArray("gold_state", new int[]{
+                gm.getGold(), gm.getExtraExploreSlots(),
+                (int)(loginMs2 >>> 32), (int)(loginMs2)
+            });
+            jsonManager.saveStringSet("gold_claimed", gm.getClaimedRewards());
 
 
             Gdx.app.log(TAG, "Game saved successfully");

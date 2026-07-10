@@ -1,0 +1,100 @@
+{
+  "sets": {
+    "dragonscale": {
+      "name": "Dragonscale",
+      "pieces": {
+        "sword": {
+          "name": "Dragonscale Blade",
+          "description": "Forged from dragon hide, burns on contact",
+          "bonusDamage": 90,
+          "bonusHp": 0,
+          "spritePath": "enchanted_dragonscale_sword"
+        },
+        "shield": {
+          "name": "Dragonscale Aegis",
+          "description": "Impervious to flame",
+          "bonusDamage": 0,
+          "bonusHp": 180,
+          "spritePath": "enchanted_dragonscale_shield"
+        }
+      },
+      "setBonus": {
+        "description": "+20% damage and +10% HP to entire raid party",
+        "partyDamageBonus": 0.20,
+        "partyHpBonus": 0.10
+      }
+    },
+    "shadowsteel": {
+      "name": "Shadowsteel",
+      "pieces": {
+        "sword": {
+          "name": "Shadowsteel Fang",
+          "description": "Drinks the light around it",
+          "bonusDamage": 110,
+          "bonusHp": 0,
+          "spritePath": "enchanted_shadowsteel_sword"
+        },
+        "shield": {
+          "name": "Shadowsteel Ward",
+          "description": "Cloaks the bearer in darkness",
+          "bonusDamage": 0,
+          "bonusHp": 150,
+          "spritePath": "enchanted_shadowsteel_shield"
+        }
+      },
+      "setBonus": {
+        "description": "+30% damage to the set holder, party takes 15% less damage",
+        "holderDamageBonus": 0.30,
+        "partyDamageReduction": 0.15
+      }
+    },
+    "holy_radiance": {
+      "name": "Holy Radiance",
+      "pieces": {
+        "sword": {
+          "name": "Radiant Scepter",
+          "description": "Blessed by the High Temple",
+          "bonusDamage": 70,
+          "bonusHp": 40,
+          "spritePath": "enchanted_holy_sword"
+        },
+        "shield": {
+          "name": "Radiant Bulwark",
+          "description": "Shines with divine protection",
+          "bonusDamage": 20,
+          "bonusHp": 200,
+          "spritePath": "enchanted_holy_shield"
+        }
+      },
+      "setBonus": {
+        "description": "Heals entire raid party 5% max HP every 10 seconds",
+        "partyHealPercent": 0.05,
+        "healIntervalSeconds": 10.0
+      }
+    },
+    "infernal": {
+      "name": "Infernal",
+      "pieces": {
+        "sword": {
+          "name": "Hellfire Greatsword",
+          "description": "The fires of the abyss made steel",
+          "bonusDamage": 140,
+          "bonusHp": 0,
+          "spritePath": "enchanted_infernal_sword"
+        },
+        "shield": {
+          "name": "Infernal Rampart",
+          "description": "Forged in the heart of a volcano",
+          "bonusDamage": 30,
+          "bonusHp": 160,
+          "spritePath": "enchanted_infernal_shield"
+        }
+      },
+      "setBonus": {
+        "description": "Reflects 25% damage back to attackers, +15% damage to set holder",
+        "holderDamageBonus": 0.15,
+        "reflectPercent": 0.25
+      }
+    }
+  }
+}

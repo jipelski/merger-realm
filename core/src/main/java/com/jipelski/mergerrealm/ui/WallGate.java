@@ -63,6 +63,9 @@ public class WallGate {
     private float gateAnimTime = 0f;
     private boolean wasOpen = false;
 
+    private RaidPanel raidPanel;
+    public void setRaidPanel(RaidPanel panel) { this.raidPanel = panel; }
+
     public WallGate(EventManager eventManager, SpriteManager spriteManager,
                     UITextureManager uiTex) {
         this.eventManager = eventManager;
@@ -123,7 +126,10 @@ public class WallGate {
         // Check raid button (future — just consume tap)
         if (worldX >= raidBtnX && worldX <= raidBtnX + SIDE_BTN_WIDTH
             && worldY >= raidBtnY && worldY <= raidBtnY + SIDE_BTN_HEIGHT) {
-            Gdx.app.log(TAG, "Raid — coming soon");
+            if (raidPanel != null) {
+                raidPanel.open();
+                Gdx.app.log(TAG, "Raid panel opened");
+            }
             return true;
         }
 

@@ -35,6 +35,7 @@ public class ExplorationSlot {
     private long lastEventTimeMs;     // timestamp of last processed event (relative to start)
     private boolean returning;        // unit is heading home
     private long recallTimeMs;        // System.currentTimeMillis() when recall was initiated
+    private long returnSpeedupMs;     // accumulated gold-purchased return-time reduction
     private boolean dead;             // unit died during exploration
     private int cursedEncounters;     // remaining encounters with curse debuff (ruins)
 
@@ -97,6 +98,9 @@ public class ExplorationSlot {
     public long getRecallTimeMs() { return recallTimeMs; }
     public void setRecallTimeMs(long recallTimeMs) { this.recallTimeMs = recallTimeMs; }
 
+    public long getReturnSpeedupMs() { return returnSpeedupMs; }
+    public void setReturnSpeedupMs(long returnSpeedupMs) { this.returnSpeedupMs = returnSpeedupMs; }
+
     public boolean isDead() { return dead; }
     public void setDead(boolean dead) { this.dead = dead; }
 
@@ -137,7 +141,7 @@ public class ExplorationSlot {
         long exploreTime = recallTimeMs - startTimeMs;
         long returnDuration = exploreTime / 2;
         long elapsed = System.currentTimeMillis() - recallTimeMs;
-        return Math.max(0, returnDuration - elapsed);
+        return Math.max(0, returnDuration - elapsed - returnSpeedupMs);
     }
 
     /**

@@ -357,4 +357,35 @@ public class JsonManager {
     public void saveEquippedMap(String filename, Map<String, String> equipped) {
         writeJson(filename, equipped);
     }
+
+    /**
+     * Saves shop stock and refresh timestamps.
+     */
+    public void saveShopState(String filename, Map<String, Object> state) {
+        writeJson(filename, state);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> loadShopState(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<Map<String, Object>>() {}.getType());
+    }
+
+    // Reuses existing methods:
+    //   saveArray("gold_state", ...) for balance + extra slots + login timestamp
+    //   saveLockedObjects("gold_claimed", ...) for claimed reward keys (Set<String>)
+
+    // If saveLockedObjects/loadLockedObjects already save/load Set<String>,
+    // reuse them. Otherwise, add:
+
+    public void saveStringSet(String filename, java.util.Set<String> set) {
+        writeJson(filename, set);
+    }
+
+    public java.util.Set<String> loadStringSet(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<java.util.HashSet<String>>() {}.getType());
+    }
 }

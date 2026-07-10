@@ -68,6 +68,13 @@ public class RaidPanel {
     private final UITextureManager uiTex;
     private final GlyphLayout glyphLayout;
 
+    private final RaidArenaRenderer arena;
+
+    private TrophyShopPanel trophyShopPanel;
+    public void setTrophyShopPanel(TrophyShopPanel panel) {
+        this.trophyShopPanel = panel;
+    }
+
     // ── Touch ──
     private final Vector2 touchPos = new Vector2();
 
@@ -78,6 +85,7 @@ public class RaidPanel {
         this.viewport = viewport;
         this.uiTex = uiTex;
         this.glyphLayout = new GlyphLayout();
+        this.arena = new RaidArenaRenderer(eventManager, spriteManager, viewport);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -177,6 +185,7 @@ public class RaidPanel {
     // DRAWING
     // ══════════════════════════════════════════════════════════════
 
+    // TODO: add gold respawn button
     public void drawBackground(ShapeRenderer sr) {
         if (state == State.CLOSED) return;
         if (state == State.FORM_PARTY) { drawFormPartyBackground(sr); return; }
@@ -225,6 +234,11 @@ public class RaidPanel {
         fontSmall.draw(batch, "Trophies: " + rm.getWarTrophies()
                 + "  |  Boss Tokens: " + rm.getBossTokens(),
             getMenuX() + 12f, getContentTop() - 8f);
+
+        // Trophy button
+        fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+        fontSmall.draw(batch, "[Trophy Shop]",
+            getMenuX() + getMenuWidth() - 110f, getContentTop() - 8f);
 
         float rowY = getContentTop() - 36f;
         List<Map<String, Object>> chapters = rm.getChapters();
@@ -377,104 +391,50 @@ public class RaidPanel {
         RaidState raid = rm.getActiveRaid();
         if (raid == null) return;
 
+        // Auto-transition to results
+        if (raid.isCompleted() || raid.isFailed()) {
+            state = State.RESULTS;
+            drawResults(batch, font, fontSmall);
+            return;
+        }
+
         // Header
         font.setColor(Color.WHITE);
-        font.draw(batch, "RAID IN PROGRESS", getMenuX() + 12f, getMenuTop() - 10f);
+        font.draw(batch, "Room " + (raid.getCurrentRoomIndex() + 1),
+            getMenuX() + 12f, getMenuTop() - 10f);
 
-        float roomInfo = getContentTop() - 8f;
-        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
-        fontSmall.draw(batch, "Room: " + (raid.getCurrentRoomIndex() + 1),
-            getMenuX() + 12f, roomInfo);
-
-        // ── Party HP bars ──
-        float partyY = getContentTop() - 36f;
-        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
-        fontSmall.draw(batch, "PARTY:", getMenuX() + 12f, partyY);
-        partyY -= 20f;
-
-        String[] positions = {"Front 1", "Front 2", "Back 1", "Back 2"};
-        for (int i = 0; i < 4; i++) {
-            if (!raid.isSlotOccupied(i)) continue;
-            float y = partyY - i * 32f;
-
-            // Name + position
-            boolean alive = raid.isSlotAlive(i);
-            fontSmall.setColor(alive
-                ? new Color(0.8f, 0.8f, 0.9f, 1f)
-                : new Color(0.5f, 0.3f, 0.3f, 1f));
-            fontSmall.draw(batch, positions[i] + ": "
-                    + capitalize(raid.getPartyTypes()[i]) + " Lv" + raid.getPartyLevels()[i],
-                getMenuX() + 12f, y);
-
-            // HP
-            int hp = raid.getPartyCurrentHp()[i];
-            int maxHp = raid.getPartyMaxHp()[i];
-            fontSmall.setColor(alive
-                ? new Color(0.3f, 0.9f, 0.3f, 1f)
-                : new Color(0.9f, 0.3f, 0.3f, 1f));
-            fontSmall.draw(batch, alive ? hp + "/" + maxHp : "FALLEN",
-                getMenuX() + getMenuWidth() - 80f, y);
-        }
-
-        // ── Enemies ──
-        float enemyY = partyY - 4 * 32f - 16f;
-        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
-        fontSmall.draw(batch, "ENEMIES:", getMenuX() + 12f, enemyY);
-        enemyY -= 20f;
-
-        for (int i = 0; i < raid.getActiveEnemies().size(); i++) {
-            RaidEnemy e = raid.getActiveEnemies().get(i);
-            float y = enemyY - i * 26f;
-
-            fontSmall.setColor(e.isAlive()
-                ? new Color(0.9f, 0.4f, 0.4f, 1f)
-                : new Color(0.4f, 0.4f, 0.4f, 1f));
-            fontSmall.draw(batch, e.name + (e.boss ? " (BOSS)" : ""),
-                getMenuX() + 12f, y);
-
-            fontSmall.draw(batch, e.isAlive() ? e.hp + "/" + e.maxHp : "DEAD",
-                getMenuX() + getMenuWidth() - 80f, y);
-        }
-
-        // ── Combat log ──
-        float logY = getMenuBottom() + 80f;
-        fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-        fontSmall.draw(batch, "COMBAT LOG:", getMenuX() + 12f, logY);
-        logY -= 16f;
-
-        List<String> log = rm.getCombatLog();
-        int startIdx = Math.max(0, log.size() - 5);
-        for (int i = startIdx; i < log.size(); i++) {
-            float y = logY - (i - startIdx) * COMBAT_LOG_LINE;
-            fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
-            fontSmall.draw(batch, log.get(i), getMenuX() + 12f, y,
+        // Last combat-log line (small, unobtrusive)
+        java.util.List<String> log = rm.getCombatLog();
+        if (!log.isEmpty()) {
+            fontSmall.setColor(0.55f, 0.55f, 0.65f, 1f);
+            fontSmall.draw(batch, log.get(log.size() - 1),
+                getMenuX() + 12f, getMenuBottom() + 118f,
                 getMenuWidth() - 24f, com.badlogic.gdx.utils.Align.left, true);
         }
 
-        // ── Action buttons ──
-        float btnY = getMenuBottom() + 8f;
+        // Sprites, HP bars labels, damage numbers, fury label, banner
+        arena.drawBatch(batch, font, fontSmall);
 
-        // Potion button
+        // Side buttons (right side of control bar)
         Inventory inv = eventManager.getInventory();
-        List<Item> potions = inv.getItemsByType("potion");
-        if (!potions.isEmpty()) {
-            fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
-            fontSmall.draw(batch, "[Potion x" + potions.size() + "]",
-                getMenuX() + 12f, btnY + 16f);
-        }
+        float btnX = getMenuX() + getMenuWidth() - 96f;
+        float btnY = getMenuBottom() + 16f;
 
-        // Phoenix Feather button
-        List<Item> feathers = inv.getItemsByType("phoenix_feather");
-        if (!feathers.isEmpty() && raid.getDeathCount() > 0) {
-            fontSmall.setColor(0.9f, 0.6f, 0.2f, 1f);
-            fontSmall.draw(batch, "[Revive x" + feathers.size() + "]",
-                getMenuX() + 120f, btnY + 16f);
-        }
+        java.util.List<Item> potions = inv.getItemsByType("potion");
+        fontSmall.setColor(potions.isEmpty()
+            ? new Color(0.4f, 0.4f, 0.45f, 1f) : new Color(0.3f, 0.9f, 0.3f, 1f));
+        fontSmall.draw(batch, "[Potion x" + potions.size() + "]", btnX, btnY + 72f);
 
-        // Abandon button
+        java.util.List<Item> feathers = inv.getItemsByType("phoenix_feather");
+        fontSmall.setColor(feathers.isEmpty() || raid.getDeathCount() == 0
+            ? new Color(0.4f, 0.4f, 0.45f, 1f) : new Color(0.9f, 0.6f, 0.2f, 1f));
+        fontSmall.draw(batch, "[Revive x" + feathers.size() + "]", btnX, btnY + 48f);
+
         fontSmall.setColor(0.7f, 0.3f, 0.3f, 1f);
-        fontSmall.draw(batch, "[Abandon]",
-            getMenuX() + getMenuWidth() - 70f, btnY + 16f);
+        fontSmall.draw(batch, "[Abandon]", btnX, btnY + 24f);
+
+        font.setColor(Color.WHITE);
+        fontSmall.setColor(Color.WHITE);
     }
 
     // ── RESULTS ──
@@ -600,6 +560,15 @@ public class RaidPanel {
             return true;
         }
 
+        if (touchPos.y >= getContentTop() - 20f && touchPos.y <= getContentTop()
+            && touchPos.x >= getMenuX() + getMenuWidth() - 120f) {
+            // Open trophy shop — need a reference to the panel
+            if (trophyShopPanel != null) {
+                trophyShopPanel.open();
+            }
+            return true;
+        }
+
         // Chapter rows
         RaidManager rm = eventManager.getRaidManager();
         List<Map<String, Object>> chapters = rm.getChapters();
@@ -650,49 +619,61 @@ public class RaidPanel {
     private boolean handleCombatTouch() {
         RaidManager rm = eventManager.getRaidManager();
         RaidState raid = rm.getActiveRaid();
+        if (raid == null) return true;
 
-        float btnY = getMenuBottom() + 8f;
-
-        // Potion button area
-        if (touchPos.x >= getMenuX() + 12f && touchPos.x <= getMenuX() + 120f
-            && touchPos.y >= btnY && touchPos.y <= btnY + 28f) {
-            // Find first wounded alive member and use potion
-            Inventory inv = eventManager.getInventory();
-            List<Item> potions = inv.getItemsByType("potion");
-            if (!potions.isEmpty() && raid != null) {
-                for (int i = 0; i < 4; i++) {
-                    if (raid.isSlotAlive(i)
-                        && raid.getPartyCurrentHp()[i] < raid.getPartyMaxHp()[i]) {
-                        rm.usePotion(i, potions.get(0).getId());
-                        break;
-                    }
-                }
-            }
+        // ── Fury button ──
+        if (arena.isFuryButtonHit(touchPos.x, touchPos.y)) {
+            rm.tapFury();
             return true;
         }
 
-        // Revive button area
-        if (touchPos.x >= getMenuX() + 120f && touchPos.x <= getMenuX() + 240f
-            && touchPos.y >= btnY && touchPos.y <= btnY + 28f) {
-            Inventory inv = eventManager.getInventory();
-            List<Item> feathers = inv.getItemsByType("phoenix_feather");
-            if (!feathers.isEmpty() && raid != null) {
-                for (int i = 0; i < 4; i++) {
-                    if (raid.isSlotOccupied(i) && raid.getPartyDead()[i]) {
-                        rm.usePhoenixFeather(i, feathers.get(0).getId());
-                        break;
+        // ── Side buttons ──
+        float btnX = getMenuX() + getMenuWidth() - 100f;
+        float btnY = getMenuBottom() + 16f;
+
+        if (touchPos.x >= btnX) {
+            // Potion
+            if (touchPos.y >= btnY + 56f && touchPos.y <= btnY + 84f) {
+                java.util.List<Item> potions =
+                    eventManager.getInventory().getItemsByType("potion");
+                if (!potions.isEmpty()) {
+                    for (int i = 0; i < 4; i++) {
+                        if (raid.isSlotAlive(i)
+                            && raid.getPartyCurrentHp()[i] < raid.getPartyMaxHp()[i]) {
+                            rm.usePotion(i, potions.get(0).getId());
+                            break;
+                        }
                     }
                 }
+                return true;
             }
-            return true;
-        }
-
-        // Abandon button
-        if (touchPos.x >= getMenuX() + getMenuWidth() - 80f
-            && touchPos.y >= btnY && touchPos.y <= btnY + 28f) {
-            rm.abandonRaid();
-            state = State.RESULTS;
-            return true;
+            // Revive
+            if (touchPos.y >= btnY + 32f && touchPos.y < btnY + 56f) {
+                java.util.List<Item> feathers =
+                    eventManager.getInventory().getItemsByType("phoenix_feather");
+                if (!feathers.isEmpty()) {
+                    for (int i = 0; i < 4; i++) {
+                        if (raid.isSlotOccupied(i) && raid.getPartyDead()[i]) {
+                            rm.usePhoenixFeather(i, feathers.get(0).getId());
+                            break;
+                        }
+                    }
+                }
+                return true;
+            }
+            // Revive party
+            if (arena.isReviveButtonHit(touchPos.x, touchPos.y)) {
+                if (raid.getDeathCount() > 0) {
+                    eventManager.getGoldManager().reviveRaidParty();
+                }
+                return true;
+            }
+            // Abandon
+            if (touchPos.y >= btnY && touchPos.y < btnY + 32f) {
+                rm.abandonRaid();
+                state = State.RESULTS;
+                return true;
+            }
         }
 
         return true;
@@ -710,8 +691,28 @@ public class RaidPanel {
         RaidManager rm = eventManager.getRaidManager();
         boolean started = rm.startRaid(selectedChapterId, selectedNodeId, partyUnitIds);
         if (started) {
+            arena.reset();
             state = State.COMBAT;
         }
+    }
+
+    public void update(float delta) {
+        if (state == State.COMBAT) arena.update(delta);
+    }
+
+    /**
+     * Draws the whole panel with correct shape/batch sequencing:
+     * shapes fully outside the batch, sprites/text inside one batch pass.
+     */
+    public void draw(ShapeRenderer sr, SpriteBatch batch,
+                     BitmapFont font, BitmapFont fontSmall) {
+        drawBackground(sr);                       // dim + panel (own begin/end)
+        if (state == State.COMBAT) {
+            arena.drawShapes(sr);                 // HP bars + fury bar (own begin/end)
+        }
+        batch.begin();
+        drawContent(batch, font, fontSmall);      // headers, non-combat states
+        batch.end();
     }
 
     // ── Helper ──

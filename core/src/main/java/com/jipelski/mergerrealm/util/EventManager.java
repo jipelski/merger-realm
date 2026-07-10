@@ -25,6 +25,8 @@ import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 import com.jipelski.mergerrealm.util.LegendaryEvolution;
 import com.jipelski.mergerrealm.util.RuneSystem;
+import com.jipelski.mergerrealm.util.RaidManager;
+import com.jipelski.mergerrealm.util.EnchantedSetManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +41,7 @@ public class EventManager {
     private static final String TAG = "EventManager";
 
     // Used for type checks — avoids the broken string.contains() pattern
-    private static final Set<String> UNIT_TYPES = new HashSet<>(Arrays.asList(
+    /*private static final Set<String> UNIT_TYPES = new HashSet<>(Arrays.asList(
         // Base units
         "villager", "woodsman", "cook", "prospector", "mercenary",
         "carpenter", "knight", "hunter", "archer", "blacksmith",
@@ -55,7 +57,9 @@ public class EventManager {
 
     public static final Set<String> PERIODIC_FACILITIES = new HashSet<>(Arrays.asList(
         "tavernboard", "griffinnest", "dragonslair"
-    ));
+    ));*/
+
+    public static final Set<String> PERIODIC_FACILITIES = GameTypes.PERIODIC_FACILITIES;
 
     private final Grid               gridInstance;
     private final GameDataLoader     GDLInstance;
@@ -69,6 +73,9 @@ public class EventManager {
     private Inventory inventory;
     public Inventory getInventory() { return inventory; }
 
+    private TrophyShop trophyShop;
+    public TrophyShop getTrophyShop() { return trophyShop; }
+
     public GameDataLoader getGameDataLoader() { return GDLInstance; }
     public BattleFieldManager getBattleFieldManager() { return BATTLE_FIELD_MANAGER; }
 
@@ -77,15 +84,22 @@ public class EventManager {
 
     private RaidManager raidManager;
 
+    private EnchantedSetManager enchantedSetManager;
+    public EnchantedSetManager getEnchantedSetManager() { return enchantedSetManager; }
+
+    private GoldManager goldManager;
+    public GoldManager getGoldManager() { return goldManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
         this.GDLInstance         = new GameDataLoader(jsonInstance);
         this.resourceManager     = new ResourceManager(jsonManager);
         this.GRID_OBJECT_MANAGER = new GridObjectManager(jsonManager);
-        this.runeSystem = new RuneSystem();
+        this.runeSystem          = new RuneSystem();
+        this.goldManager         = new GoldManager(this);
+        this.inventory           = new Inventory();
 
-        this.inventory = new Inventory();
         List<Item> savedItems = jsonManager.loadInventoryItems("inventory_items");
         if (savedItems != null) {
             inventory.setItems(savedItems);
@@ -136,6 +150,66 @@ public class EventManager {
         }
 
         Gdx.app.log(TAG, "RaidManager loaded");
+
+        this.trophyShop = new TrophyShop(this);
+
+        // Load saved state
+        Map<String, Object> savedShop = jsonManager.loadShopState("trophy_shop");
+        if (savedShop != null) {
+            try {
+                // Stock
+                Object stockObj = savedShop.get("stock");
+                if (stockObj instanceof Map) {
+                    Map<String, Double> rawStock = (Map<String, Double>) stockObj;
+                    Map<String, Integer> stock = new java.util.HashMap<>();
+                    for (Map.Entry<String, Double> e : rawStock.entrySet()) {
+                        stock.put(e.getKey(), e.getValue().intValue());
+                    }
+                    trophyShop.setCurrentStock(stock);
+                }
+                // Timestamps
+                Object dailyObj = savedShop.get("lastDailyRefresh");
+                if (dailyObj instanceof Double) {
+                    trophyShop.setLastDailyRefresh(((Double) dailyObj).longValue());
+                }
+                Object weeklyObj = savedShop.get("lastWeeklyRefresh");
+                if (weeklyObj instanceof Double) {
+                    trophyShop.setLastWeeklyRefresh(((Double) weeklyObj).longValue());
+                }
+            } catch (Exception e) {
+                Gdx.app.error(TAG, "Error loading shop state", e);
+            }
+        }
+        trophyShop.checkRefresh(); // Apply any pending refreshes
+
+        Gdx.app.log(TAG, "TrophyShop loaded");
+
+        // Load gold saved state
+        int[] goldState = jsonManager.loadArray("gold_state");
+        if (goldState != null && goldState.length >= 3) {
+            goldManager.setGold(goldState[0]);
+            goldManager.setExtraExploreSlots(goldState[1]);
+            goldManager.setLastDailyLoginMs(
+                ((long) goldState[2] << 32) | (goldState.length > 3 ? goldState[3] & 0xFFFFFFFFL : 0));
+        }
+
+        java.util.Set<String> claimedRewards = jsonManager.loadStringSet("gold_claimed");
+        if (claimedRewards != null) {
+            goldManager.setClaimedRewards(claimedRewards);
+        }
+
+        // Award daily login Gold
+        int dailyGold = goldManager.onDailyLogin();
+        if (dailyGold > 0) {
+            Gdx.app.log(TAG, "Daily login bonus: +" + dailyGold + " Gold");
+        }
+
+        Gdx.app.log(TAG, "GoldManager loaded — balance: " + goldManager.getGold());
+
+        this.enchantedSetManager = new EnchantedSetManager(this);
+        String enchantedJson = jsonManager.readRawJson("enchanted_sets");
+        enchantedSetManager.loadData(enchantedJson);
+        Gdx.app.log(TAG, "EnchantedSetManager loaded");
 
         // Load saved state
         Map<String, Integer> savedFragments = jsonManager.loadRuneFragments("rune_fragments");
@@ -323,7 +397,7 @@ public class EventManager {
         return false;
     }
 
-    private boolean isFacilityType(String type) {
+    /* private boolean isFacilityType(String type) {
         switch (type) {
             case "homestead": case "lodge": case "tavernboard":
             case "barracks": case "archeryrange": case "forge":
@@ -332,7 +406,8 @@ public class EventManager {
             default:
                 return false;
         }
-    }
+    } */
+    private boolean isFacilityType(String type) { return GameTypes.isFacility(type); }
 
     public void spawnObject(String type, int level, int x, int y) {
         int[] XoY = gridInstance.getClosestEmptyCell(x, y);
@@ -468,6 +543,20 @@ public class EventManager {
         jsonInstance.saveArray("raid_currency", new int[]{
             raidManager.getWarTrophies(), raidManager.getBossTokens()
         });
+        Map<String, Object> shopState = new java.util.HashMap<>();
+        shopState.put("stock", trophyShop.getCurrentStock());
+        shopState.put("lastDailyRefresh", trophyShop.getLastDailyRefresh());
+        shopState.put("lastWeeklyRefresh", trophyShop.getLastWeeklyRefresh());
+        jsonInstance.saveShopState("trophy_shop", shopState);
+
+        long loginMs = goldManager.getLastDailyLoginMs();
+        jsonInstance.saveArray("gold_state", new int[]{
+            goldManager.getGold(),
+            goldManager.getExtraExploreSlots(),
+            (int)(loginMs >>> 32),
+            (int)(loginMs)
+        });
+        jsonInstance.saveStringSet("gold_claimed", goldManager.getClaimedRewards());
     }
 
     public void removeObject(String id) {
@@ -581,13 +670,13 @@ public class EventManager {
             case "silo": case "timberyard": case "ironvault":
             case "gremlin": case "troll": case "orc":
             case "wraith": case "demon": {
-                // No tap action for these types
+                // No tap action for these types TODO: implement some sort of action like a puulling up a stats card
                 break;
             }
             case "homestead": case "lodge": case "tavernboard":
             case "barracks": case "archeryrange": case "forge":
             case "monastery": case "griffinnest": case "dragonslair": {
-                break;
+                break; // TODO:
                 /*Facility facility = (Facility) object;
                 if (!gridInstance.hasEmptyCell()) {
                     Gdx.app.log(TAG, "tap: grid full — cannot spawn unit");
@@ -674,7 +763,7 @@ public class EventManager {
             int mergedLvl = targetGO.getLvl() + 1;
 
             // Increase nemesis counter if merging units
-            if (UNIT_TYPES.contains(mergedType)) {
+            if (GameTypes.isUnit(mergedType)) {
                 Unit unit = (Unit) originGO;
                 //int contribution = 1 << mergedLvl - 1; // 2^level (both units combined)
                 int nemesis_rate = unit.getNemesis_rate() + 1;
@@ -691,7 +780,7 @@ public class EventManager {
         }
 
         // ── Unit dropped on monster → HP-based combat ──
-        if (UNIT_TYPES.contains(originGO.getType()) && isMonster(targetGO.getType())) {
+        if (GameTypes.isUnit(originGO.getType()) && GameTypes.isMonster(targetGO.getType())) {
             Unit originUnit = (Unit) originGO;
 
             if (originUnit.getDamage() <= 0 || !originUnit.isAlive()) {
@@ -774,6 +863,10 @@ public class EventManager {
                     BATTLE_FIELD_MANAGER.increaseXP(xpGain);
                     Gdx.app.log(TAG, "Prince dismissed " + type + " lvl " + object.getLvl()
                         + " — gained " + xpGain + " leadership XP");
+                }
+                if (LegendaryEvolution.isLegendary(type)) {
+                    goldManager.onDismissLegendary();
+                    Gdx.app.log(TAG, "Legendary dismissed — +" + GoldManager.EARN_DISMISS_LEGENDARY + " Gold");
                 }
                 removeObject(objectId);
                 break;
@@ -979,15 +1072,7 @@ public class EventManager {
     /**
      * Returns true if the given type is a monster/invader.
      */
-    private boolean isMonster(String type) {
-        switch (type) {
-            case "gremlin": case "troll": case "orc":
-            case "wraith": case "demon":
-                return true;
-            default:
-                return false;
-        }
-    }
+    private boolean isMonster(String type)       { return GameTypes.isMonster(type); }
 
     /**
      * Heals all wounded units on the grid by a percentage of their max HP.

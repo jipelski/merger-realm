@@ -15,6 +15,7 @@ import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.ExplorationManager;
+import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
@@ -239,11 +240,11 @@ public class ExplorePanel {
             fontSmall.draw(batch, "< Back", getMenuX() + getMenuWidth() - 60f, getMenuTop() - 12f);
         }
 
-        // Slot count
         ExplorationManager em = eventManager.getExplorationManager();
         if (em != null) {
             int princeLvl = eventManager.getBattleFieldManager().getLevel();
-            int maxSlots = ExplorationManager.getSlotsForLevel(princeLvl);
+            int maxSlots = ExplorationManager.getSlotsForLevel(princeLvl)
+                + eventManager.getGoldManager().getExtraExploreSlots();
             fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
             String slotText = "Slots: " + em.getUsedSlotCount() + "/" + maxSlots;
             glyphLayout.setText(fontSmall, slotText);
@@ -359,6 +360,13 @@ public class ExplorePanel {
             // "Log" button
             fontSmall.setColor(0.5f, 0.5f, 0.7f, 1f);
             fontSmall.draw(batch, "[Log]", btnX - 50f, btnY + 16f);
+
+            if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
+                GoldManager gm = eventManager.getGoldManager();
+                boolean can = gm.canAfford(GoldManager.COST_SPEED_EXPLORATION);
+                fontSmall.setColor(can ? new Color(1f, 0.85f, 0.25f, 1f) : new Color(0.5f, 0.4f, 0.2f, 1f));
+                fontSmall.draw(batch, "[Rush +10G]", btnX - 110f, btnY + 16f);
+            }
         }
 
         // "Send Unit" button text
@@ -369,6 +377,15 @@ public class ExplorePanel {
             fontSmall.draw(batch, "Send Unit",
                 getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f,
                 btnY + BTN_HEIGHT - 8f);
+        }
+
+        if (!em.hasAvailableSlot()) {
+            GoldManager gm = eventManager.getGoldManager();
+            boolean can = gm.canAfford(GoldManager.COST_EXTRA_EXPLORE_SLOT);
+            fontSmall.setColor(can ? new Color(1f, 0.85f, 0.25f, 1f) : new Color(0.5f, 0.4f, 0.2f, 1f));
+            glyphLayout.setText(fontSmall, "[+1 Slot: 40G]");
+            fontSmall.draw(batch, "[+1 Slot: 40G]",
+                getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f, getMenuBottom() + 24f);
         }
     }
 
@@ -645,6 +662,14 @@ public class ExplorePanel {
                     return true;
                 }
 
+                // speed button region (left of the Log button)
+                if (touchPos.x >= btnX - 110f && touchPos.x < btnX - 60f) {
+                    if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
+                        eventManager.getGoldManager().speedUpExploration(i);
+                    }
+                    return true;
+                }
+
                 return true;
             }
         }
@@ -661,6 +686,11 @@ public class ExplorePanel {
             }
         }
 
+        if (!em.hasAvailableSlot()
+            && touchPos.y >= getMenuBottom() + 8f && touchPos.y <= getMenuBottom() + 32f) {
+            eventManager.getGoldManager().purchaseExtraExploreSlot();
+            return true;
+        }
         return true;
     }
 

@@ -37,6 +37,7 @@ public class Unit extends GameObject {
         this.resource     = resource;
         this.gen_rate     = gen_rate;
         this.hp           = hp;
+        this.max_hp       = hp;
         this.damage       = damage;
         this.xp_rate      = xp_rate;
         this.nemesis      = nemesis;

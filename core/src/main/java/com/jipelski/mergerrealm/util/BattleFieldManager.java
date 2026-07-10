@@ -137,7 +137,7 @@ public class BattleFieldManager {
         current_xp += xp;
         if (current_xp >= xp_required) {
             current_xp -= xp_required;
-            level += 1;
+            level += 1; // TODO: increase the level by how many levels surpassed, not just 1
 
             // Scale XP for next level
             xp_required = PrinceLevelConfig.getXpRequired(level);
@@ -170,6 +170,13 @@ public class BattleFieldManager {
                 }
             }
 
+            // Add gold on level up
+            eventManager.getGoldManager().onPrinceLevelUp(level);
+
+            // Multi level up
+            if (current_xp >= xp_required) {
+                increaseXP(0);
+            }
             return true;
         }
         return false;

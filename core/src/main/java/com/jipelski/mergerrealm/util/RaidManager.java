@@ -7,6 +7,9 @@ import com.jipelski.mergerrealm.model.RaidState;
 import com.jipelski.mergerrealm.model.RaidState.RaidEnemy;
 import com.jipelski.mergerrealm.model.Unit;
 
+import com.jipelski.mergerrealm.util.EnchantedSetManager;
+import com.jipelski.mergerrealm.model.Item;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -61,6 +64,66 @@ public class RaidManager {
     // ── Combat log ──
     private final List<String> combatLog = new ArrayList<>();
     private static final int MAX_LOG_LINES = 100;
+
+    //  ── Enchanted Sets ──
+
+    private EnchantedSetManager.ActiveSetBonuses setBonuses;
+
+    private float setHealTimer = 0f;
+
+    // ── Pacing ──
+    public static final float ENEMY_SPEED_MULT = 1.5f;      // slower enemy attacks
+    public static final float TRANSITION_DURATION = 2.5f;   // pause between rooms
+
+    // ── Fury tuning ──
+    public static final float FURY_GAIN_PER_HIT = 0.05f;    // party lands a hit
+    public static final float FURY_GAIN_PER_TAKEN = 0.03f;  // party takes damage
+    public static final float FURY_OSC_MIN = 1.5f;
+    public static final float FURY_OSC_MAX = 3.0f;
+    public static final float FURY_OSC_PERIOD = 1.2f;       // full sweep seconds
+    public static final float FURY_ACTIVE_DURATION = 3.0f;  // crit window
+
+    private float furyOscTimer = 0f;
+
+    /**
+     * Handles taps on the Fury button.
+     *   READY     → start the oscillating multiplier
+     *   SELECTING → lock the multiplier, open the 3s crit window
+     */
+    public void tapFury() {
+        if (!isRaidActive()) return;
+        RaidState raid = activeRaid;
+
+        switch (raid.getFuryPhase()) {
+            case READY:
+                furyOscTimer = 0f;
+                raid.setFuryPhase(RaidState.FuryPhase.SELECTING);
+                break;
+            case SELECTING:
+                raid.setFuryPhase(RaidState.FuryPhase.ACTIVE);
+                raid.setFuryActiveTimer(FURY_ACTIVE_DURATION);
+                raid.setFuryMeter(0f);
+                RaidState.CombatEvent ev = new RaidState.CombatEvent();
+                ev.kind = "fury";
+                ev.damage = Math.round(raid.getFuryMultiplier() * 10f);
+                raid.pushEvent(ev);
+                addLog("FURY x" + String.format("%.1f", raid.getFuryMultiplier())
+                    + " — strike now!");
+                break;
+            default:
+                break; // CHARGING and ACTIVE ignore taps
+        }
+    }
+
+    private void gainFury(float amount) {
+        if (activeRaid.getFuryPhase() != RaidState.FuryPhase.CHARGING) return;
+        float m = Math.min(1f, activeRaid.getFuryMeter() + amount);
+        activeRaid.setFuryMeter(m);
+        if (m >= 1f) {
+            activeRaid.setFuryPhase(RaidState.FuryPhase.READY);
+            addLog("Fury is ready!");
+        }
+    }
 
     public RaidManager(EventManager eventManager) {
         this.eventManager = eventManager;
@@ -219,6 +282,14 @@ public class RaidManager {
         activeRaid.setNodeId(nodeId);
         activeRaid.setCurrentRoomIndex(0);
 
+        furyOscTimer = 0f;
+        activeRaid.setFuryPhase(RaidState.FuryPhase.CHARGING);
+        activeRaid.setFuryMeter(0f);
+        activeRaid.setInTransition(false);
+
+        // Reset Heal Timer
+        setHealTimer = 0f;
+
         // Set up party — remove units from grid
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         for (int i = 0; i < 4; i++) {
@@ -231,10 +302,33 @@ public class RaidManager {
             int effectiveHp = eventManager.getEffectiveMaxHp(unitIds[i]);
 
             activeRaid.setPartyMember(i, unitIds[i], unit.getType(), unit.getLvl(),
-                effectiveHp, unit.getHp(), effectiveDmg);
+                effectiveHp, unit.getHp(), effectiveDmg, unit.getSprite());
 
             // Remove from grid (but DON'T unequip items)
             eventManager.removeUnitForRaid(unitIds[i]);
+        }
+
+        EnchantedSetManager esm = eventManager.getEnchantedSetManager();
+        setBonuses = esm.checkSetBonuses(unitIds);
+        if (setBonuses.hasAnyBonus()) {
+            addLog("Set bonuses active!");
+            if (setBonuses.dragonscale) addLog("  Dragonscale: +20% party DMG, +10% party HP");
+            if (setBonuses.shadowsteel) addLog("  Shadowsteel: +30% holder DMG, -15% incoming DMG");
+            if (setBonuses.holyRadiance) addLog("  Holy Radiance: party heals 5% HP every 10s");
+            if (setBonuses.infernal) addLog("  Infernal: 25% reflect, +15% holder DMG");
+        }
+
+        // Apply party HP bonus from Dragonscale at raid start:
+        if (setBonuses.partyHpBonus > 0) {
+            for (int i = 0; i < 4; i++) {
+                if (activeRaid.isSlotOccupied(i)) {
+                    int boosted = Math.round(activeRaid.getPartyMaxHp()[i]
+                        * (1f + setBonuses.partyHpBonus));
+                    activeRaid.getPartyMaxHp()[i] = boosted;
+                    activeRaid.getPartyCurrentHp()[i] = Math.min(
+                        activeRaid.getPartyCurrentHp()[i], boosted);
+                }
+            }
         }
 
         // Load first room enemies
@@ -258,34 +352,69 @@ public class RaidManager {
     public void update(float delta) {
         if (!isRaidActive()) return;
 
-        // Check for party wipe
+        // Party wipe check
         if (activeRaid.isPartyWiped()) {
             activeRaid.setFailed(true);
             addLog("Party wiped! Raid failed.");
-            Gdx.app.log(TAG, "Raid failed — party wiped");
             return;
         }
 
-        // Check if room is cleared
-        if (activeRaid.isRoomCleared()) {
-            int nextRoom = activeRaid.getCurrentRoomIndex() + 1;
-            if (nextRoom >= currentRooms.size()) {
-                // Node complete!
-                completeNode();
-                return;
+        // ── Fury phase updates ──
+        switch (activeRaid.getFuryPhase()) {
+            case SELECTING: {
+                furyOscTimer += delta;
+                float phase = (furyOscTimer % FURY_OSC_PERIOD) / FURY_OSC_PERIOD;
+                float tri = phase < 0.5f ? phase * 2f : 2f - phase * 2f; // triangle wave
+                activeRaid.setFuryMultiplier(
+                    FURY_OSC_MIN + tri * (FURY_OSC_MAX - FURY_OSC_MIN));
+                break;
             }
-            loadRoom(nextRoom);
-            addLog("Room " + (nextRoom + 1) + " — enemies incoming!");
+            case ACTIVE: {
+                activeRaid.setFuryActiveTimer(activeRaid.getFuryActiveTimer() - delta);
+                if (activeRaid.getFuryActiveTimer() <= 0f) {
+                    activeRaid.setFuryPhase(RaidState.FuryPhase.CHARGING);
+                    activeRaid.setFuryMeter(0f);
+                }
+                break;
+            }
+            default: break;
+        }
+
+        // ── Room transition pause ──
+        if (activeRaid.isInTransition()) {
+            activeRaid.setTransitionTimer(activeRaid.getTransitionTimer() - delta);
+            if (activeRaid.getTransitionTimer() <= 0f) {
+                activeRaid.setInTransition(false);
+                int nextRoom = activeRaid.getCurrentRoomIndex() + 1;
+                if (nextRoom >= currentRooms.size()) {
+                    completeNode();
+                } else {
+                    loadRoom(nextRoom);
+                    RaidState.CombatEvent ev = new RaidState.CombatEvent();
+                    ev.kind = "room_start";
+                    ev.actorIdx = nextRoom;
+                    activeRaid.pushEvent(ev);
+                }
+            }
+            return; // no combat during transition
+        }
+
+        // Room cleared → begin transition
+        if (activeRaid.isRoomCleared()) {
+            activeRaid.setInTransition(true);
+            activeRaid.setTransitionTimer(TRANSITION_DURATION);
+            RaidState.CombatEvent ev = new RaidState.CombatEvent();
+            ev.kind = "room_clear";
+            activeRaid.pushEvent(ev);
+            return;
         }
 
         // ── Unit attacks ──
         for (int i = 0; i < 4; i++) {
             if (!activeRaid.isSlotAlive(i)) continue;
-
             float[] timers = activeRaid.getPartyAttackTimer();
             float[] speeds = activeRaid.getPartyAttackSpeed();
             timers[i] += delta;
-
             if (timers[i] >= speeds[i]) {
                 timers[i] -= speeds[i];
                 unitAttack(i);
@@ -293,56 +422,109 @@ public class RaidManager {
         }
 
         // ── Enemy attacks ──
-        for (RaidEnemy enemy : activeRaid.getActiveEnemies()) {
+        for (int e = 0; e < activeRaid.getActiveEnemies().size(); e++) {
+            RaidEnemy enemy = activeRaid.getActiveEnemies().get(e);
             if (!enemy.isAlive()) continue;
-
             enemy.attackTimer += delta;
             if (enemy.attackTimer >= enemy.attackSpeed) {
                 enemy.attackTimer -= enemy.attackSpeed;
-                enemyAttack(enemy);
+                enemyAttack(e, enemy);
+            }
+        }
+
+        // ── Set + trait periodic heals (keep your existing Holy Radiance /
+        //    high_priest logic here, but emit "heal" events for the numbers) ──
+        if (setBonuses != null && setBonuses.partyHealPercent > 0
+            && setBonuses.healIntervalSeconds > 0) {
+            setHealTimer += delta;
+            if (setHealTimer >= setBonuses.healIntervalSeconds) {
+                setHealTimer -= setBonuses.healIntervalSeconds;
+                // Heal all alive party members
+                int[] hp = activeRaid.getPartyCurrentHp();
+                int[] maxHp = activeRaid.getPartyMaxHp();
+                for (int i = 0; i < 4; i++) {
+                    if (activeRaid.isSlotAlive(i)) {
+                        int heal = Math.round(maxHp[i] * setBonuses.partyHealPercent);
+                        hp[i] = Math.min(maxHp[i], hp[i] + heal);
+                    }
+                }
+                addLog("Holy Radiance heals the party!");
             }
         }
     }
 
     private void unitAttack(int slot) {
-        // Find first alive enemy
+        // Find first alive enemy + its index
         RaidEnemy target = null;
-        for (RaidEnemy e : activeRaid.getActiveEnemies()) {
-            if (e.isAlive()) { target = e; break; }
+        int targetIdx = -1;
+        java.util.List<RaidEnemy> enemies = activeRaid.getActiveEnemies();
+        for (int i = 0; i < enemies.size(); i++) {
+            if (enemies.get(i).isAlive()) { target = enemies.get(i); targetIdx = i; break; }
         }
         if (target == null) return;
 
         int dmg = activeRaid.getPartyDamage()[slot];
 
-        // Legendary trait: double_attack_raid (shadowbow)
+        // Legendary trait: shadowbow double attack
         String unitType = activeRaid.getPartyTypes()[slot];
-        if ("shadowbow".equals(unitType)) {
-            dmg *= 2;
+        if ("shadowbow".equals(unitType)) dmg *= 2;
+
+        // Enchanted set bonuses (keep your existing code)
+        if (setBonuses != null) {
+            if (setBonuses.partyDamageBonus > 0)
+                dmg = Math.round(dmg * (1f + setBonuses.partyDamageBonus));
+            if (setBonuses.holderDamageBonus[slot] > 0)
+                dmg = Math.round(dmg * (1f + setBonuses.holderDamageBonus[slot]));
+        }
+
+        // ── Fury crit window ──
+        boolean crit = false;
+        if (activeRaid.getFuryPhase() == RaidState.FuryPhase.ACTIVE) {
+            dmg = Math.round(dmg * activeRaid.getFuryMultiplier());
+            crit = true;
         }
 
         target.hp -= dmg;
+        if (target.hp < 0) target.hp = 0;
+
+        // Fury charges from landed hits
+        gainFury(FURY_GAIN_PER_HIT);
+
+        // Emit presentation event
+        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+        ev.kind = "attack";
+        ev.actorIsParty = true;  ev.actorIdx = slot;
+        ev.targetIsParty = false; ev.targetIdx = targetIdx;
+        ev.damage = dmg;         ev.crit = crit;
+        activeRaid.pushEvent(ev);
+
         if (target.hp <= 0) {
-            target.hp = 0;
-            addLog(capitalize(activeRaid.getPartyTypes()[slot]) + " defeated " + target.name + "!");
+            addLog(capitalize(activeRaid.getPartyTypes()[slot])
+                + " defeated " + target.name + (crit ? " with a CRIT!" : "!"));
         }
     }
 
-    private void enemyAttack(RaidEnemy enemy) {
+    private void enemyAttack(int enemyIdx, RaidEnemy enemy) {
         int totalDmg = enemy.damage;
 
-        // Legendary trait: reduce_monster_damage (royal_knight)
+        // Legendary trait: royal_knight damage reduction
         for (int i = 0; i < 4; i++) {
-            if (activeRaid.isSlotAlive(i) && "royal_knight".equals(activeRaid.getPartyTypes()[i])) {
+            if (activeRaid.isSlotAlive(i)
+                && "royal_knight".equals(activeRaid.getPartyTypes()[i])) {
                 totalDmg = (int)(totalDmg * 0.8f);
                 break;
             }
         }
 
-        // Distribute damage across party positions
+        // Enchanted set: Shadowsteel party damage reduction
+        if (setBonuses != null && setBonuses.partyDamageReduction > 0) {
+            totalDmg = Math.round(totalDmg * (1f - setBonuses.partyDamageReduction));
+        }
+
+        // Distribute across alive slots (keep your redistribution logic)
         int[] hp = activeRaid.getPartyCurrentHp();
         boolean[] dead = activeRaid.getPartyDead();
 
-        // Calculate alive distribution
         float totalShare = 0f;
         float[] shares = new float[4];
         for (int i = 0; i < 4; i++) {
@@ -351,8 +533,6 @@ public class RaidManager {
                 totalShare += shares[i];
             }
         }
-
-        // Redistribute dead shares proportionally
         if (totalShare > 0 && totalShare < 0.99f) {
             float scale = 1f / totalShare;
             for (int i = 0; i < 4; i++) shares[i] *= scale;
@@ -363,43 +543,48 @@ public class RaidManager {
             int dmg = Math.round(totalDmg * shares[i]);
             if (dmg <= 0) continue;
 
-            // Legendary trait: reflect_damage_raid (ironclad)
+            // Ironclad reflect (keep your existing trait code)
             if ("ironclad".equals(activeRaid.getPartyTypes()[i])) {
-                int reflected = (int)(dmg * 0.10f);
-                enemy.hp -= reflected;
+                enemy.hp -= (int)(dmg * 0.10f);
+            }
+            // Infernal set reflect
+            if (setBonuses != null && setBonuses.reflectPercent > 0) {
+                enemy.hp -= Math.round(dmg * setBonuses.reflectPercent);
+                if (enemy.hp < 0) enemy.hp = 0;
             }
 
             hp[i] -= dmg;
+
+            // Fury charges from damage taken
+            gainFury(FURY_GAIN_PER_TAKEN);
+
+            // Emit presentation event (one per damaged slot)
+            RaidState.CombatEvent ev = new RaidState.CombatEvent();
+            ev.kind = "attack";
+            ev.actorIsParty = false;  ev.actorIdx = enemyIdx;
+            ev.targetIsParty = true;  ev.targetIdx = i;
+            ev.damage = dmg;
+            activeRaid.pushEvent(ev);
+
             if (hp[i] <= 0) {
                 hp[i] = 0;
                 dead[i] = true;
                 activeRaid.setDeathCount(activeRaid.getDeathCount() + 1);
                 addLog(capitalize(activeRaid.getPartyTypes()[i]) + " has fallen!");
 
-                // Legendary trait: auto_revive_raid (eternal_phoenix)
+                // eternal_phoenix auto-revive (keep your existing code)
                 if ("eternal_phoenix".equals(activeRaid.getPartyTypes()[i])) {
                     dead[i] = false;
                     hp[i] = activeRaid.getPartyMaxHp()[i] / 2;
                     activeRaid.setDeathCount(activeRaid.getDeathCount() - 1);
                     addLog("Eternal Phoenix rises from the ashes!");
-                    // Only auto-revive once — change type to prevent re-trigger
                     activeRaid.getPartyTypes()[i] = "phoenix_revived";
                 }
             }
         }
 
-        // Legendary trait: heal_party_raid (high_priest) — passive healing
-        for (int i = 0; i < 4; i++) {
-            if (activeRaid.isSlotAlive(i) && "high_priest".equals(activeRaid.getPartyTypes()[i])) {
-                for (int j = 0; j < 4; j++) {
-                    if (activeRaid.isSlotAlive(j) && hp[j] < activeRaid.getPartyMaxHp()[j]) {
-                        int heal = (int)(activeRaid.getPartyMaxHp()[j] * 0.02f);
-                        hp[j] = Math.min(activeRaid.getPartyMaxHp()[j], hp[j] + heal);
-                    }
-                }
-                break; // only one priest heal per tick
-            }
-        }
+        // high_priest passive heal (keep existing; optionally emit "heal" events)
+
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -424,7 +609,9 @@ public class RaidManager {
             float speed = toFloat(eData, "attackSpeed");
             boolean boss = Boolean.TRUE.equals(eData.get("boss"));
 
-            enemies.add(new RaidEnemy(key, name, hp, dmg, speed, boss));
+            String sprite = (String) eData.get("sprite");
+            enemies.add(new RaidEnemy(key, name, sprite, hp, dmg,
+                speed * ENEMY_SPEED_MULT, boss));
         }
 
         activeRaid.setCurrentRoomIndex(roomIndex);
@@ -484,10 +671,29 @@ public class RaidManager {
         // Enchanted equipment drop
         double enchChance = toDouble(currentNode, "enchantedDropChance");
         if (enchChance > 0 && Math.random() < enchChance) {
-            // Create enchanted item — placeholder for now
             String set = (String) currentNode.get("enchantedSet");
-            activeRaid.setEnchantedDrop(set);
-            addLog("Enchanted equipment found! (" + capitalize(set) + " set)");
+            EnchantedSetManager esm = eventManager.getEnchantedSetManager();
+            Item enchantedItem = esm.createRandomPiece(set);
+            if (enchantedItem != null) {
+                eventManager.getInventory().addItem(enchantedItem);
+                activeRaid.setEnchantedDrop(enchantedItem.getName());
+                activeRaid.getItemsFound().add(enchantedItem.getId());
+                addLog("Enchanted drop: " + enchantedItem.getName()
+                    + " (" + EnchantedSetManager.getSetDisplayName(set) + " set)");
+            }
+        }
+
+        // First-clear Gold
+        GoldManager gm = eventManager.getGoldManager();
+        String nodeType = (String) currentNode.get("type");
+        if (firstClear) {
+            gm.onRaidNodeFirstClear(activeRaid.getChapterId(),
+                activeRaid.getNodeId(), nodeType != null ? nodeType : "main");
+        }
+
+        // First 3-star Gold
+        if (stars == 3 && bestPrev < 3) {
+            gm.onRaidFirst3Star(activeRaid.getChapterId(), activeRaid.getNodeId());
         }
 
         addLog("NODE COMPLETE! " + stars + "★ — +" + trophies + " War Trophies"

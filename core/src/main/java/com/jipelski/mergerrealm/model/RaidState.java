@@ -42,18 +42,45 @@ public class RaidState {
     private String enchantedDrop = null;                  // enchanted item ID if dropped
     private int bossTokens = 0;
 
+    // ── Fury (crit charge) system ──
+    public enum FuryPhase { CHARGING, READY, SELECTING, ACTIVE }
+    private FuryPhase furyPhase = FuryPhase.CHARGING;
+    private float furyMeter = 0f;          // 0..1
+    private float furyMultiplier = 1.5f;   // current (SELECTING) or locked (ACTIVE)
+    private float furyActiveTimer = 0f;
+
+    public FuryPhase getFuryPhase() { return furyPhase; }
+    public void setFuryPhase(FuryPhase p) { this.furyPhase = p; }
+    public float getFuryMeter() { return furyMeter; }
+    public void setFuryMeter(float m) { this.furyMeter = m; }
+    public float getFuryMultiplier() { return furyMultiplier; }
+    public void setFuryMultiplier(float m) { this.furyMultiplier = m; }
+    public float getFuryActiveTimer() { return furyActiveTimer; }
+    public void setFuryActiveTimer(float t) { this.furyActiveTimer = t; }
+
+    // ── Room transition state ──
+    private boolean inTransition = false;
+    private float transitionTimer = 0f;
+    public boolean isInTransition() { return inTransition; }
+    public void setInTransition(boolean t) { this.inTransition = t; }
+    public float getTransitionTimer() { return transitionTimer; }
+    public void setTransitionTimer(float t) { this.transitionTimer = t; }
+
     // ── Damage distribution ratios ──
     public static final float[] DAMAGE_DISTRIBUTION = {0.50f, 0.30f, 0.10f, 0.10f};
 
     // ── Default attack speed for units ──
-    public static final float DEFAULT_ATTACK_SPEED = 1.5f;
+    public static final float DEFAULT_ATTACK_SPEED = 2.8f;
+
+    private String[] partySprites = new String[4];
+    public String[] getPartySprites() { return partySprites; }
 
     public RaidState() {}
 
     // ── Party management ──
 
     public void setPartyMember(int slot, String unitId, String type, int level,
-                               int maxHp, int currentHp, int damage) {
+                               int maxHp, int currentHp, int damage, String sprite) {
         partyUnitIds[slot] = unitId;
         partyTypes[slot] = type;
         partyLevels[slot] = level;
@@ -63,6 +90,7 @@ public class RaidState {
         partyAttackSpeed[slot] = DEFAULT_ATTACK_SPEED;
         partyAttackTimer[slot] = 0f;
         partyDead[slot] = false;
+        partySprites[slot] = sprite;
     }
 
     public boolean isSlotOccupied(int slot) {
@@ -209,12 +237,35 @@ public class RaidState {
     public int getBossTokens() { return bossTokens; }
     public void setBossTokens(int t) { this.bossTokens = t; }
 
+    /** Presentation event pushed by RaidManager, consumed by RaidArenaRenderer. */
+    public static class CombatEvent {
+        public String kind;          // "attack", "heal", "room_clear", "room_start", "fury"
+        public boolean actorIsParty;
+        public int actorIdx;         // party slot or enemy index (or room index for room_start)
+        public boolean targetIsParty;
+        public int targetIdx;
+        public int damage;           // dmg dealt / heal amount / mult*10 for fury
+        public boolean crit;
+    }
+
+    private final java.util.List<CombatEvent> pendingEvents = new java.util.ArrayList<>();
+
+    public void pushEvent(CombatEvent ev) { pendingEvents.add(ev); }
+
+    /** Returns and clears all pending events. Called once per frame by the renderer. */
+    public java.util.List<CombatEvent> drainEvents() {
+        java.util.List<CombatEvent> out = new java.util.ArrayList<>(pendingEvents);
+        pendingEvents.clear();
+        return out;
+    }
+
     /**
      * Simple enemy data holder for active combat.
      */
     public static class RaidEnemy {
         public String type;
         public String name;
+        public String sprite;
         public int hp;
         public int maxHp;
         public int damage;
@@ -222,10 +273,11 @@ public class RaidState {
         public float attackTimer = 0f;
         public boolean boss = false;
 
-        public RaidEnemy(String type, String name, int hp, int damage,
+        public RaidEnemy(String type, String name, String sprite, int hp, int damage,
                          float attackSpeed, boolean boss) {
             this.type = type;
             this.name = name;
+            this.sprite = sprite;
             this.hp = hp;
             this.maxHp = hp;
             this.damage = damage;

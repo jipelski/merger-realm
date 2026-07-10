@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.util.EnchantedSetManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.Inventory;
@@ -216,7 +217,8 @@ public class InventoryMenu {
             case TAB_EQUIPMENT:
                 return "sword".equals(item.getType())
                     || "shield".equals(item.getType())
-                    || "amulet".equals(item.getType());
+                    || "amulet".equals(item.getType())
+                    || EnchantedSetManager.isEnchantedItem(item.getType());
             case TAB_CONSUMABLES:
                 return "potion".equals(item.getType())
                     || "phoenix_feather".equals(item.getType())
@@ -577,7 +579,7 @@ public class InventoryMenu {
 
     private void drawPreviewCard(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall, Item item) {
         float cardW = 280f;
-        float cardH = 110f;
+        float cardH = EnchantedSetManager.isEnchantedItem(item.getType()) ? 150f : 110f;
         float cardX = (getWorldWidth() - cardW) / 2f;
         float cardY = (getWorldHeight() - cardH) / 2f;
 
@@ -599,6 +601,23 @@ public class InventoryMenu {
         if (item.getBonusHp() > 0) stats.append("+").append(item.getBonusHp()).append(" HP  ");
         if (item.isConsumable()) stats.append("[Consumable]");
         fontSmall.draw(batch, stats.toString(), cardX + 12f, cardY + cardH - 56f);
+
+        if (EnchantedSetManager.isEnchantedItem(item.getType())) {
+            String setName = EnchantedSetManager.getSetName(item.getType());
+            if (setName != null) {
+                fontSmall.setColor(0.6f, 0.3f, 0.9f, 1f); // purple for set info
+                String setDisplay = EnchantedSetManager.getSetDisplayName(setName);
+                fontSmall.draw(batch, "Set: " + setDisplay, cardX + 12f, cardY + cardH - 74f);
+
+                EnchantedSetManager esm = eventManager.getEnchantedSetManager();
+                String bonusDesc = esm.getSetBonusDescription(setName);
+                if (bonusDesc != null) {
+                    fontSmall.setColor(0.5f, 0.3f, 0.8f, 1f);
+                    fontSmall.draw(batch, "2pc: " + bonusDesc, cardX + 12f, cardY + cardH - 90f,
+                        cardW - 24f, com.badlogic.gdx.utils.Align.left, true);
+                }
+            }
+        }
 
         // Type
         fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);

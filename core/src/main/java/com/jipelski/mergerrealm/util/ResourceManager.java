@@ -98,6 +98,24 @@ public class ResourceManager {
     }
 
     /**
+     * Fills a resource to its maximum capacity.
+     * Called by GoldManager.fillResources().
+     */
+    public void fillToMax(String resource) {
+        if (consumableMap.containsKey(resource)) {
+            int[] value = consumableMap.get(resource);
+            if (value[2] > 0) {
+                // Has a pool cap — clamp to it
+                value[0] = value[2];
+            } else {
+                // No storage built yet — still generate but with a base cap
+                value[0] = 1000;
+            }
+            Gdx.app.log("ResourceManager", "Filled " + resource + " to max: " + value[2]);
+        }
+    }
+
+    /**
      * Deducts food, wood, and iron if all three are available.
      * Returns true on success, false if any resource is insufficient.
      */
