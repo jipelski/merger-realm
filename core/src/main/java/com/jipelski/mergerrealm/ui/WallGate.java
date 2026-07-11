@@ -66,6 +66,13 @@ public class WallGate {
     private RaidPanel raidPanel;
     public void setRaidPanel(RaidPanel panel) { this.raidPanel = panel; }
 
+    // Exposed so the tutorial overlay can draw a highlight ring around the
+    // gate without duplicating updateLayout()'s centering math.
+    public float getGateX() { return gateX; }
+    public float getGateY() { return gateY; }
+    public float getGateWidth() { return GATE_WIDTH; }
+    public float getGateHeight() { return GATE_HEIGHT; }
+
     public WallGate(EventManager eventManager, SpriteManager spriteManager,
                     UITextureManager uiTex) {
         this.eventManager = eventManager;

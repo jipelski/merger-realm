@@ -100,8 +100,8 @@ public class GoldShopPanel {
         float y = getContentTop() - ROW_HEIGHT;
         for (Sink s : sinks) {
             boolean affordable = s.actionable && gm.canAfford(s.cost);
-            sr.setColor(affordable ? new Color(0.18f, 0.18f, 0.24f, 1f)
-                : new Color(0.14f, 0.14f, 0.18f, 1f));
+            if (affordable) sr.setColor(0.18f, 0.18f, 0.24f, 1f);
+            else            sr.setColor(0.14f, 0.14f, 0.18f, 1f);
             sr.rect(getMenuX() + 8f, y, getMenuWidth() - 16f, ROW_HEIGHT);
             y -= (ROW_HEIGHT + ROW_GAP);
         }
@@ -126,21 +126,21 @@ public class GoldShopPanel {
         for (Sink s : sinks) {
             boolean affordable = s.actionable && gm.canAfford(s.cost);
 
-            fontSmall.setColor(s.actionable ? new Color(0.85f, 0.85f, 0.95f, 1f)
-                : new Color(0.55f, 0.55f, 0.6f, 1f));
+            if (s.actionable) fontSmall.setColor(0.85f, 0.85f, 0.95f, 1f);
+            else              fontSmall.setColor(0.55f, 0.55f, 0.6f, 1f);
             fontSmall.draw(batch, s.name, getMenuX() + 16f, y + ROW_HEIGHT - 12f);
 
             fontSmall.setColor(0.55f, 0.55f, 0.62f, 1f);
             fontSmall.draw(batch, s.desc, getMenuX() + 16f, y + ROW_HEIGHT - 30f);
 
-            fontSmall.setColor(affordable ? new Color(1f, 0.85f, 0.25f, 1f)
-                : new Color(0.6f, 0.45f, 0.2f, 1f));
+            if (affordable) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
+            else             fontSmall.setColor(0.6f, 0.45f, 0.2f, 1f);
             fontSmall.draw(batch, s.cost + " G",
                 getMenuX() + getMenuWidth() - 130f, y + ROW_HEIGHT - 20f);
 
             if (s.actionable) {
-                fontSmall.setColor(affordable ? new Color(0.3f, 0.9f, 0.3f, 1f)
-                    : new Color(0.4f, 0.4f, 0.45f, 1f));
+                if (affordable) fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+                else             fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
                 fontSmall.draw(batch, "[Buy]", getMenuX() + getMenuWidth() - 58f, y + ROW_HEIGHT - 20f);
             } else {
                 fontSmall.setColor(0.5f, 0.5f, 0.7f, 1f);

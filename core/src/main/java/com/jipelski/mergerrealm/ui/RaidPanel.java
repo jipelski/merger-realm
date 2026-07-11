@@ -19,6 +19,7 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.Inventory;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,14 @@ public class RaidPanel {
     private static final float HP_BAR_HEIGHT = 6f;
     private static final float COMBAT_LOG_LINE = 16f;
     private static final float SELECT_HEADER_HEIGHT = 90f;
+
+    // ── Grid tint palette (shared instances — drawTintsAtY only reads the
+    // returned color via batch.setColor, never mutates it, so a `new Color`
+    // per cell per frame is pure avoidable garbage) ──
+    private static final Color TINT_IN_PARTY   = new Color(0.3f, 0.5f, 0.9f, 0.4f);
+    private static final Color TINT_NON_UNIT   = new Color(0.15f, 0.15f, 0.15f, 0.6f);
+    private static final Color TINT_INELIGIBLE = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+    private static final Color TINT_ELIGIBLE   = new Color(0.2f, 0.85f, 0.2f, 0.35f);
 
     // ── Selection state ──
     private String selectedChapterId = null;
@@ -179,21 +188,21 @@ public class RaidPanel {
         // Already in party
         for (String id : partyUnitIds) {
             if (objectId.equals(id)) {
-                return new Color(0.3f, 0.5f, 0.9f, 0.4f); // blue
+                return TINT_IN_PARTY; // blue
             }
         }
 
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         GameObject obj = gom.getObject(objectId);
         if (obj == null || !(obj instanceof Unit)) {
-            return new Color(0.15f, 0.15f, 0.15f, 0.6f); // dark — non-unit
+            return TINT_NON_UNIT; // dark — non-unit
         }
 
         if (!canSelectUnit(objectId)) {
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — ineligible
+            return TINT_INELIGIBLE; // grey — ineligible
         }
 
-        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green — eligible
+        return TINT_ELIGIBLE; // green — eligible
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -376,7 +385,7 @@ public class RaidPanel {
                 GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(partyUnitIds[i]);
                 if (obj != null) {
                     String pos = (i < 2) ? "[Front] " : "[Back] ";
-                    partyText.append(pos).append(capitalize(obj.getType())).append("  ");
+                    partyText.append(pos).append(TextUtil.capitalize(obj.getType())).append("  ");
                 }
             } else {
                 String pos = (i < 2) ? "[Front] " : "[Back] ";
@@ -447,15 +456,17 @@ public class RaidPanel {
         float btnX = getMenuX() + getMenuWidth() - 96f;
         float btnY = getMenuBottom() + 16f;
 
-        java.util.List<Item> potions = inv.getItemsByType("potion");
-        fontSmall.setColor(potions.isEmpty()
-            ? new Color(0.4f, 0.4f, 0.45f, 1f) : new Color(0.3f, 0.9f, 0.3f, 1f));
-        fontSmall.draw(batch, "[Potion x" + potions.size() + "]", btnX, btnY + 72f);
+        // Counts only — countItemsByType avoids allocating the ArrayList
+        // getItemsByType would build just to read .size()/.isEmpty() here.
+        int potionCount = inv.countItemsByType("potion");
+        if (potionCount == 0) fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
+        else                  fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+        fontSmall.draw(batch, "[Potion x" + potionCount + "]", btnX, btnY + 72f);
 
-        java.util.List<Item> feathers = inv.getItemsByType("phoenix_feather");
-        fontSmall.setColor(feathers.isEmpty() || raid.getDeathCount() == 0
-            ? new Color(0.4f, 0.4f, 0.45f, 1f) : new Color(0.9f, 0.6f, 0.2f, 1f));
-        fontSmall.draw(batch, "[Revive x" + feathers.size() + "]", btnX, btnY + 48f);
+        int featherCount = inv.countItemsByType("phoenix_feather");
+        if (featherCount == 0 || raid.getDeathCount() == 0) fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
+        else                                                 fontSmall.setColor(0.9f, 0.6f, 0.2f, 1f);
+        fontSmall.draw(batch, "[Revive x" + featherCount + "]", btnX, btnY + 48f);
 
         fontSmall.setColor(0.7f, 0.3f, 0.3f, 1f);
         fontSmall.draw(batch, "[Abandon]", btnX, btnY + 24f);
@@ -512,7 +523,7 @@ public class RaidPanel {
         // Enchanted drop
         if (raid.getEnchantedDrop() != null) {
             fontSmall.setColor(0.6f, 0.3f, 0.9f, 1f);
-            fontSmall.draw(batch, "Enchanted Drop: " + capitalize(raid.getEnchantedDrop())
+            fontSmall.draw(batch, "Enchanted Drop: " + TextUtil.capitalize(raid.getEnchantedDrop())
                 + " Set!", getMenuX() + 12f, y);
             y -= 24f;
         }
@@ -742,10 +753,4 @@ public class RaidPanel {
         batch.end();
     }
 
-    // ── Helper ──
-
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
 }

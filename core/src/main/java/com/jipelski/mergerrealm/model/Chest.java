@@ -3,6 +3,7 @@ package com.jipelski.mergerrealm.model;
 import com.badlogic.gdx.Gdx;
 
 import com.jipelski.mergerrealm.data.ChestData;
+import com.jipelski.mergerrealm.util.WeightedRoll;
 
 import java.util.List;
 
@@ -56,32 +57,12 @@ public class Chest extends GameObject {
             return null;
         }
 
-        double totalProbability = spawnRates.stream()
-                .mapToDouble(FacilitySpawnConfiguration::getSpawnProbability)
-                .sum();
+        WeightedRoll.validateProbabilitiesSumToOne(spawnRates,
+            FacilitySpawnConfiguration::getSpawnProbability);
 
-        if (Math.abs(totalProbability - 1.0) > 0.001) {
-            throw new IllegalArgumentException(
-                    "Spawn probabilities sum to " + totalProbability + ", expected 1.0");
-        }
-
-        double randomValue         = Math.random();
-        double cumulativeProbability = 0.0;
-
-        for (FacilitySpawnConfiguration config : spawnRates) {
-            cumulativeProbability += config.getSpawnProbability();
-            // Use < not <= so that randomValue == 1.0 still selects the last item
-            // via the fallback below rather than never matching
-            if (randomValue < cumulativeProbability) {
-                return new String[]{config.getUnitType(), String.valueOf(config.getUnitLVL())};
-            }
-        }
-
-        // Fallback for floating point edge case where cumulative sum lands just
-        // below 1.0 — return the last entry rather than null
-        FacilitySpawnConfiguration last = spawnRates.get(spawnRates.size() - 1);
-        Gdx.app.log(TAG, "spawn: floating point fallback triggered — returning last config");
-        return new String[]{last.getUnitType(), String.valueOf(last.getUnitLVL())};
+        FacilitySpawnConfiguration picked = WeightedRoll.weightedPick(spawnRates,
+            FacilitySpawnConfiguration::getSpawnProbability);
+        return new String[]{picked.getUnitType(), String.valueOf(picked.getUnitLVL())};
     }
 
     /**

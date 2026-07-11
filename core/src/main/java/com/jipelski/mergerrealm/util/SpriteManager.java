@@ -5,7 +5,9 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Texture;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Loads and caches sprite textures on demand.
@@ -21,6 +23,14 @@ public class SpriteManager {
     private static final String SPRITES_DIR = "sprites/";
 
     private final Map<String, Texture> cache = new HashMap<>();
+    // Keys confirmed to have no PNG on disk. Kept SEPARATE from `cache` (not
+    // pointed at `fallback`) so SpriteManager.dispose()'s `for (Texture tex :
+    // cache.values()) tex.dispose();` can't double-dispose the shared
+    // fallback texture. Bundled assets don't change at runtime, so caching a
+    // miss for the whole session is safe — without this, every frame a
+    // missing sprite is on screen re-runs Gdx.files.internal(...).exists()
+    // (file I/O) and logs, for as long as placeholder art is in use.
+    private final Set<String> missing = new HashSet<>();
     private Texture fallback;
 
     public void loadFallback() {
@@ -55,6 +65,11 @@ public class SpriteManager {
         Texture tex = cache.get(key);
         if (tex != null) return tex;
 
+        // Already confirmed missing this session — skip the file-exists
+        // check and log spam that would otherwise repeat every frame this
+        // key is requested.
+        if (missing.contains(key)) return fallback;
+
         // Try to load
         FileHandle fh = Gdx.files.internal(SPRITES_DIR + key + ".png");
         if (fh.exists()) {
@@ -64,6 +79,7 @@ public class SpriteManager {
             return tex;
         }
 
+        missing.add(key);
         Gdx.app.log(TAG, "Sprite not found: " + key + ".png — using fallback");
         return fallback;
     }
@@ -85,6 +101,7 @@ public class SpriteManager {
             tex.dispose();
         }
         cache.clear();
+        missing.clear();
         fallback = null;
     }
 }

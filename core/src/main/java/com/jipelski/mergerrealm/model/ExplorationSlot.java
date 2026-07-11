@@ -40,6 +40,11 @@ public class ExplorationSlot {
     private int cursedEncounters;     // remaining encounters with curse debuff (ruins)
 
     // ── Log and loot ──
+    // Log is display-only (ExplorePanel reads it for the event feed) and is
+    // capped below — loot is functional (collectResults() delivers it as
+    // rewards) and must NEVER be capped, or earned loot would be silently
+    // discarded.
+    private static final int MAX_LOG_ENTRIES = 40;
     private List<ExplorationEvent> log;
     private List<ExplorationLoot> loot;
 
@@ -117,6 +122,12 @@ public class ExplorationSlot {
 
     public void addEvent(long relativeTimeMs, String text, String type) {
         log.add(new ExplorationEvent(relativeTimeMs, text, type));
+        // Unbounded otherwise — an offline catch-up loop can burst thousands
+        // of entries for a single long exploration. Trim oldest first, same
+        // pattern as RaidManager.combatLog's MAX_LOG_LINES cap.
+        if (log.size() > MAX_LOG_ENTRIES) {
+            log.remove(0);
+        }
     }
 
     public void addLoot(ExplorationLoot l) {

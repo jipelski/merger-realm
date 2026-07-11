@@ -18,6 +18,7 @@ import com.jipelski.mergerrealm.util.ExplorationManager;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 
 import java.util.List;
 
@@ -62,6 +63,13 @@ public class ExplorePanel {
     private static final String[] ZONE_KEYS = {"forest", "mountain", "mines", "ruins", "wastes"};
     private static final String[] ZONE_NAMES = {"Forest Path", "Mountain Trail", "Underground Mines", "Cursed Ruins", "Demon Wastes"};
     private static final int[] ZONE_UNLOCK_LEVELS = {1, 6, 12, 20, 30};
+
+    // ── Grid tint palette (shared instances — drawTintsAtY only reads the
+    // returned color via batch.setColor, never mutates it, so a `new Color`
+    // per cell per frame is pure avoidable garbage) ──
+    private static final Color TINT_NON_UNIT   = new Color(0.15f, 0.15f, 0.15f, 0.6f);
+    private static final Color TINT_INELIGIBLE = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+    private static final Color TINT_ELIGIBLE   = new Color(0.2f, 0.85f, 0.2f, 0.35f);
 
     // ── Selection state ──
     private String selectedZone = null;
@@ -164,14 +172,14 @@ public class ExplorePanel {
         if (obj == null) return null;
 
         if (!(obj instanceof Unit)) {
-            return new Color(0.15f, 0.15f, 0.15f, 0.6f); // dark — non-unit
+            return TINT_NON_UNIT; // dark — non-unit
         }
 
         if (!canSendUnit(objectId)) {
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f); // grey — ineligible
+            return TINT_INELIGIBLE; // grey — ineligible
         }
 
-        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green — eligible
+        return TINT_ELIGIBLE; // green — eligible
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -323,7 +331,7 @@ public class ExplorePanel {
 
             // Unit name + zone
             font.setColor(Color.WHITE);
-            font.draw(batch, capitalize(slot.getUnitType()) + " Lv" + slot.getUnitLevel(),
+            font.draw(batch, TextUtil.capitalize(slot.getUnitType()) + " Lv" + slot.getUnitLevel(),
                 getMenuX() + 16f, y - 8f);
 
             fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
@@ -341,10 +349,10 @@ public class ExplorePanel {
                 fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
             } else if (slot.isReturning()) {
                 long remainMs = slot.getReturnRemainingMs();
-                status = "Returning... " + formatMs(remainMs);
+                status = "Returning... " + TextUtil.formatDurationMs(remainMs);
             } else {
                 long elapsed = slot.getElapsedMs();
-                status = "Exploring " + formatMs(elapsed)
+                status = "Exploring " + TextUtil.formatDurationMs(elapsed)
                     + " | HP: " + slot.getUnitCurrentHp() + "/" + slot.getUnitMaxHp();
             }
             fontSmall.draw(batch, status, getMenuX() + 16f, y - 46f);
@@ -375,7 +383,8 @@ public class ExplorePanel {
             if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
                 GoldManager gm = eventManager.getGoldManager();
                 boolean can = gm.canAfford(GoldManager.COST_SPEED_EXPLORATION);
-                fontSmall.setColor(can ? new Color(1f, 0.85f, 0.25f, 1f) : new Color(0.5f, 0.4f, 0.2f, 1f));
+                if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
+                else     fontSmall.setColor(0.5f, 0.4f, 0.2f, 1f);
                 fontSmall.draw(batch, "[Rush +10G]", btnX - 110f, btnY + 16f);
             }
         }
@@ -393,7 +402,8 @@ public class ExplorePanel {
         if (!em.hasAvailableSlot()) {
             GoldManager gm = eventManager.getGoldManager();
             boolean can = gm.canAfford(GoldManager.COST_EXTRA_EXPLORE_SLOT);
-            fontSmall.setColor(can ? new Color(1f, 0.85f, 0.25f, 1f) : new Color(0.5f, 0.4f, 0.2f, 1f));
+            if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
+            else     fontSmall.setColor(0.5f, 0.4f, 0.2f, 1f);
             glyphLayout.setText(fontSmall, "[+1 Slot: 40G]");
             fontSmall.draw(batch, "[+1 Slot: 40G]",
                 getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f, getMenuBottom() + 24f);
@@ -515,7 +525,7 @@ public class ExplorePanel {
 
         // Unit info at top
         font.setColor(Color.WHITE);
-        font.draw(batch, capitalize(slot.getUnitType()) + " Lv" + slot.getUnitLevel()
+        font.draw(batch, TextUtil.capitalize(slot.getUnitType()) + " Lv" + slot.getUnitLevel()
                 + " — " + getZoneDisplayName(slot.getZone()),
             getMenuX() + 12f, getContentTop() - 8f);
 
@@ -734,20 +744,5 @@ public class ExplorePanel {
             if (ZONE_KEYS[i].equals(zoneKey)) return ZONE_NAMES[i];
         }
         return zoneKey;
-    }
-
-    private String formatMs(long ms) {
-        long totalSec = ms / 1000;
-        long hours = totalSec / 3600;
-        long min = (totalSec % 3600) / 60;
-        long sec = totalSec % 60;
-        if (hours > 0) return hours + "h " + min + "m";
-        if (min > 0) return min + "m " + sec + "s";
-        return sec + "s";
-    }
-
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
     }
 }

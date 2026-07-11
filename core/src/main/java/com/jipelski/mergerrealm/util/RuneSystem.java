@@ -157,7 +157,7 @@ public class RuneSystem {
         int crafted = craftedRunes.getOrDefault(runeType, 0);
         craftedRunes.put(runeType, crafted + 1);
 
-        Gdx.app.log(TAG, "Crafted Rune of " + capitalize(runeType)
+        Gdx.app.log(TAG, "Crafted Rune of " + TextUtil.capitalize(runeType)
             + "! (fragments remaining: " + (fragments - FRAGMENTS_PER_RUNE) + ")");
         return true;
     }
@@ -214,7 +214,7 @@ public class RuneSystem {
             unitId, k -> new HashMap<>());
         unitRunes.put(runeType, currentApplications + 1);
 
-        Gdx.app.log(TAG, "Applied Rune of " + capitalize(runeType) + " to " + unitId
+        Gdx.app.log(TAG, "Applied Rune of " + TextUtil.capitalize(runeType) + " to " + unitId
             + " (" + (currentApplications + 1) + "/" + max + ")");
         return true;
     }
@@ -337,7 +337,7 @@ public class RuneSystem {
             int count = unitRunes.getOrDefault(type, 0);
             if (count > 0) {
                 if (sb.length() > 0) sb.append(", ");
-                sb.append(capitalize(type)).append(" x").append(count);
+                sb.append(TextUtil.capitalize(type)).append(" x").append(count);
             }
         }
         return sb.length() > 0 ? sb.toString() : null;
@@ -355,8 +355,4 @@ public class RuneSystem {
         return false;
     }
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
 }

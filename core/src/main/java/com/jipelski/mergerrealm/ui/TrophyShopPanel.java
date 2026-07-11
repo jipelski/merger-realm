@@ -11,6 +11,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.RaidManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 import com.jipelski.mergerrealm.util.TrophyShop;
 import com.jipelski.mergerrealm.util.TrophyShop.ShopEntry;
 
@@ -155,8 +156,8 @@ public class TrophyShopPanel {
 
         // Refresh timers
         fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-        fontSmall.draw(batch, "Daily: " + formatMs(shop.getTimeUntilDailyRefresh())
-                + "  |  Weekly: " + formatMs(shop.getTimeUntilWeeklyRefresh()),
+        fontSmall.draw(batch, "Daily: " + TextUtil.formatDurationMsShort(shop.getTimeUntilDailyRefresh())
+                + "  |  Weekly: " + TextUtil.formatDurationMsShort(shop.getTimeUntilWeeklyRefresh()),
             getMenuX() + 12f, getMenuTop() - 46f);
 
         // ── Item list ──
@@ -198,9 +199,8 @@ public class TrophyShopPanel {
             boolean canBuy = canAfford && inStock;
 
             // Item name
-            fontSmall.setColor(canBuy
-                ? new Color(0.8f, 0.8f, 0.9f, 1f)
-                : new Color(0.45f, 0.45f, 0.5f, 1f));
+            if (canBuy) fontSmall.setColor(0.8f, 0.8f, 0.9f, 1f);
+            else        fontSmall.setColor(0.45f, 0.45f, 0.5f, 1f);
             fontSmall.draw(batch, entry.displayName, getMenuX() + 12f, y + 20f);
 
             // Level
@@ -208,16 +208,14 @@ public class TrophyShopPanel {
             fontSmall.draw(batch, "Lv" + entry.itemLevel, getMenuX() + 12f, y + 4f);
 
             // Cost
-            fontSmall.setColor(canAfford
-                ? new Color(0.85f, 0.8f, 0.5f, 1f)
-                : new Color(0.6f, 0.3f, 0.3f, 1f));
+            if (canAfford) fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            else           fontSmall.setColor(0.6f, 0.3f, 0.3f, 1f);
             String costText = entry.trophyCost + " T";
             fontSmall.draw(batch, costText, getMenuX() + getMenuWidth() - 150f, y + 20f);
 
             // Stock
-            fontSmall.setColor(inStock
-                ? new Color(0.5f, 0.5f, 0.6f, 1f)
-                : new Color(0.6f, 0.3f, 0.3f, 1f));
+            if (inStock) fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
+            else         fontSmall.setColor(0.6f, 0.3f, 0.3f, 1f);
             fontSmall.draw(batch, inStock ? "x" + stock : "SOLD OUT",
                 getMenuX() + getMenuWidth() - 100f, y + 20f);
 
@@ -259,7 +257,7 @@ public class TrophyShopPanel {
         if (Math.abs(dy) > 6f) scrolling = true;
 
         if (scrolling) {
-            scrollY -= dy * 0.5f;
+            scrollY += dy * 0.5f;
             scrollY = Math.max(0, Math.min(scrollY, maxScrollY));
             touchStartY = touchPos.y;
         }
@@ -336,12 +334,4 @@ public class TrophyShopPanel {
     // HELPERS
     // ══════════════════════════════════════════════════════════════
 
-    private String formatMs(long ms) {
-        if (ms <= 0) return "now";
-        long totalSec = ms / 1000;
-        long hours = totalSec / 3600;
-        long min = (totalSec % 3600) / 60;
-        if (hours > 0) return hours + "h " + min + "m";
-        return min + "m";
-    }
 }

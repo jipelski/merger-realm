@@ -230,7 +230,7 @@ public class ExplorationManager {
         }
 
         // Add departure log entry
-        slot.addEvent(0, capitalize(unit.getType()) + " ventures into the "
+        slot.addEvent(0, TextUtil.capitalize(unit.getType()) + " ventures into the "
             + getZoneName(zone) + "...", "nothing");
 
         // Remove unit from grid (resource gen rate is also removed)
@@ -267,8 +267,8 @@ public class ExplorationManager {
         long exploreSeconds = (slot.getRecallTimeMs() - slot.getStartTimeMs()) / 1000;
         long returnSeconds = exploreSeconds / 2;
         slot.addEvent(slot.getElapsedMs(),
-            capitalize(slot.getUnitType()) + " is heading home... (ETA: "
-                + formatSeconds(returnSeconds) + ")", "nothing");
+            TextUtil.capitalize(slot.getUnitType()) + " is heading home... (ETA: "
+                + TextUtil.formatDurationSeconds(returnSeconds) + ")", "nothing");
 
         Gdx.app.log(TAG, "Recalled " + slot.getUnitType()
             + " — return in " + returnSeconds + "s");
@@ -520,10 +520,10 @@ public class ExplorationManager {
 
         if (unitDied) {
             if (slot.isMaxLevel()) {
-                slot.addEvent(timeMs, capitalize(slot.getUnitType())
+                slot.addEvent(timeMs, TextUtil.capitalize(slot.getUnitType())
                     + " collapses but refuses to die! (Max level protection)", "death");
             } else {
-                slot.addEvent(timeMs, capitalize(slot.getUnitType())
+                slot.addEvent(timeMs, TextUtil.capitalize(slot.getUnitType())
                     + " has fallen...", "death");
             }
         } else if (slot.getUnitCurrentHp() <= slot.getUnitMaxHp() * 0.2f) {
@@ -548,7 +548,7 @@ public class ExplorationManager {
 
         slot.addLoot(ExplorationLoot.token(token, amount));
         slot.addEvent(timeMs, "Discovered " + amount + " "
-            + capitalize(token) + "!", "loot");
+            + TextUtil.capitalize(token) + "!", "loot");
     }
 
     private void processItemFind(ExplorationSlot slot, long timeMs) {
@@ -565,7 +565,7 @@ public class ExplorationManager {
             + "_" + (int)(Math.random() * 10000);
 
         slot.addLoot(ExplorationLoot.item(itemType, level, itemId));
-        slot.addEvent(timeMs, "Found a " + capitalize(itemType)
+        slot.addEvent(timeMs, "Found a " + TextUtil.capitalize(itemType)
             + " (Lv." + level + ")!", "loot");
     }
 
@@ -598,10 +598,10 @@ public class ExplorationManager {
 
         if (died) {
             if (slot.isMaxLevel()) {
-                slot.addEvent(timeMs, capitalize(slot.getUnitType())
+                slot.addEvent(timeMs, TextUtil.capitalize(slot.getUnitType())
                     + " barely survives! (Max level protection)", "death");
             } else {
-                slot.addEvent(timeMs, capitalize(slot.getUnitType())
+                slot.addEvent(timeMs, TextUtil.capitalize(slot.getUnitType())
                     + " has fallen to a trap...", "death");
             }
         }
@@ -663,7 +663,7 @@ public class ExplorationManager {
             // Include which type in the log
             String typeName = fragmentType.replace("rune_fragment_", "");
             slot.addEvent(eventTimeMs,
-                getRandomRareText(2) + " (" + capitalize(typeName) + ")", "loot");
+                getRandomRareText(2) + " (" + TextUtil.capitalize(typeName) + ")", "loot");
         }
 
         // ── Ancient Map ──
@@ -749,20 +749,9 @@ public class ExplorationManager {
         if (z == null) return "nothing";
 
         List<Map<String, Object>> events = (List<Map<String, Object>>) z.get("events");
-        if (events == null) return "nothing";
-
-        int totalWeight = 0;
-        for (Map<String, Object> e : events) {
-            totalWeight += ((Number) e.get("weight")).intValue();
-        }
-
-        int roll = (int)(Math.random() * totalWeight);
-        int cumulative = 0;
-        for (Map<String, Object> e : events) {
-            cumulative += ((Number) e.get("weight")).intValue();
-            if (roll < cumulative) return (String) e.get("type");
-        }
-        return "nothing";
+        Map<String, Object> picked = WeightedRoll.weightedPick(events,
+            e -> ((Number) e.get("weight")).intValue());
+        return picked != null ? (String) picked.get("type") : "nothing";
     }
 
     @SuppressWarnings("unchecked")
@@ -824,18 +813,12 @@ public class ExplorationManager {
 
     @SuppressWarnings("unchecked")
     private String rollWeightedString(List<Map<String, Object>> entries, String key) {
-        if (entries == null || entries.isEmpty()) return "food";
-        int totalWeight = 0;
-        for (Map<String, Object> e : entries) {
-            totalWeight += ((Number) e.get("weight")).intValue();
-        }
-        int roll = (int)(Math.random() * totalWeight);
-        int cumulative = 0;
-        for (Map<String, Object> e : entries) {
-            cumulative += ((Number) e.get("weight")).intValue();
-            if (roll < cumulative) return (String) e.get(key);
-        }
-        return (String) entries.get(0).get(key);
+        // "food" fallback preserved as-is from the original (pre-existing
+        // behavior for rollToken's null/empty case too — not something this
+        // cleanup pass is fixing, just preserving).
+        Map<String, Object> picked = WeightedRoll.weightedPick(entries,
+            e -> ((Number) e.get("weight")).intValue());
+        return picked != null ? (String) picked.get(key) : "food";
     }
 
     @SuppressWarnings("unchecked")
@@ -851,16 +834,6 @@ public class ExplorationManager {
 
     // ── Helpers ──
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
-
-    private String formatSeconds(long seconds) {
-        long min = seconds / 60;
-        long sec = seconds % 60;
-        return String.format("%dm %ds", min, sec);
-    }
 
     /**
      * Returns the slot for a given unit ID, or null if not exploring.
@@ -897,7 +870,7 @@ public class ExplorationManager {
 
         slot.usePhoenixFeather();
         slot.addEvent(slot.getElapsedMs(),
-            "A Phoenix Feather burns bright — " + capitalize(slot.getUnitType())
+            "A Phoenix Feather burns bright — " + TextUtil.capitalize(slot.getUnitType())
                 + " rises from the ashes! (HP: " + slot.getUnitCurrentHp()
                 + "/" + slot.getUnitMaxHp() + ")", "heal");
 

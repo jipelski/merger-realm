@@ -19,6 +19,7 @@ import com.jipelski.mergerrealm.util.GameDataLoader;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -147,6 +148,9 @@ public class BuildMenu {
                 item.buildCost4 = 0;
             }
 
+            item.displayName = TextUtil.capitalize(item.type);
+            item.costString = shortCostString(item);
+
             items.add(item);
         }
 
@@ -247,17 +251,15 @@ public class BuildMenu {
 
                 // Name
                 font.setColor(Color.WHITE);
-                String name = capitalize(item.type);
-                glyphLayout.setText(fontSmall, name);
+                glyphLayout.setText(fontSmall, item.displayName);
                 fontSmall.setColor(Color.WHITE);
-                fontSmall.draw(batch, name, centerX - glyphLayout.width / 2f,
+                fontSmall.draw(batch, item.displayName, centerX - glyphLayout.width / 2f,
                     iconY - 4f);
 
                 // Cost
-                String cost = shortCostString(item);
                 fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-                glyphLayout.setText(fontSmall, cost);
-                fontSmall.draw(batch, cost, centerX - glyphLayout.width / 2f,
+                glyphLayout.setText(fontSmall, item.costString);
+                fontSmall.draw(batch, item.costString, centerX - glyphLayout.width / 2f,
                     iconY - 20f);
 
                 // Build button text
@@ -280,9 +282,8 @@ public class BuildMenu {
 
                 // Name
                 fontSmall.setColor(0.4f, 0.4f, 0.5f, 1f);
-                String name = capitalize(item.type);
-                glyphLayout.setText(fontSmall, name);
-                fontSmall.draw(batch, name, centerX - glyphLayout.width / 2f,
+                glyphLayout.setText(fontSmall, item.displayName);
+                fontSmall.draw(batch, item.displayName, centerX - glyphLayout.width / 2f,
                     iconY - 4f);
 
                 // Locked label
@@ -430,11 +431,6 @@ public class BuildMenu {
         return sb.length() > 0 ? sb.toString() : "Free";
     }
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
-
     private static class BuildableItem {
         String type;
         boolean unlocked;
@@ -442,5 +438,11 @@ public class BuildMenu {
         int buildCost2;
         int buildCost3;
         int buildCost4;
+        // Precomputed once in refreshItems() (only re-runs on a Prince-level
+        // change or a build) rather than every frame in drawContent — name
+        // and cost are fully determined by type/buildCost*, which are fixed
+        // for the lifetime of this item.
+        String displayName;
+        String costString;
     }
 }

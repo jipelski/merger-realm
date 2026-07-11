@@ -14,6 +14,13 @@ public class GameObject {
     protected GameObjectState state;
     protected String          description;
 
+    // Wall-clock timestamp of the last "reaction" trigger (tap, periodic
+    // spawn, ...) for a one-shot pop animation — see MergerRealmGame's
+    // tryDrawPulse(). Deliberately transient: cosmetic/animation timing
+    // only, same category as RaidManager's combatLog/furyOscTimer — resets
+    // to 0 (no pulse) on save/load, which is imperceptible.
+    private transient long pulseStartMs = 0L;
+
     // NULL CONSTRUCTOR
     public GameObject() {
         this.type        = null;
@@ -70,6 +77,13 @@ public class GameObject {
             this.state = GameObjectState.SELECTED;
         }
     }
+
+    /** Marks "now" as the start of a one-shot reaction pulse (tap, periodic spawn, ...). */
+    public void triggerPulse() {
+        this.pulseStartMs = com.badlogic.gdx.utils.TimeUtils.millis();
+    }
+
+    public long getPulseStartMs() { return pulseStartMs; }
 
 
     @Override

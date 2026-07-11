@@ -1,0 +1,93 @@
+{
+  "steps": [
+    {
+      "id": "welcome",
+      "type": "text",
+      "title": "Welcome to Merger Realm!",
+      "body": "Let's get your realm started. This will only take a minute."
+    },
+    {
+      "id": "spawn",
+      "type": "interactive",
+      "title": "Summon a Unit",
+      "body": "Tap the Homestead to summon a new villager or woodsman.",
+      "trigger": "spawn:homestead",
+      "requiredCount": 1,
+      "target": "cell:homestead"
+    },
+    {
+      "id": "resources",
+      "type": "text",
+      "title": "Food, Wood & Iron",
+      "body": "Your units generate food, wood, and iron over time. Spawning new units costs these resources, so keep an eye on your stockpile.",
+      "target": "hud:resources"
+    },
+    {
+      "id": "merge",
+      "type": "interactive",
+      "title": "Merge Two Units",
+      "body": "Drag one unit onto another of the same type and level to merge them into something stronger.",
+      "trigger": "merge:any",
+      "requiredCount": 1,
+      "target": "cells:mergeable"
+    },
+    {
+      "id": "dismiss",
+      "type": "interactive",
+      "title": "Dismiss to the Prince",
+      "body": "Drag a unit onto the Prince to dismiss it from service. He'll gain leadership XP for it.",
+      "trigger": "dismiss:any",
+      "requiredCount": 1,
+      "target": "cell:prince"
+    },
+    {
+      "id": "leveling",
+      "type": "text",
+      "title": "Leadership XP",
+      "body": "Leadership XP levels up the Prince, unlocking new facilities and expanding your grid.",
+      "target": "hud:xpbar"
+    },
+    {
+      "id": "wallgate",
+      "type": "text",
+      "title": "The Wall Gate",
+      "body": "When rewards are waiting, tap the Gate in the wall to claim them onto your grid.",
+      "target": "wallgate"
+    },
+    {
+      "id": "build",
+      "type": "text",
+      "title": "Building",
+      "body": "Tap Build to construct new facilities using the tokens you collect from chests.",
+      "target": "buildbutton"
+    },
+    {
+      "id": "done",
+      "type": "text",
+      "title": "You're Ready!",
+      "body": "Merge, spawn, and grow your realm. Good luck, Your Highness."
+    }
+  ],
+  "tips": [
+    {
+      "id": "tip_combat",
+      "title": "A Monster Appeared!",
+      "body": "Drag one of your units onto it to fight back."
+    },
+    {
+      "id": "tip_explore",
+      "title": "Exploration",
+      "body": "Send a unit exploring to discover resources and rare loot over time."
+    },
+    {
+      "id": "tip_raid",
+      "title": "Raids",
+      "body": "Form a party and battle through raid chapters for exclusive rewards."
+    },
+    {
+      "id": "tip_inventory",
+      "title": "Inventory",
+      "body": "Equip items and runes on your units here to make them stronger."
+    }
+  ]
+}

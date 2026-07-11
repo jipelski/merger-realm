@@ -20,6 +20,7 @@ import com.jipelski.mergerrealm.util.Inventory;
 import com.jipelski.mergerrealm.util.LegendaryEvolution;
 import com.jipelski.mergerrealm.util.RuneSystem;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +65,28 @@ public class InventoryMenu {
     private static final int   ITEMS_PER_ROW = 5;
     private static final float EQUIPPED_ROW_HEIGHT = 28f;
     private static final float SELECT_HEADER_HEIGHT = 80f;
+
+    // ── Grid tint / rune palette (shared instances — drawTintsAtY only reads
+    // the returned color via batch.setColor, never mutates it, so a `new
+    // Color` per cell per frame is pure avoidable garbage) ──
+    private static final Color TINT_NON_UNIT      = new Color(0.15f, 0.15f, 0.15f, 0.6f);
+    private static final Color TINT_INELIGIBLE    = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+    private static final Color TINT_ASCENSION     = new Color(1f, 0.85f, 0.2f, 0.4f);
+    private static final Color TINT_GREEN_ELIGIBLE = new Color(0.2f, 0.85f, 0.2f, 0.35f);
+    private static final Color TINT_BLUE_HAS_ITEM  = new Color(0.3f, 0.5f, 0.9f, 0.35f);
+
+    private static final Color RUNE_COLOR_MIGHT     = new Color(0.9f, 0.3f, 0.3f, 1f);
+    private static final Color RUNE_COLOR_VITALITY  = new Color(0.3f, 0.9f, 0.3f, 1f);
+    private static final Color RUNE_COLOR_FORTUNE   = new Color(0.9f, 0.85f, 0.2f, 1f);
+    private static final Color RUNE_COLOR_SWIFTNESS = new Color(0.3f, 0.7f, 0.9f, 1f);
+
+    // Same RGB as the RUNE_COLOR_* constants above at the tint alpha (0.4) —
+    // precomputed rather than blended per-frame in getUnitTintColor.
+    private static final Color TINT_RUNE_MIGHT     = new Color(0.9f, 0.3f, 0.3f, 0.4f);
+    private static final Color TINT_RUNE_VITALITY  = new Color(0.3f, 0.9f, 0.3f, 0.4f);
+    private static final Color TINT_RUNE_FORTUNE   = new Color(0.9f, 0.85f, 0.2f, 0.4f);
+    private static final Color TINT_RUNE_SWIFTNESS = new Color(0.3f, 0.7f, 0.9f, 0.4f);
+    private static final Color TINT_RUNE_DEFAULT   = new Color(1f, 1f, 1f, 0.4f);
 
     // ── Hold-to-preview ──
     private static final float HOLD_PREVIEW_DELAY = 0.4f;
@@ -365,36 +388,35 @@ public class InventoryMenu {
 
         // Non-units get dark tint
         if (!(obj instanceof Unit)) {
-            return new Color(0.15f, 0.15f, 0.15f, 0.6f);
+            return TINT_NON_UNIT;
         }
 
         // Ineligible — grey, regardless of item type or reason
         if (!isEligibleTarget(objectId)) {
-            return new Color(0.3f, 0.3f, 0.3f, 0.5f);
+            return TINT_INELIGIBLE;
         }
 
         // Eligible — color matches the action
         if (selectedItem != null && selectedItem.isConsumable()
             && "amulet_of_ascension".equals(selectedItem.getType())) {
-            return new Color(1f, 0.85f, 0.2f, 0.4f); // gold tint — can evolve!
+            return TINT_ASCENSION; // gold tint — can evolve!
         }
 
         if (selectedRuneType != null) {
-            Color runeColor = getRuneColor(selectedRuneType);
-            return new Color(runeColor.r, runeColor.g, runeColor.b, 0.4f);
+            return getRuneTintColor(selectedRuneType);
         }
 
         // Potions: only wounded units (already confirmed eligible above)
         if (selectedItem.isConsumable() && "potion".equals(selectedItem.getType())) {
-            return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green
+            return TINT_GREEN_ELIGIBLE; // green
         }
 
         // Equipment: green if no item, blue if replacing
         Inventory inv = eventManager.getInventory();
         if (inv.hasEquippedItem(objectId)) {
-            return new Color(0.3f, 0.5f, 0.9f, 0.35f); // blue — has item
+            return TINT_BLUE_HAS_ITEM; // blue — has item
         }
-        return new Color(0.2f, 0.85f, 0.2f, 0.35f); // green — available
+        return TINT_GREEN_ELIGIBLE; // green — available
     }
 
     /**
@@ -450,9 +472,8 @@ public class InventoryMenu {
         float tabWidth = getMenuWidth() / 3f;
         for (int i = 0; i < 3; i++) {
             float tabX = getMenuX() + i * tabWidth;
-            sr.setColor(i == activeTab
-                ? new Color(0.25f, 0.25f, 0.38f, 1f)
-                : new Color(0.15f, 0.15f, 0.22f, 1f));
+            if (i == activeTab) sr.setColor(0.25f, 0.25f, 0.38f, 1f);
+            else                sr.setColor(0.15f, 0.15f, 0.22f, 1f);
             sr.rect(tabX, getTabY(), tabWidth, TAB_HEIGHT);
         }
         // Active tab accent
@@ -487,9 +508,8 @@ public class InventoryMenu {
             if (iy + ITEM_SIZE < getItemAreaBottom() || iy > getItemAreaTop()) continue;
 
             boolean equipped = inv.getEquipped().containsValue(filteredItems.get(i).getId());
-            sr.setColor(equipped
-                ? new Color(0.2f, 0.3f, 0.45f, 1f)
-                : new Color(0.2f, 0.2f, 0.3f, 1f));
+            if (equipped) sr.setColor(0.2f, 0.3f, 0.45f, 1f);
+            else          sr.setColor(0.2f, 0.2f, 0.3f, 1f);
             sr.rect(ix, iy, ITEM_SIZE, ITEM_SIZE);
         }
     }
@@ -505,7 +525,8 @@ public class InventoryMenu {
         float tabWidth = getMenuWidth() / 3f;
         for (int i = 0; i < 3; i++) {
             float tabCenterX = getMenuX() + i * tabWidth + tabWidth / 2f;
-            fontSmall.setColor(i == activeTab ? Color.WHITE : new Color(0.5f, 0.5f, 0.6f, 1f));
+            if (i == activeTab) fontSmall.setColor(1f, 1f, 1f, 1f);
+            else                fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
             glyphLayout.setText(fontSmall, tabLabels[i]);
             fontSmall.draw(batch, tabLabels[i],
                 tabCenterX - glyphLayout.width / 2f,
@@ -613,7 +634,7 @@ public class InventoryMenu {
             // Unit name
             fontSmall.setColor(0.8f, 0.8f, 0.9f, 1f);
             fontSmall.draw(batch,
-                capitalize(unitObj.getType()) + " Lv" + unitObj.getLvl(),
+                TextUtil.capitalize(unitObj.getType()) + " Lv" + unitObj.getLvl(),
                 getMenuX() + 12f, rowY);
 
             // Item info
@@ -675,7 +696,7 @@ public class InventoryMenu {
 
         // Type
         fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-        fontSmall.draw(batch, capitalize(item.getType()) + " Lv." + item.getLevel(),
+        fontSmall.draw(batch, TextUtil.capitalize(item.getType()) + " Lv." + item.getLevel(),
             cardX + 12f, cardY + 18f);
 
         font.setColor(Color.WHITE);
@@ -714,7 +735,7 @@ public class InventoryMenu {
             // Rune selection has no backing Item — its own header
             Color runeColor = getRuneColor(selectedRuneType);
             font.setColor(runeColor.r, runeColor.g, runeColor.b, 1f);
-            font.draw(batch, "Apply: Rune of " + capitalize(selectedRuneType), 80f, top - 14f);
+            font.draw(batch, "Apply: Rune of " + TextUtil.capitalize(selectedRuneType), 80f, top - 14f);
 
             fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
             String hint = "Tap a unit";
@@ -791,9 +812,8 @@ public class InventoryMenu {
             fontSmall.draw(batch, displayNames[i] + ":", x, y);
 
             // Count
-            fontSmall.setColor(canCraft
-                ? new Color(0.3f, 0.9f, 0.3f, 1f)
-                : new Color(0.7f, 0.7f, 0.8f, 1f));
+            if (canCraft) fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+            else          fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
             fontSmall.draw(batch, count + "/" + RuneSystem.FRAGMENTS_PER_RUNE,
                 x + 90f, y);
 
@@ -865,11 +885,26 @@ public class InventoryMenu {
 
     private Color getRuneColor(String runeType) {
         switch (runeType) {
-            case "might":     return new Color(0.9f, 0.3f, 0.3f, 1f); // red
-            case "vitality":  return new Color(0.3f, 0.9f, 0.3f, 1f); // green
-            case "fortune":   return new Color(0.9f, 0.85f, 0.2f, 1f); // gold
-            case "swiftness": return new Color(0.3f, 0.7f, 0.9f, 1f); // blue
+            case "might":     return RUNE_COLOR_MIGHT;     // red
+            case "vitality":  return RUNE_COLOR_VITALITY;  // green
+            case "fortune":   return RUNE_COLOR_FORTUNE;   // gold
+            case "swiftness": return RUNE_COLOR_SWIFTNESS; // blue
             default:          return Color.WHITE;
+        }
+    }
+
+    /**
+     * Same palette as {@link #getRuneColor} at the grid-tint alpha (0.4),
+     * precomputed rather than blended per-frame — used only by
+     * {@link #getUnitTintColor}.
+     */
+    private Color getRuneTintColor(String runeType) {
+        switch (runeType) {
+            case "might":     return TINT_RUNE_MIGHT;
+            case "vitality":  return TINT_RUNE_VITALITY;
+            case "fortune":   return TINT_RUNE_FORTUNE;
+            case "swiftness": return TINT_RUNE_SWIFTNESS;
+            default:          return TINT_RUNE_DEFAULT;
         }
     }
 
@@ -935,7 +970,7 @@ public class InventoryMenu {
         }
 
         if (scrolling) {
-            scrollY -= dy * 0.5f;
+            scrollY += dy * 0.5f;
             scrollY = Math.max(0, Math.min(scrollY, maxScrollY));
             touchStartY = touchPos.y;
         }
@@ -1082,8 +1117,4 @@ public class InventoryMenu {
         return -1;
     }
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
 }

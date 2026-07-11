@@ -35,8 +35,12 @@ import java.util.List;
  *   └─────────────────────────┘
  *
  * Animations (no spritesheets needed):
- *   - Attack: sprite lunges 26px toward opponent over 0.3s (sine ease)
- *   - Hit: red flash tint for 0.15s
+ *   - Attack: sprite lunges 26px toward opponent over 0.3s (sine ease),
+ *     stretched along the lunge axis while traveling and squashed flat at
+ *     full extension — the squash lands right as the sprite reaches its
+ *     target, reading as the impact itself (see computeAttackScale)
+ *   - Hit: red flash tint for 0.15s, compounded with a scale-pop on the
+ *     target derived from that same timer so both land in perfect sync
  *   - Death: alpha fade over 0.5s
  *   - Damage numbers float up 44px and fade; crits are gold and larger
  *
@@ -54,6 +58,9 @@ public class RaidArenaRenderer {
     // ── Animation constants ──
     private static final float ATTACK_ANIM_DURATION = 0.30f;
     private static final float ATTACK_LUNGE_PX = 26f;
+    private static final float ATTACK_STRETCH = 0.16f;        // max stretch while traveling
+    private static final float ATTACK_IMPACT_SQUASH = 0.10f;  // squash at full extension (impact)
+    private static final float HIT_POP_AMOUNT = 0.14f;        // extra scale-pop on the target when hit
     private static final float HIT_FLASH_DURATION = 0.15f;
     private static final float DEATH_FADE_DURATION = 0.5f;
     private static final float FLOAT_TEXT_LIFETIME = 0.9f;
@@ -66,6 +73,14 @@ public class RaidArenaRenderer {
     private static final float CONTROL_BAR_H = 92f;
     private static final float FURY_BAR_W = 160f;
     private static final float FURY_BAR_H = 24f;
+
+    // ── Floating damage-number palette (shared instances — FloatingText only
+    // ever reads .r/.g/.b from these; the per-frame-varying alpha is applied
+    // separately via setColor(r,g,b,alpha), never by mutating the Color) ──
+    private static final Color TEXT_CRIT      = new Color(1f, 0.82f, 0.2f, 1f);
+    private static final Color TEXT_PARTY_HIT = new Color(1f, 0.35f, 0.35f, 1f);
+    private static final Color TEXT_ENEMY_HIT = new Color(1f, 1f, 1f, 1f);
+    private static final Color TEXT_HEAL      = new Color(0.35f, 1f, 0.45f, 1f);
 
     // ── Floating damage numbers ──
     private static class FloatingText {
@@ -91,6 +106,19 @@ public class RaidArenaRenderer {
     // ── Room transition banner ──
     private String bannerText = null;
     private float bannerTimer = 0f;
+
+    // ── Scratch position buffers — getEnemyPos/getPartyPos used to allocate
+    // a `new float[]{x,y}` on every call (up to ~16/frame during combat:
+    // called twice per entity per frame across drawShapes+drawBatch). Every
+    // call site consumes the values immediately (extracted into method args
+    // or local floats before the next call), so reusing a fixed buffer per
+    // method is safe — separate buffers for enemy/party just to keep the two
+    // conceptually independent, not because aliasing is actually possible.
+    private final float[] enemyPosScratch = new float[2];
+    private final float[] partyPosScratch = new float[2];
+    // Same "immediately consumed by the caller" rationale as the position
+    // scratch buffers above — reused by computeAttackScale() for {scaleX, scaleY}.
+    private final float[] scaleScratch = new float[2];
 
     // ── References ──
     private final EventManager eventManager;
@@ -215,10 +243,8 @@ public class RaidArenaRenderer {
                     }
                     spawnFloatingText(pos[0], pos[1] + SPRITE_SIZE * 0.7f,
                         (ev.crit ? "CRIT -" : "-") + ev.damage,
-                        ev.crit ? new Color(1f, 0.82f, 0.2f, 1f)
-                            : (ev.targetIsParty
-                            ? new Color(1f, 0.35f, 0.35f, 1f)
-                            : new Color(1f, 1f, 1f, 1f)),
+                        ev.crit ? TEXT_CRIT
+                            : (ev.targetIsParty ? TEXT_PARTY_HIT : TEXT_ENEMY_HIT),
                         ev.crit);
                 }
                 break;
@@ -226,7 +252,7 @@ public class RaidArenaRenderer {
             case "heal": {
                 float[] pos = getPartyPos(ev.targetIdx);
                 spawnFloatingText(pos[0], pos[1] + SPRITE_SIZE * 0.7f,
-                    "+" + ev.damage, new Color(0.35f, 1f, 0.45f, 1f), false);
+                    "+" + ev.damage, TEXT_HEAL, false);
                 break;
             }
             case "room_clear": {
@@ -275,17 +301,17 @@ public class RaidArenaRenderer {
         int rowCount = (row == 0) ? Math.min(n, 4) : (n - 4);
         float spacing = Math.min(80f, (worldW() - 60f) / Math.max(1, perRow));
         float rowWidth = (rowCount - 1) * spacing;
-        float x = worldW() / 2f - rowWidth / 2f + col * spacing;
-        float y = worldH() * 0.62f + row * (SPRITE_SIZE + 18f);
-        return new float[]{x, y};
+        enemyPosScratch[0] = worldW() / 2f - rowWidth / 2f + col * spacing;
+        enemyPosScratch[1] = worldH() * 0.62f + row * (SPRITE_SIZE + 18f);
+        return enemyPosScratch;
     }
 
     /** Party position for slot 0-3. Slots 0,1 front (higher); 2,3 back. */
     public float[] getPartyPos(int slot) {
         boolean front = slot < 2;
-        float x = worldW() / 2f + ((slot % 2 == 0) ? -70f : 70f);
-        float y = front ? worldH() * 0.36f : worldH() * 0.245f;
-        return new float[]{x, y};
+        partyPosScratch[0] = worldW() / 2f + ((slot % 2 == 0) ? -70f : 70f);
+        partyPosScratch[1] = front ? worldH() * 0.36f : worldH() * 0.245f;
+        return partyPosScratch;
     }
 
     private float getFuryBarX() { return 24f; }
@@ -409,6 +435,38 @@ public class RaidArenaRenderer {
     // DRAW PASS 2 — SPRITES + TEXT (call INSIDE an open batch)
     // ══════════════════════════════════════════════════════════════
 
+    /**
+     * Computes the squash-stretch scale for a combat sprite, compounding two
+     * cues that share the entity's existing per-index animation state:
+     *   - attackAnim (0..1, -1 = idle): stretched along the lunge axis while
+     *     traveling, squashed flat at full extension — reads as the impact
+     *     itself landing right as the sprite reaches its target.
+     *   - hitFlash (>0 while the existing red-tint flash is active): an
+     *     extra scale-pop on the TARGET, derived from the very same timer
+     *     that drives the tint, so both land in perfect sync instead of
+     *     needing a second timer.
+     * Returns the shared scaleScratch buffer — see its field comment.
+     */
+    private float[] computeAttackScale(float attackAnim, float hitFlash, float hitFlashDuration) {
+        float attackSquash = 0f;
+        if (attackAnim >= 0f) {
+            // 0 at full extension (the "impact" instant), 1 at launch/return
+            float distFromPeak = Math.abs(attackAnim - 0.5f) * 2f;
+            attackSquash = ATTACK_STRETCH * distFromPeak
+                - ATTACK_IMPACT_SQUASH * (1f - distFromPeak);
+        }
+
+        float hitPop = 0f;
+        if (hitFlash > 0f) {
+            float progress = 1f - hitFlash / hitFlashDuration;
+            hitPop = HIT_POP_AMOUNT * (float) Math.sin((float) Math.PI * progress);
+        }
+
+        scaleScratch[0] = 1f - attackSquash * 0.5f + hitPop; // scaleX
+        scaleScratch[1] = 1f + attackSquash + hitPop;         // scaleY
+        return scaleScratch;
+    }
+
     public void drawBatch(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
         RaidManager rm = eventManager.getRaidManager();
         RaidState raid = rm.getActiveRaid();
@@ -428,7 +486,8 @@ public class RaidArenaRenderer {
                 lungeY = -(float) Math.sin(Math.PI * enemyAttackAnim[i]) * ATTACK_LUNGE_PX;
             }
 
-            boolean flashing = i < enemyHitFlash.length && enemyHitFlash[i] > 0f;
+            float hitFlashVal = i < enemyHitFlash.length ? enemyHitFlash[i] : 0f;
+            boolean flashing = hitFlashVal > 0f;
             if (flashing) batch.setColor(1f, 0.35f, 0.35f, fade);
             else batch.setColor(1f, 1f, 1f, fade);
 
@@ -439,13 +498,16 @@ public class RaidArenaRenderer {
             Texture tex = e.sprite != null
                 ? spriteManager.getTextureByKey(e.sprite)
                 : spriteManager.getTexture(e.type, 1);
-            batch.draw(tex, pos[0] - size / 2f, pos[1] - size / 2f + lungeY, size, size);
+            float attackAnimVal = i < enemyAttackAnim.length ? enemyAttackAnim[i] : -1f;
+            float[] scale = computeAttackScale(attackAnimVal, hitFlashVal, HIT_FLASH_DURATION);
+            batch.draw(tex, pos[0] - size / 2f, pos[1] - size / 2f + lungeY,
+                size / 2f, size / 2f, size, size, scale[0], scale[1], 0f,
+                0, 0, tex.getWidth(), tex.getHeight(), false, false);
 
             // Name label
             batch.setColor(1f, 1f, 1f, 1f);
-            fontSmall.setColor(e.boss
-                ? new Color(1f, 0.5f, 0.3f, fade)
-                : new Color(0.8f, 0.7f, 0.7f, fade));
+            if (e.boss) fontSmall.setColor(1f, 0.5f, 0.3f, fade);
+            else        fontSmall.setColor(0.8f, 0.7f, 0.7f, fade);
             glyphLayout.setText(fontSmall, e.name);
             fontSmall.draw(batch, e.name,
                 pos[0] - glyphLayout.width / 2f, pos[1] + size / 2f + 16f);
@@ -473,8 +535,11 @@ public class RaidArenaRenderer {
             Texture tex = sprite != null
                 ? spriteManager.getTextureByKey(sprite)
                 : spriteManager.getTexture(raid.getPartyTypes()[i], raid.getPartyLevels()[i]);
-            batch.draw(tex, pos[0] - SPRITE_SIZE / 2f,
-                pos[1] - SPRITE_SIZE / 2f + lungeY, SPRITE_SIZE, SPRITE_SIZE);
+            float[] scale = computeAttackScale(partyAttackAnim[i], partyHitFlash[i], HIT_FLASH_DURATION);
+            batch.draw(tex, pos[0] - SPRITE_SIZE / 2f, pos[1] - SPRITE_SIZE / 2f + lungeY,
+                SPRITE_SIZE / 2f, SPRITE_SIZE / 2f, SPRITE_SIZE, SPRITE_SIZE,
+                scale[0], scale[1], 0f,
+                0, 0, tex.getWidth(), tex.getHeight(), false, false);
 
             batch.setColor(1f, 1f, 1f, 1f);
         }

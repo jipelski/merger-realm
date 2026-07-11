@@ -98,6 +98,20 @@ public class Inventory {
     }
 
     /**
+     * Non-allocating count of items of a specific type — prefer this over
+     * {@code getItemsByType(type).size()} in any per-frame draw path (e.g.
+     * RaidPanel's combat button labels), since that allocates a fresh
+     * ArrayList every call just to read its size.
+     */
+    public int countItemsByType(String type) {
+        int count = 0;
+        for (Item item : items) {
+            if (item.getType().equals(type)) count++;
+        }
+        return count;
+    }
+
+    /**
      * Returns all unequipped items.
      */
     public List<Item> getUnequippedItems() {

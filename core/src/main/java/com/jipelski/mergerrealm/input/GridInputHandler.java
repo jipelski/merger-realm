@@ -20,6 +20,7 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
+import com.jipelski.mergerrealm.ui.TutorialOverlay;
 
 import java.util.Objects;
 
@@ -151,6 +152,9 @@ public class GridInputHandler extends InputAdapter {
 
     public void setGoldShopPanel(GoldShopPanel panel) { this.goldShopPanel = panel; }
 
+    private TutorialOverlay tutorialOverlay;
+    public void setTutorialOverlay(TutorialOverlay overlay) { this.tutorialOverlay = overlay; }
+
     public void setGoldChipBounds(float x, float y, float w, float h) {
         this.goldChipX = x; this.goldChipY = y; this.goldChipW = w; this.goldChipH = h;
     }
@@ -181,6 +185,19 @@ public class GridInputHandler extends InputAdapter {
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (pointer != 0) return false;
+
+        // Tutorial gate — checked first so a TEXT/tip card can block every
+        // panel below it, exactly like OfflinePopup. Deliberately deferred
+        // while the offline popup itself is visible (that popup is drawn
+        // AFTER the tutorial overlay in render(), so it must also win input
+        // priority — see MergerRealmGame's matching render-order comment).
+        // For an INTERACTIVE step this only consumes taps on the overlay's
+        // own strip/skip controls — grid taps still fall through so the
+        // taught drag/tap action can actually happen.
+        if (tutorialOverlay != null && (offlinePopup == null || !offlinePopup.isVisible())
+            && tutorialOverlay.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
 
         if (goldShopPanel != null && goldShopPanel.handleTouchDown(screenX, screenY)) {
             return true;
@@ -424,6 +441,13 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        // Mirrors the touchDown gate above — see its comment for why this
+        // runs first and defers to a visible offline popup.
+        if (tutorialOverlay != null && (offlinePopup == null || !offlinePopup.isVisible())
+            && tutorialOverlay.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
         if (goldShopPanel != null && goldShopPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -517,11 +541,12 @@ public class GridInputHandler extends InputAdapter {
     }
 
     private void handleFacilityTap() {
+        GameObject facilityObj = eventManager.getGRID_OBJECT_MANAGER().getObject(draggedObjectId);
+        if (facilityObj != null) facilityObj.triggerPulse();
+
         if (wasAlreadySelected) {
             // Second tap on same facility — spawn a unit
-            if (eventManager.isPeriodicFacility(
-                eventManager.getGRID_OBJECT_MANAGER()
-                    .getObject(draggedObjectId).getType())) {
+            if (facilityObj != null && eventManager.isPeriodicFacility(facilityObj.getType())) {
                 // Periodic facility — release a held unit TODO: implement gold usage for instantly spawn a unit when neither are being held
                 if (!eventManager.releaseHeldUnit(draggedObjectId)) {
                     Gdx.app.log(TAG, "No held units to release (or no space)");
@@ -539,6 +564,9 @@ public class GridInputHandler extends InputAdapter {
     }
 
     private void handleChestTap() {
+        GameObject chestObj = eventManager.getGRID_OBJECT_MANAGER().getObject(draggedObjectId);
+        if (chestObj != null) chestObj.triggerPulse();
+
         if (wasAlreadySelected) {
             eventManager.tap(draggedObjectId);
         } else {

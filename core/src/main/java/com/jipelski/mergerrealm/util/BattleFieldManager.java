@@ -50,6 +50,15 @@ public class BattleFieldManager {
         this.listener = listener;
     }
 
+    /**
+     * Exposes the listener so EventManager (which holds this
+     * BattleFieldManager) can fire the tutorial hooks that live on
+     * merge/spawn/dismiss action sites outside this class.
+     */
+    public GameEventListener getListener() {
+        return listener;
+    }
+
     private void initialiseQueue(JsonManager jsonManager) {
         rewardQueue = jsonManager.loadRewardQueue("reward_queue");
         if (rewardQueue == null) {
@@ -145,6 +154,10 @@ public class BattleFieldManager {
             Gdx.app.log(TAG, "Level up! Now level " + level
                 + " (next: " + xp_required + " XP)");
 
+            if (listener != null) {
+                listener.onLevelUp(level);
+            }
+
             // Check for grid expansion
             if (PrinceLevelConfig.hasGridExpansion(level)) {
                 int[] newSize = PrinceLevelConfig.getGridSizeAtLevel(level);
@@ -215,6 +228,9 @@ public class BattleFieldManager {
             globalCounter.replace(type, counter);
             eventManager.spawnObject(type, 1, 0, 0);
             Gdx.app.log(TAG, "Counter threshold reached for " + type + " — spawning");
+            if (listener != null) {
+                listener.onMonsterSpawned(type);
+            }
         } else {
             counter[0] = newValue;
             globalCounter.replace(type, counter);

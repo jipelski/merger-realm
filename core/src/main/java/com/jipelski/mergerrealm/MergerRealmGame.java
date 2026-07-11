@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.TimeUtils;
 import com.badlogic.gdx.utils.viewport.ExtendViewport;
 
 import com.jipelski.mergerrealm.database.JsonManager;
@@ -50,16 +51,20 @@ import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.TextUtil;
 
 import com.jipelski.mergerrealm.ui.BuildMenu;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.LayoutConfig;
 import com.jipelski.mergerrealm.ui.UITextureManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
+import com.jipelski.mergerrealm.ui.TutorialOverlay;
+import com.jipelski.mergerrealm.util.TutorialManager;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public class MergerRealmGame extends ApplicationAdapter implements GameEventListener {
 
@@ -129,7 +134,58 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private GoldShopPanel goldShopPanel;
     private RaidPanel raidPanel;
 
+    /**
+     * Holds a "prefix + value" display string, rebuilt only when value
+     * actually changes. drawHUD() runs every frame but resources tick every
+     * 15s, so this turns ~8 throwaway string concats/frame into effectively
+     * zero on the overwhelming majority of frames.
+     */
+    private static final class CachedLabel {
+        private int lastValue = Integer.MIN_VALUE;
+        private String text = "";
+        String get(String prefix, int value) {
+            if (value != lastValue) {
+                lastValue = value;
+                text = prefix + value;
+            }
+            return text;
+        }
+    }
+    private final CachedLabel foodLabel = new CachedLabel();
+    private final CachedLabel woodLabel = new CachedLabel();
+    private final CachedLabel ironLabel = new CachedLabel();
+    private final CachedLabel nailLabel = new CachedLabel();
+    private final CachedLabel slateLabel = new CachedLabel();
+    private final CachedLabel ingotLabel = new CachedLabel();
+    private final CachedLabel relicLabel = new CachedLabel();
+    private final CachedLabel goldLabel = new CachedLabel();
+
+    // ── Selected-object stat-line cache (drawSelectedObjectInfo) ──
+    // getStatsString/getExtraString build a StringBuilder per call, and the
+    // fields they read (unit HP, facility held-count, monster HP, chest
+    // tap-count...) vary per object type — enumerating every one for a
+    // change-detection signature would be exactly the "meaningful complexity
+    // that risks a stale-display bug" this cleanup pass is told to avoid.
+    // Instead: rebuild immediately on selection change, otherwise at most
+    // 4x/second — caps allocation to ~4/s instead of ~60/s while something is
+    // selected, with a worst-case 250ms display staleness that's
+    // imperceptible (this is a single object, not per-cell/per-row).
+    private static final float STATS_REFRESH_INTERVAL = 0.25f;
+    private String cachedStatsSelId = null;
+    private String cachedStatsLine = null;
+    private String cachedExtraLine = null;
+    private float statsRefreshTimer = 0f;
+
     private TrophyShopPanel trophyShopPanel;
+
+    // ── Tutorial ──
+    private TutorialManager tutorialManager;
+    private TutorialOverlay tutorialOverlay;
+    // Rising-edge trackers for one-shot "first time this panel opened" tips —
+    // same pattern already used for buildMenuOpen just above.
+    private boolean wasExploreVisible = false;
+    private boolean wasRaidVisible = false;
+    private boolean wasInventoryVisible = false;
 
     @Override
     public void create() {
@@ -240,6 +296,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         // calculateGridLayout();
+
+        // Tutorial — constructed after every panel/system above exists (its
+        // target-rect resolution reads the grid, WallGate, and LayoutConfig)
+        // and after setActualHeight so TutorialOverlay.updateLayout() centers
+        // correctly on the first frame. start() only actually activates it if
+        // tutorial_state says it isn't completed/skipped yet — see
+        // TutorialManager's persistence javadoc.
+        tutorialManager = new TutorialManager(jsonManager);
+        tutorialOverlay = new TutorialOverlay(tutorialManager, viewport, uiTex);
+        tutorialOverlay.updateLayout();
+        tutorialManager.start();
+        inputHandler.setTutorialOverlay(tutorialOverlay);
+
         processOfflineProgress();
 
         // DEBUG: temporary — resource pouches have no real spawn source yet.
@@ -524,6 +593,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             inventoryMenu.drawContent(batch, font, fontSmall);
             batch.end();
         }
+        // One-shot contextual tip the first time this panel is opened —
+        // rising-edge check, same pattern as buildMenuOpen above.
+        if (inventoryMenu.isVisible() && !wasInventoryVisible) {
+            tutorialManager.onPanelFirstOpened("inventory");
+        }
+        wasInventoryVisible = inventoryMenu.isVisible();
 
         // Exploration tints (during unit selection)
         if (explorePanel.isSelectingUnit()) {
@@ -537,6 +612,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             explorePanel.drawContent(batch, font, fontSmall);
             batch.end();
         }
+        if (explorePanel.isVisible() && !wasExploreVisible) {
+            tutorialManager.onPanelFirstOpened("explore");
+        }
+        wasExploreVisible = explorePanel.isVisible();
 
         if (raidPanel.isFormingParty()) {
             drawRaidPartyTints();
@@ -544,6 +623,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (raidPanel.isVisible()) {
             raidPanel.draw(shapeRenderer, batch, font, fontSmall);
         }
+        if (raidPanel.isVisible() && !wasRaidVisible) {
+            tutorialManager.onPanelFirstOpened("raid");
+        }
+        wasRaidVisible = raidPanel.isVisible();
 
         if (trophyShopPanel.isVisible()) {
             trophyShopPanel.drawBackground(shapeRenderer);
@@ -557,6 +640,22 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.begin();
             goldShopPanel.drawContent(batch, font, fontSmall);
             batch.end();
+        }
+
+        // Tutorial overlay + target ring — drawn after every other panel but
+        // BEFORE the offline popup (unlike those panels, deliberately not
+        // "on top of everything": if a fresh install also has a stale
+        // last_active_timestamp from an earlier save format, both could be
+        // visible on the same frame, and the offline popup must win so its
+        // OK button isn't visually buried under the tutorial card — see
+        // GridInputHandler's matching input-gate ordering).
+        if (!offlinePopup.isVisible()) {
+            drawTutorialHighlightRing();
+            if (tutorialOverlay.isVisible()) {
+                batch.begin();
+                tutorialOverlay.draw(batch, font, fontSmall);
+                batch.end();
+            }
         }
 
         // IMPORTANT: Call explorationManager.update() ALWAYS (even when panel is open)
@@ -593,6 +692,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     // ══════════════════════════════════════════════════════════════
 
     private void drawGridBackground() {
+        drawGridBackgroundAtY(gridStartY);
+    }
+
+    private void drawGridBackgroundShifted() {
+        drawGridBackgroundAtY(gridStartYShifted);
+    }
+
+    private void drawGridBackgroundAtY(float baseY) {
         Grid grid = eventManager.getGridInstance();
         int cols = grid.getWidth();
         int rows = grid.getHeight();
@@ -601,7 +708,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
                 float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
                 Cell cell = grid.getCell(x, y);
 
                 if (inputHandler.isDragging()
@@ -620,6 +727,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     }
 
     private void drawSelectionOutline() {
+        drawSelectionOutlineAtY(gridStartY);
+    }
+
+    private void drawSelectionOutlineShifted() {
+        drawSelectionOutlineAtY(gridStartYShifted);
+    }
+
+    private void drawSelectionOutlineAtY(float baseY) {
         if (!inputHandler.hasSelection()) return;
 
         int selX = inputHandler.getSelectedCellX();
@@ -628,7 +743,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int rows = grid.getHeight();
 
         float drawX = gridStartX + selX * (cellSize + LayoutConfig.CELL_GAP);
-        float drawY = gridStartY + (rows - 1 - selY) * (cellSize + LayoutConfig.CELL_GAP);
+        float drawY = baseY + (rows - 1 - selY) * (cellSize + LayoutConfig.CELL_GAP);
         float t = 3f;
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
@@ -641,6 +756,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     }
 
     private void drawGrid() {
+        drawGridAtY(gridStartY);
+    }
+
+    private void drawGridShifted() {
+        drawGridAtY(gridStartYShifted);
+    }
+
+    private void drawGridAtY(float baseY) {
         Grid grid = eventManager.getGridInstance();
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         int cols = grid.getWidth();
@@ -658,7 +781,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 }
 
                 float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
 
                 String objectId = cell.getOccupant();
                 GameObject obj = gom.getObject(objectId);
@@ -667,8 +790,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     : spriteManager.getDefaultTile();
 
                 float margin = cellSize * 0.05f;
-                batch.draw(tex, drawX + margin, drawY + margin,
-                    cellSize - margin * 2, cellSize - margin * 2);
+                drawObjectSprite(tex, obj, drawX + margin, drawY + margin, cellSize - margin * 2);
                 if (obj instanceof Unit) {
                     Unit unit = (Unit) obj;
                     if (unit.isWounded()) {
@@ -696,6 +818,94 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
     }
 
+    // ── Idle animation (units, monsters, Prince — see GameTypes) ──
+    // Everything else (facilities, storage, chests, tokens, pouches) draws
+    // via the plain unscaled path below, unless it's mid a one-shot reaction
+    // pulse (tap, periodic spawn) — see tryDrawPulse below.
+    private static final float IDLE_BOB_UNIT = 0.035f;     // fraction of cell size
+    private static final float IDLE_SPEED_UNIT = 2.0f;     // rad/s
+    private static final float IDLE_BOB_MONSTER = 0.05f;   // more restless than units
+    private static final float IDLE_SPEED_MONSTER = 3.2f;
+    private static final float IDLE_BOB_PRINCE = 0.03f;    // calmer, regal
+    private static final float IDLE_SPEED_PRINCE = 1.5f;
+    private static final float IDLE_SQUASH = 0.06f;        // max scale deviation
+
+    // ── Reaction pulse (GameObject.triggerPulse() — facility/chest taps,
+    // periodic facility production) ──
+    private static final long PULSE_DURATION_MS = 260L;
+    private static final float PULSE_AMOUNT = 0.20f;       // peak scale-up
+
+    /**
+     * Draws a grid-cell sprite, applying a subtle idle bob + squash-stretch
+     * for units/monsters/Prince, or a brief center-anchored "pop" for
+     * anything mid a reaction pulse (facility/chest tap, periodic spawn —
+     * see GameObject.triggerPulse()). Each idle-bobbing object gets a phase
+     * offset derived from its id so they don't all bounce in lockstep.
+     * Anything else with no active pulse (and null obj, e.g. an orphaned
+     * cell) falls through to a plain draw — zero behavior change and zero
+     * extra cost for the common case.
+     */
+    private void drawObjectSprite(Texture tex, GameObject obj, float x, float y, float size) {
+        float bobFrac;
+        float speed;
+        if (obj == null) {
+            batch.draw(tex, x, y, size, size);
+            return;
+        }
+        String type = obj.getType();
+        if (GameTypes.isUnit(type)) {
+            bobFrac = IDLE_BOB_UNIT;
+            speed = IDLE_SPEED_UNIT;
+        } else if (GameTypes.isMonster(type)) {
+            bobFrac = IDLE_BOB_MONSTER;
+            speed = IDLE_SPEED_MONSTER;
+        } else if ("prince".equals(type)) {
+            bobFrac = IDLE_BOB_PRINCE;
+            speed = IDLE_SPEED_PRINCE;
+        } else {
+            if (!tryDrawPulse(tex, obj, x, y, size)) {
+                batch.draw(tex, x, y, size, size);
+            }
+            return;
+        }
+
+        float phase = ((obj.getId().hashCode() & 0x7FFFFFFF) % 1000) / 1000f * (float) (Math.PI * 2);
+        float t = animationTime * speed + phase;
+        float bob = 0.5f + 0.5f * (float) Math.sin(t);
+        float bobOffset = bob * size * bobFrac;
+        // Squash at the top/bottom of the hop (momentarily still), stretch
+        // at the midpoint (moving fastest) — standard squash-and-stretch,
+        // double the bob's frequency since it happens twice per hop cycle.
+        float squash = IDLE_SQUASH * (float) Math.cos(2f * t);
+        float scaleY = 1f + squash;
+        float scaleX = 1f - squash * 0.5f;
+
+        batch.draw(tex, x, y + bobOffset, size / 2f, 0f,
+            size, size, scaleX, scaleY, 0f,
+            0, 0, tex.getWidth(), tex.getHeight(), false, false);
+    }
+
+    /**
+     * Draws a brief center-anchored scale-up "pop" if obj is within
+     * PULSE_DURATION_MS of its last triggerPulse() call. Returns false
+     * (drew nothing) when there's no active pulse, so the caller falls
+     * back to a plain draw.
+     */
+    private boolean tryDrawPulse(Texture tex, GameObject obj, float x, float y, float size) {
+        long pulseStart = obj.getPulseStartMs();
+        if (pulseStart == 0L) return false;
+        long elapsed = TimeUtils.millis() - pulseStart;
+        if (elapsed < 0L || elapsed >= PULSE_DURATION_MS) return false;
+
+        float progress = elapsed / (float) PULSE_DURATION_MS;
+        float envelope = (float) Math.sin(progress * Math.PI); // 0 -> 1 -> 0
+        float scale = 1f + PULSE_AMOUNT * envelope;
+
+        batch.draw(tex, x, y, size / 2f, size / 2f, size, size, scale, scale, 0f,
+            0, 0, tex.getWidth(), tex.getHeight(), false, false);
+        return true;
+    }
+
     private void drawDraggedObject() {
         if (!inputHandler.isDragging()) return;
         String dragId = inputHandler.getDraggedObjectId();
@@ -720,19 +930,19 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         ResourceManager rm = eventManager.getResourceManager();
 
         font.setColor(Color.WHITE);
-        font.draw(batch, "Food: " + rm.getAmount("food"), 20f, LayoutConfig.getResourcesY());
-        font.draw(batch, "Wood: " + rm.getAmount("wood"), 170f, LayoutConfig.getResourcesY());
-        font.draw(batch, "Iron: " + rm.getAmount("iron"), 320f, LayoutConfig.getResourcesY());
+        font.draw(batch, foodLabel.get("Food: ", rm.getAmount("food")), 20f, LayoutConfig.getResourcesY());
+        font.draw(batch, woodLabel.get("Wood: ", rm.getAmount("wood")), 170f, LayoutConfig.getResourcesY());
+        font.draw(batch, ironLabel.get("Iron: ", rm.getAmount("iron")), 320f, LayoutConfig.getResourcesY());
 
         fontSmall.setColor(0.7f, 0.8f, 0.7f, 1f);
-        fontSmall.draw(batch, "Nail: " + rm.getAmount("nail"), 20f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Slate: " + rm.getAmount("slate"), 130f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Ingot: " + rm.getAmount("ingot"), 240f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, "Relic: " + rm.getAmount("relic"), 350f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, nailLabel.get("Nail: ", rm.getAmount("nail")), 20f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, slateLabel.get("Slate: ", rm.getAmount("slate")), 130f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, ingotLabel.get("Ingot: ", rm.getAmount("ingot")), 240f, LayoutConfig.getResourcesRow2Y());
+        fontSmall.draw(batch, relicLabel.get("Relic: ", rm.getAmount("relic")), 350f, LayoutConfig.getResourcesRow2Y());
 
         // Gold chip — right-aligned on the top resource row, tappable to open shop
         int goldAmt = eventManager.getGoldManager().getGold();
-        String goldStr = "Gold: " + goldAmt;
+        String goldStr = goldLabel.get("Gold: ", goldAmt);
         fontSmall.setColor(1f, 0.85f, 0.25f, 1f); // gold color
         glyphLayout.setText(fontSmall, goldStr);
         goldChipW = glyphLayout.width + 16f;
@@ -824,7 +1034,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float maxWidth = LayoutConfig.getInfoTextWidth() - 8f;
 
         // Line 1: Name
-        String name = capitalize(obj.getType()) + " (Lv." + obj.getLvl() + ")";
+        String name = TextUtil.capitalize(obj.getType()) + " (Lv." + obj.getLvl() + ")";
         font.setColor(Color.WHITE);
         font.draw(batch, name, textX, barTop - 10f);
 
@@ -836,8 +1046,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 com.badlogic.gdx.utils.Align.left, false);
         }
 
-        // Line 3: Type-specific stats
-        String stats = getStatsString(obj, data);
+        // Line 3 & 4: type-specific stats + extra info — rebuilt immediately
+        // on selection change, otherwise throttled (see field comment above).
+        boolean selectionChanged = !selId.equals(cachedStatsSelId);
+        statsRefreshTimer += Gdx.graphics.getDeltaTime();
+        if (selectionChanged || cachedStatsLine == null
+            || statsRefreshTimer >= STATS_REFRESH_INTERVAL) {
+            cachedStatsSelId = selId;
+            cachedStatsLine = getStatsString(obj, data);
+            cachedExtraLine = getExtraString(obj, data);
+            statsRefreshTimer = 0f;
+        }
+        String stats = cachedStatsLine;
         if (stats != null) {
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f); // gold color for stats
             fontSmall.draw(batch, stats, textX, barTop - 46f, maxWidth,
@@ -845,7 +1065,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
 
         // Line 4: Extra info (if needed)
-        String extra = getExtraString(obj, data);
+        String extra = cachedExtraLine;
         if (extra != null) {
             fontSmall.setColor(0.6f, 0.8f, 0.6f, 1f); // green for extra
             fontSmall.draw(batch, extra, textX, barTop - 62f, maxWidth,
@@ -1079,6 +1299,112 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         shapeRenderer.rect(x + size, y - thickness, thickness, size + thickness * 2);
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // TUTORIAL HIGHLIGHT RING
+    // ══════════════════════════════════════════════════════════════
+
+    /**
+     * Same 4-rect outline technique as drawOutlineRect above, but for a
+     * non-square width/height rect — needed for HUD/gate/button targets
+     * (drawOutlineRect assumes a square, which only grid cells are).
+     */
+    private void drawOutlineRectWH(float x, float y, float w, float h, float thickness) {
+        shapeRenderer.rect(x - thickness, y + h, w + thickness * 2, thickness);
+        shapeRenderer.rect(x - thickness, y - thickness, w + thickness * 2, thickness);
+        shapeRenderer.rect(x - thickness, y - thickness, thickness, h + thickness * 2);
+        shapeRenderer.rect(x + w, y - thickness, thickness, h + thickness * 2);
+    }
+
+    private float[] cellRect(int x, int y, int rows) {
+        float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+        float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+        return new float[]{ drawX, drawY, cellSize, cellSize };
+    }
+
+    /**
+     * Resolves a tutorial step's semantic target string into one or more
+     * screen rects {x,y,w,h} in world coordinates. Target syntax (see
+     * TutorialManager.TutorialStep.target javadoc):
+     *   "cell:<type>"    — the cell of the first object of that type
+     *   "cells:mergeable"— the first pair of same-type+same-level units found
+     *   "hud:resources"  — the top-bar resource readout
+     *   "hud:xpbar"      — the level box / XP bar
+     *   "wallgate"        — the Wall Gate
+     *   "buildbutton"     — the bottom-bar Build button
+     * Returns an empty list if the target can't be resolved right now (e.g.
+     * no matching object on the board yet) — the caller just skips the ring.
+     */
+    private List<float[]> resolveTutorialTargetRects(String target) {
+        List<float[]> rects = new ArrayList<>();
+        if (target == null || target.isEmpty()) return rects;
+
+        Grid grid = eventManager.getGridInstance();
+        int rows = grid.getHeight();
+
+        if (target.startsWith("cell:")) {
+            String type = target.substring("cell:".length());
+            for (GameObject go : eventManager.getGRID_OBJECT_MANAGER().getObjectMap().values()) {
+                if (type.equals(go.getType())) {
+                    rects.add(cellRect(go.getxPos(), go.getyPos(), rows));
+                    break;
+                }
+            }
+        } else if ("cells:mergeable".equals(target)) {
+            List<GameObject> units = new ArrayList<>();
+            for (GameObject go : eventManager.getGRID_OBJECT_MANAGER().getObjectMap().values()) {
+                if (GameTypes.isUnit(go.getType())) units.add(go);
+            }
+            outer:
+            for (int i = 0; i < units.size(); i++) {
+                for (int j = i + 1; j < units.size(); j++) {
+                    GameObject a = units.get(i);
+                    GameObject b = units.get(j);
+                    if (a.getType().equals(b.getType()) && a.getLvl() == b.getLvl()) {
+                        rects.add(cellRect(a.getxPos(), a.getyPos(), rows));
+                        rects.add(cellRect(b.getxPos(), b.getyPos(), rows));
+                        break outer;
+                    }
+                }
+            }
+        } else if ("hud:resources".equals(target)) {
+            rects.add(new float[]{ 4f, LayoutConfig.getResourcesRow2Y() - 6f,
+                LayoutConfig.WORLD_WIDTH - 8f, 34f });
+        } else if ("hud:xpbar".equals(target)) {
+            rects.add(new float[]{ LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
+                LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE });
+        } else if ("wallgate".equals(target)) {
+            rects.add(new float[]{ wallGate.getGateX(), wallGate.getGateY(),
+                wallGate.getGateWidth(), wallGate.getGateHeight() });
+        } else if ("buildbutton".equals(target)) {
+            rects.add(new float[]{ LayoutConfig.getButtonX(0), LayoutConfig.getBtnY(),
+                LayoutConfig.BTN_WIDTH, LayoutConfig.BTN_HEIGHT });
+        }
+        return rects;
+    }
+
+    /**
+     * Draws a pulsing ring around the current tutorial step's target, if
+     * any. TEXT steps also carry an (optional) target so the card's subject
+     * is still highlighted on the board even though the step advances via
+     * Next rather than the highlighted action — INTERACTIVE steps are the
+     * only ones that gate on the player actually touching the target.
+     */
+    private void drawTutorialHighlightRing() {
+        TutorialManager.TutorialStep step = tutorialManager.getCurrentStep();
+        if (step == null || step.target == null || step.target.isEmpty()) return;
+
+        List<float[]> rects = resolveTutorialTargetRects(step.target);
+        if (rects.isEmpty()) return;
+
+        float pulse = 0.6f + 0.4f * (float) Math.sin(animationTime * 4.0);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(1f * pulse, 0.85f * pulse, 0.2f * pulse, 1f);
+        for (float[] r : rects) {
+            drawOutlineRectWH(r[0], r[1], r[2], r[3], 3f);
+        }
+        shapeRenderer.end();
+    }
+
     /*private boolean isUnitType(String type) {
         switch (type) {
             case "villager": case "woodsman": case "cook": case "prospector":
@@ -1204,7 +1530,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 MonsterData md = (MonsterData) data;
                 Monster m = (Monster) obj;
                 return "HP: " + m.getHp() + "/" + md.getHp()
-                    + " | Reward: " + capitalize(md.getReward());
+                    + " | Reward: " + TextUtil.capitalize(md.getReward());
             }
 
             // Chests
@@ -1213,7 +1539,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 Chest chest = (Chest) obj;
                 ChestData cd = (ChestData) data;
                 return "Taps left: " + chest.getTap_count()
-                    + " | Drops: " + capitalize(cd.getToken_type());
+                    + " | Drops: " + TextUtil.capitalize(cd.getToken_type());
             }
 
             // Tokens
@@ -1263,7 +1589,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 UnitData ud = (UnitData) data;
                 StringBuilder sb = new StringBuilder();
                 sb.append("XP: ").append(ud.getXP_Rate());
-                sb.append(" | ").append(capitalize(ud.getNemesis()));
+                sb.append(" | ").append(TextUtil.capitalize(ud.getNemesis()));
 
                 Item equipped = eventManager.getInventory().getEquippedItem(
                     inputHandler.getSelectedObjectId());
@@ -1328,7 +1654,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float boxCenterX = LayoutConfig.getNemesisBoxX() + LayoutConfig.NEMESIS_BOX_SIZE / 2f;
 
         fontSmall.setColor(0.8f, 0.4f, 0.4f, 1f);
-        drawCenteredText(fontSmall, capitalize(displayedNemesis), boxCenterX, barTop - 14f);
+        drawCenteredText(fontSmall, TextUtil.capitalize(displayedNemesis), boxCenterX, barTop - 14f);
 
         fontSmall.setColor(0.7f, 0.7f, 0.7f, 1f);
         drawCenteredText(fontSmall, counter[0] + "/" + counter[1], boxCenterX, barTop - 32f);
@@ -1342,120 +1668,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
     }
 
-    private float getCurrentGridStartY() {
-        return buildMenuOpen ? gridStartYShifted : gridStartY;
-    }
-
-    private void drawGridBackgroundShifted() {
-        Grid grid = eventManager.getGridInstance();
-        int cols = grid.getWidth();
-        int rows = grid.getHeight();
-        float currentY = gridStartYShifted;
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
-                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = currentY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
-                Cell cell = grid.getCell(x, y);
-
-                if (inputHandler.isDragging()
-                    && x == inputHandler.getOriginCellX()
-                    && y == inputHandler.getOriginCellY()) {
-                    shapeRenderer.setColor(0.35f, 0.35f, 0.15f, 1f);
-                } else if (cell.isEmpty()) {
-                    shapeRenderer.setColor(0.2f, 0.2f, 0.28f, 1f);
-                } else {
-                    shapeRenderer.setColor(0.25f, 0.25f, 0.35f, 1f);
-                }
-                shapeRenderer.rect(drawX, drawY, cellSize, cellSize);
-            }
-        }
-        shapeRenderer.end();
-    }
-
-    private void drawSelectionOutlineShifted() {
-        if (!inputHandler.hasSelection()) return;
-
-        int selX = inputHandler.getSelectedCellX();
-        int selY = inputHandler.getSelectedCellY();
-        Grid grid = eventManager.getGridInstance();
-        int rows = grid.getHeight();
-        float currentY = gridStartYShifted;
-
-        float drawX = gridStartX + selX * (cellSize + LayoutConfig.CELL_GAP);
-        float drawY = currentY + (rows - 1 - selY) * (cellSize + LayoutConfig.CELL_GAP);
-        float t = 3f;
-
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0.2f, 0.85f, 0.2f, 1f);
-        shapeRenderer.rect(drawX - t, drawY + cellSize, cellSize + t * 2, t);
-        shapeRenderer.rect(drawX - t, drawY - t, cellSize + t * 2, t);
-        shapeRenderer.rect(drawX - t, drawY - t, t, cellSize + t * 2);
-        shapeRenderer.rect(drawX + cellSize, drawY - t, t, cellSize + t * 2);
-        shapeRenderer.end();
-    }
-
-    private void drawGridShifted() {
-        Grid grid = eventManager.getGridInstance();
-        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
-        int cols = grid.getWidth();
-        int rows = grid.getHeight();
-        float currentY = gridStartYShifted;
-
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
-                Cell cell = grid.getCell(x, y);
-                if (cell.isEmpty()) continue;
-
-                if (inputHandler.isDragging()
-                    && x == inputHandler.getOriginCellX()
-                    && y == inputHandler.getOriginCellY()) {
-                    continue;
-                }
-
-                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = currentY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
-
-                String objectId = cell.getOccupant();
-                GameObject obj = gom.getObject(objectId);
-                Texture tex = (obj != null)
-                    ? spriteManager.getTextureForObject(obj.getType(), obj.getLvl())
-                    : spriteManager.getDefaultTile();
-
-                float margin = cellSize * 0.05f;
-                batch.draw(tex, drawX + margin, drawY + margin,
-                    cellSize - margin * 2, cellSize - margin * 2);
-                if (obj instanceof Unit) {
-                    Unit unit = (Unit) obj;
-                    if (unit.isWounded()) {
-                        float barWidth = cellSize - margin * 4;
-                        float barHeight = 3f;
-                        float barX = drawX + margin * 2;
-                        float barY = drawY + margin;
-                        float hpRatio = (float) unit.getHp() / unit.getMax_hp();
-
-                        // Background (dark red)
-                        batch.setColor(0.4f, 0.1f, 0.1f, 0.8f);
-                        // Use a 1x1 white pixel texture or uiTex for the bar
-                        batch.draw(whiteTex, barX, barY, barWidth, barHeight);
-
-                        // Fill (green to red based on HP)
-                        float r = 1f - hpRatio;
-                        float g = hpRatio;
-                        batch.setColor(r, g, 0.1f, 0.9f);
-                        batch.draw(whiteTex, barX, barY, barWidth * hpRatio, barHeight);
-
-                        batch.setColor(1f, 1f, 1f, 1f); // reset
-                    }
-                }
-            }
-        }
-    }
-
     private void drawInventoryTints() {
+        drawTintsAtY(gridStartY, inventoryMenu::getUnitTintColor);
+    }
+
+    /**
+     * Shared by the three "select a unit from the grid" tint overlays
+     * (Inventory equip-target, Explore send-to-zone, Raid form-party) — the
+     * only thing that varies between them is which panel's eligibility/tint
+     * lookup to call.
+     */
+    private void drawTintsAtY(float baseY, Function<String, Color> tintProvider) {
         Grid grid = eventManager.getGridInstance();
-        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         int cols = grid.getWidth();
         int rows = grid.getHeight();
 
@@ -1466,11 +1690,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 if (cell.isEmpty()) continue;
 
                 String objectId = cell.getOccupant();
-                Color tint = inventoryMenu.getUnitTintColor(objectId);
+                Color tint = tintProvider.apply(objectId);
                 if (tint == null) continue;
 
                 float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
 
                 batch.setColor(tint);
                 batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
@@ -1497,67 +1721,17 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         return null;
     }
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
-
     private void drawCenteredText(BitmapFont f, String text, float centerX, float y) {
         glyphLayout.setText(f, text);
         f.draw(batch, text, centerX - glyphLayout.width / 2f, y);
     }
 
     private void drawExploreTints() {
-        Grid grid = eventManager.getGridInstance();
-        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
-        int cols = grid.getWidth();
-        int rows = grid.getHeight();
-
-        batch.begin();
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
-                Cell cell = grid.getCell(x, y);
-                if (cell.isEmpty()) continue;
-
-                String objectId = cell.getOccupant();
-                Color tint = explorePanel.getUnitTintColor(objectId);
-                if (tint == null) continue;
-
-                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
-
-                batch.setColor(tint);
-                batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
-            }
-        }
-        batch.setColor(1f, 1f, 1f, 1f);
-        batch.end();
+        drawTintsAtY(gridStartY, explorePanel::getUnitTintColor);
     }
 
     private void drawRaidPartyTints() {
-        Grid grid = eventManager.getGridInstance();
-        int cols = grid.getWidth();
-        int rows = grid.getHeight();
-
-        batch.begin();
-        for (int x = 0; x < cols; x++) {
-            for (int y = 0; y < rows; y++) {
-                Cell cell = grid.getCell(x, y);
-                if (cell.isEmpty()) continue;
-
-                String objectId = cell.getOccupant();
-                Color tint = raidPanel.getUnitTintColor(objectId);
-                if (tint == null) continue;
-
-                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = gridStartY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
-
-                batch.setColor(tint);
-                batch.draw(whiteTex, drawX, drawY, cellSize, cellSize);
-            }
-        }
-        batch.setColor(1f, 1f, 1f, 1f);
-        batch.end();
+        drawTintsAtY(gridStartY, raidPanel::getUnitTintColor);
     }
 
     private String getSelectedType() {
@@ -1579,6 +1753,36 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             grid.getWidth(), grid.getHeight());
     }
 
+    // ── Tutorial hooks — forwarded to TutorialManager. tutorialManager is
+    // constructed partway through create(), but BATTLE_FIELD_MANAGER's
+    // listener (= this class) is wired up earlier, so these null-check the
+    // same way the rest of this class treats not-yet-constructed fields. ──
+
+    @Override
+    public void onUnitSpawnedFromFacility(String facilityType) {
+        if (tutorialManager != null) tutorialManager.onUnitSpawnedFromFacility(facilityType);
+    }
+
+    @Override
+    public void onUnitMerged(String type, int newLevel) {
+        if (tutorialManager != null) tutorialManager.onUnitMerged(type, newLevel);
+    }
+
+    @Override
+    public void onUnitDismissedToPrince(String type) {
+        if (tutorialManager != null) tutorialManager.onUnitDismissedToPrince(type);
+    }
+
+    @Override
+    public void onMonsterSpawned(String type) {
+        if (tutorialManager != null) tutorialManager.onMonsterSpawned(type);
+    }
+
+    @Override
+    public void onLevelUp(int newLevel) {
+        if (tutorialManager != null) tutorialManager.onLevelUp(newLevel);
+    }
+
     // ══════════════════════════════════════════════════════════════
     // LIFECYCLE
     // ══════════════════════════════════════════════════════════════
@@ -1588,6 +1792,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         viewport.update(width, height, true);
         LayoutConfig.setActualHeight(viewport.getWorldHeight());
         wallGate.updateLayout();
+        if (tutorialOverlay != null) tutorialOverlay.updateLayout();
         calculateGridLayout();
 
         Grid grid = eventManager.getGridInstance();
@@ -1709,6 +1914,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             });
             jsonManager.saveStringSet("gold_claimed", gm.getClaimedRewards());
 
+            // Tutorial progress — see TutorialManager's persistence javadoc.
+            jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());
+            jsonManager.saveStringSet("tutorial_tips_seen", tutorialManager.getTipsSeen());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

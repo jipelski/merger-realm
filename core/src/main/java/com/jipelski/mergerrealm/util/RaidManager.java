@@ -543,7 +543,7 @@ public class RaidManager {
         activeRaid.pushEvent(ev);
 
         if (target.hp <= 0) {
-            addLog(capitalize(activeRaid.getPartyTypes()[slot])
+            addLog(TextUtil.capitalize(activeRaid.getPartyTypes()[slot])
                 + " defeated " + target.name + (crit ? " with a CRIT!" : "!"));
         }
     }
@@ -614,7 +614,7 @@ public class RaidManager {
                 hp[i] = 0;
                 dead[i] = true;
                 activeRaid.setDeathCount(activeRaid.getDeathCount() + 1);
-                addLog(capitalize(activeRaid.getPartyTypes()[i]) + " has fallen!");
+                addLog(TextUtil.capitalize(activeRaid.getPartyTypes()[i]) + " has fallen!");
 
                 // eternal_phoenix auto-revive (keep your existing code)
                 if ("eternal_phoenix".equals(activeRaid.getPartyTypes()[i])) {
@@ -768,7 +768,7 @@ public class RaidManager {
         Inventory inv = eventManager.getInventory();
         Item potion = inv.useConsumable(potionId);
         addLog("Used " + (potion != null ? potion.getName() : "potion") + " on "
-            + capitalize(activeRaid.getPartyTypes()[slot]));
+            + TextUtil.capitalize(activeRaid.getPartyTypes()[slot]));
         return true;
     }
 
@@ -784,7 +784,7 @@ public class RaidManager {
         Inventory inv = eventManager.getInventory();
         Item feather = inv.useConsumable(featherId);
         addLog("Phoenix Feather revives "
-            + capitalize(activeRaid.getPartyTypes()[slot]) + "!");
+            + TextUtil.capitalize(activeRaid.getPartyTypes()[slot]) + "!");
         return true;
     }
 
@@ -813,7 +813,7 @@ public class RaidManager {
                 // (Non-max units lv3-6 are lost; max-level survives at 1HP)
                 // For simplicity, return all with 1 HP
                 eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], 1);
-                addLog(capitalize(types[i]) + " returned barely alive");
+                addLog(TextUtil.capitalize(types[i]) + " returned barely alive");
             } else {
                 // Alive — return with current HP
                 eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], currentHp[i]);
@@ -876,8 +876,4 @@ public class RaidManager {
         return 0.0;
     }
 
-    private String capitalize(String s) {
-        if (s == null || s.isEmpty()) return s;
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
-    }
 }

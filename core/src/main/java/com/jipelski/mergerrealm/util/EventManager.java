@@ -400,6 +400,9 @@ public class EventManager {
                 facility.getxPos(), facility.getyPos());
             Gdx.app.log(TAG, "spawnFromFacility: spawned " + unitString[0]
                 + " lvl " + unitString[1] + " from " + facility.getType());
+            if (BATTLE_FIELD_MANAGER.getListener() != null) {
+                BATTLE_FIELD_MANAGER.getListener().onUnitSpawnedFromFacility(facility.getType());
+            }
             return true;
         }
         return false;
@@ -815,11 +818,21 @@ public class EventManager {
                 BATTLE_FIELD_MANAGER.increaseCounter(unit.getNemesis(), contribution);
                 Gdx.app.log(TAG, "Merge " + mergedType + ": +" + unit.getNemesis_rate()
                     + " to " + unit.getNemesis() + " counter");
+
+                // Both ids are permanently consumed by the merge (a fresh id
+                // is minted for the merged unit below) — clear any rune data
+                // tied to them so RuneSystem.appliedRunes doesn't accumulate
+                // orphaned entries forever.
+                runeSystem.onUnitPermanentlyLost(originId);
+                runeSystem.onUnitPermanentlyLost(targetId);
             }
 
             removeObject(originId);
             removeObject(targetId);
             spawnObject(mergedType, mergedLvl, x, y);
+            if (BATTLE_FIELD_MANAGER.getListener() != null) {
+                BATTLE_FIELD_MANAGER.getListener().onUnitMerged(mergedType, mergedLvl);
+            }
             return;
         }
 
@@ -856,6 +869,7 @@ public class EventManager {
                 if (unitDied) {
                     BATTLE_FIELD_MANAGER.increaseXP(originUnit.getXP_Rate() / 2);
                     removeObject(originId);
+                    runeSystem.onUnitPermanentlyLost(originId);
                     Gdx.app.log(TAG, originUnit.getType() + " died in combat");
                 }
             } else {
@@ -907,12 +921,16 @@ public class EventManager {
                     BATTLE_FIELD_MANAGER.increaseXP(xpGain);
                     Gdx.app.log(TAG, "Prince dismissed " + type + " lvl " + object.getLvl()
                         + " — gained " + xpGain + " leadership XP");
+                    if (BATTLE_FIELD_MANAGER.getListener() != null) {
+                        BATTLE_FIELD_MANAGER.getListener().onUnitDismissedToPrince(type);
+                    }
                 }
                 if (LegendaryEvolution.isLegendary(type)) {
                     goldManager.onDismissLegendary();
                     Gdx.app.log(TAG, "Legendary dismissed — +" + GoldManager.EARN_DISMISS_LEGENDARY + " Gold");
                 }
                 removeObject(objectId);
+                runeSystem.onUnitPermanentlyLost(objectId);
                 break;
             }
 
@@ -1030,6 +1048,8 @@ public class EventManager {
             GDLInstance.getSpawnConfiguration(
                 facility.getType() + "_" + facility.getLvl()));
         if (unitString == null) return;
+
+        facility.triggerPulse();
 
         String unitType = unitString[0];
         int unitLevel = Integer.parseInt(unitString[1]);

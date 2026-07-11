@@ -1,0 +1,20 @@
+{
+  "food_pouch": [
+    {"level":1,"sprite_path":"food_pouch_1","description":"A light sack of grain","maxLVL":4,"fill_percent":10,"resource_type":"food"},
+    {"level":2,"sprite_path":"food_pouch_2","description":"A hearty sack of grain","maxLVL":4,"fill_percent":20,"resource_type":"food"},
+    {"level":3,"sprite_path":"food_pouch_3","description":"An overflowing basket","maxLVL":4,"fill_percent":35,"resource_type":"food"},
+    {"level":4,"sprite_path":"food_pouch_4","description":"A royal grain hoard (Max level)","maxLVL":4,"fill_percent":50,"resource_type":"food"}
+  ],
+  "wood_pouch": [
+    {"level":1,"sprite_path":"wood_pouch_1","description":"A bundle of kindling","maxLVL":4,"fill_percent":10,"resource_type":"wood"},
+    {"level":2,"sprite_path":"wood_pouch_2","description":"A stack of logs","maxLVL":4,"fill_percent":20,"resource_type":"wood"},
+    {"level":3,"sprite_path":"wood_pouch_3","description":"A loaded timber cart","maxLVL":4,"fill_percent":35,"resource_type":"wood"},
+    {"level":4,"sprite_path":"wood_pouch_4","description":"A royal timber hoard (Max level)","maxLVL":4,"fill_percent":50,"resource_type":"wood"}
+  ],
+  "iron_pouch": [
+    {"level":1,"sprite_path":"iron_pouch_1","description":"A handful of ore chunks","maxLVL":4,"fill_percent":10,"resource_type":"iron"},
+    {"level":2,"sprite_path":"iron_pouch_2","description":"A sack of raw ore","maxLVL":4,"fill_percent":20,"resource_type":"iron"},
+    {"level":3,"sprite_path":"iron_pouch_3","description":"A loaded ore cart","maxLVL":4,"fill_percent":35,"resource_type":"iron"},
+    {"level":4,"sprite_path":"iron_pouch_4","description":"A royal ore hoard (Max level)","maxLVL":4,"fill_percent":50,"resource_type":"iron"}
+  ]
+}
