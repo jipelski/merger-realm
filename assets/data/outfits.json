@@ -1,0 +1,57 @@
+[
+  {
+    "id": "farmers_regalia",
+    "name": "Farmer's Regalia",
+    "description": "Homespun robes blessed by the harvest. Boosts resource generation across the realm.",
+    "gold_cost": 150,
+    "resource_gen_bonus": 0.20,
+    "raid_damage_bonus": 0.0,
+    "raid_hp_bonus": 0.0,
+    "exploration_speed_bonus": 0.0,
+    "exploration_find_bonus": 0.0
+  },
+  {
+    "id": "warlords_plate",
+    "name": "Warlord's Plate",
+    "description": "Battle-forged armor that hardens every strike your party lands in raids.",
+    "gold_cost": 200,
+    "resource_gen_bonus": 0.0,
+    "raid_damage_bonus": 0.20,
+    "raid_hp_bonus": 0.0,
+    "exploration_speed_bonus": 0.0,
+    "exploration_find_bonus": 0.0
+  },
+  {
+    "id": "guardians_mantle",
+    "name": "Guardian's Mantle",
+    "description": "A warded cloak that fortifies your raid party's resilience.",
+    "gold_cost": 200,
+    "resource_gen_bonus": 0.0,
+    "raid_damage_bonus": 0.0,
+    "raid_hp_bonus": 0.25,
+    "exploration_speed_bonus": 0.0,
+    "exploration_find_bonus": 0.0
+  },
+  {
+    "id": "explorers_cloak",
+    "name": "Explorer's Cloak",
+    "description": "Light as a whisper. Speeds exploration and sharpens the eye for rare finds.",
+    "gold_cost": 180,
+    "resource_gen_bonus": 0.0,
+    "raid_damage_bonus": 0.0,
+    "raid_hp_bonus": 0.0,
+    "exploration_speed_bonus": 0.25,
+    "exploration_find_bonus": 0.15
+  },
+  {
+    "id": "royal_vestments",
+    "name": "Royal Vestments",
+    "description": "The Prince's finest ceremonial garb. A modest boon to every aspect of the realm.",
+    "gold_cost": 350,
+    "resource_gen_bonus": 0.08,
+    "raid_damage_bonus": 0.08,
+    "raid_hp_bonus": 0.08,
+    "exploration_speed_bonus": 0.08,
+    "exploration_find_bonus": 0.08
+  }
+]
