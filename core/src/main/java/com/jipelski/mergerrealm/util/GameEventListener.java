@@ -30,4 +30,11 @@ public interface GameEventListener {
 
     /** The Prince gained a level (fired once per level, even on multi-level-ups). */
     default void onLevelUp(int newLevel) {}
+
+    /**
+     * A Prince Prestige reset just completed — grid size and layout may have
+     * changed. The renderer should recalculate grid layout/input bounds
+     * exactly like onGridExpanded(), plus clear any UI selection state.
+     */
+    default void onPrestigeReset() {}
 }

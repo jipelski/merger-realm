@@ -109,6 +109,20 @@ public class Facility extends GameObject {
      * Throws IllegalArgumentException if probabilities do not sum to ~1.0.
      */
     public String[] spawn(List<FacilitySpawnConfiguration> spawnRates) {
+        return spawn(spawnRates, 0f);
+    }
+
+    /**
+     * Same as spawn(spawnRates), but biases the roll toward higher-level
+     * entries (Prestige's "better spawn odds" upgrade). The bias is applied
+     * only to the weight function passed into weightedPick — the underlying
+     * spawnRates config is never mutated, so validateProbabilitiesSumToOne
+     * (which checks the RAW config) still passes even with a non-zero bias.
+     *
+     * @param biasFactor 0 = no bias (identical to spawn(spawnRates));
+     *                   higher values favor higher getUnitLVL() entries.
+     */
+    public String[] spawn(List<FacilitySpawnConfiguration> spawnRates, float biasFactor) {
         if (spawnRates == null || spawnRates.isEmpty()) {
             Gdx.app.log(TAG, "spawn: spawnRates is null or empty");
             return null;
@@ -118,7 +132,7 @@ public class Facility extends GameObject {
             FacilitySpawnConfiguration::getSpawnProbability);
 
         FacilitySpawnConfiguration picked = WeightedRoll.weightedPick(spawnRates,
-            FacilitySpawnConfiguration::getSpawnProbability);
+            cfg -> cfg.getSpawnProbability() * (1f + biasFactor * (cfg.getUnitLVL() - 1)));
         return new String[]{picked.getUnitType(), String.valueOf(picked.getUnitLVL())};
     }
 

@@ -199,4 +199,20 @@ public class Grid {
         height = newHeight;
         XoY = new int[]{width, height};
     }
+
+    /**
+     * Resets the grid to a fresh, fully-empty layout at the given size —
+     * unlike expandGrid(), this can SHRINK the grid (e.g. a Prestige reset
+     * going from a maxed-out board back to a lower start-level size).
+     * Discards all existing cell contents; callers are responsible for
+     * having already cleared any object-manager state that referenced them.
+     */
+    public void resetToSize(int newWidth, int newHeight) {
+        Gdx.app.log("GRID", "Resetting grid to " + newWidth + "x" + newHeight);
+        cells = new Cell[newWidth][newHeight];
+        width = newWidth;
+        height = newHeight;
+        XoY = new int[]{width, height};
+        initEmptyCells();
+    }
 }

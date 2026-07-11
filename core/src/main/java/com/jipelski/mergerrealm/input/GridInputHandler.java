@@ -21,6 +21,7 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
+import com.jipelski.mergerrealm.ui.PrestigePanel;
 
 import java.util.Objects;
 
@@ -152,6 +153,19 @@ public class GridInputHandler extends InputAdapter {
 
     public void setGoldShopPanel(GoldShopPanel panel) { this.goldShopPanel = panel; }
 
+    private PrestigePanel prestigePanel;
+    private float prestigeBoxX, prestigeBoxY, prestigeBoxW, prestigeBoxH;
+    public void setPrestigePanel(PrestigePanel panel) { this.prestigePanel = panel; }
+
+    public void setPrestigeBoxBounds(float x, float y, float w, float h) {
+        this.prestigeBoxX = x; this.prestigeBoxY = y; this.prestigeBoxW = w; this.prestigeBoxH = h;
+    }
+
+    private boolean isPrestigeBoxTap(float wx, float wy) {
+        return wx >= prestigeBoxX && wx <= prestigeBoxX + prestigeBoxW
+            && wy >= prestigeBoxY && wy <= prestigeBoxY + prestigeBoxH;
+    }
+
     private TutorialOverlay tutorialOverlay;
     public void setTutorialOverlay(TutorialOverlay overlay) { this.tutorialOverlay = overlay; }
 
@@ -200,6 +214,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (goldShopPanel != null && goldShopPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (prestigePanel != null && prestigePanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -396,6 +414,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (prestigePanel != null && prestigePanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (trophyShopPanel != null && trophyShopPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -452,6 +474,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (prestigePanel != null && prestigePanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
         if (trophyShopPanel != null && trophyShopPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -484,6 +510,18 @@ public class GridInputHandler extends InputAdapter {
         if (goldShopPanel != null && !pickingUnitFromGrid
             && isGoldChipTap(worldPos.x, worldPos.y)) {
             goldShopPanel.open();
+            clearSelection();
+            return true;
+        }
+
+        // Open Prince Prestige here (not on touchDown — same reasoning as the
+        // gold chip above: the level box sits in the top-left corner, clear
+        // of any panel's own close button, but the touchUp-not-touchDown
+        // convention is kept consistent with every other panel-opening
+        // button in this file).
+        if (prestigePanel != null && !pickingUnitFromGrid
+            && isPrestigeBoxTap(worldPos.x, worldPos.y)) {
+            prestigePanel.open();
             clearSelection();
             return true;
         }

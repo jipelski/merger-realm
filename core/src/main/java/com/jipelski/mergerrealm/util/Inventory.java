@@ -232,4 +232,24 @@ public class Inventory {
                 + itemId + " returned to inventory");
         }
     }
+
+    /**
+     * Removes every item whose id is NOT in idsToKeep. Used by Prince
+     * Prestige's reset to trim the inventory down to the player's protected
+     * "Heirloom Vault" set — everything else is permanently lost.
+     */
+    public void retainOnly(java.util.Set<String> idsToKeep) {
+        int before = items.size();
+        items.removeIf(item -> !idsToKeep.contains(item.getId()));
+        Gdx.app.log(TAG, "retainOnly: kept " + items.size() + "/" + before + " items");
+    }
+
+    /**
+     * Clears every unit's equipped item in one shot. Used by Prince
+     * Prestige's reset, where every unit on the board disappears at once —
+     * looping onUnitRemoved() per unit would be equivalent but pointless.
+     */
+    public void clearAllEquipped() {
+        equipped.clear();
+    }
 }

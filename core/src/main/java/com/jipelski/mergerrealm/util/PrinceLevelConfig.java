@@ -66,6 +66,9 @@ public class PrinceLevelConfig {
     private static final int BASE_XP = 50;
     private static final float XP_SCALE = 1.5f;
 
+    // ── Prestige gate — single source of truth per this class's own doc above ──
+    public static final int MAX_LEVEL_FOR_PRESTIGE = 35;
+
     /**
      * Returns the grid size for the given prince level,
      * or null if no expansion happens at this level.

@@ -93,6 +93,9 @@ public class EventManager {
     private GoldManager goldManager;
     public GoldManager getGoldManager() { return goldManager; }
 
+    private PrestigeManager prestigeManager;
+    public PrestigeManager getPrestigeManager() { return prestigeManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
@@ -232,6 +235,18 @@ public class EventManager {
 
         Gdx.app.log(TAG, "RuneSystem loaded");
 
+        this.prestigeManager = new PrestigeManager(this);
+        int[] savedPrestigeState = jsonManager.loadArray("prestige_currency");
+        prestigeManager.setSaveState(savedPrestigeState);
+
+        Map<String, Integer> savedUpgradeTiers = jsonManager.loadRuneCrafted("prestige_upgrades");
+        prestigeManager.setUpgradeTiers(savedUpgradeTiers);
+
+        java.util.Set<String> savedProtectedItems = jsonManager.loadStringSet("prestige_protected_items");
+        prestigeManager.setProtectedItemIds(savedProtectedItems);
+
+        Gdx.app.log(TAG, "PrestigeManager loaded — Crowns: " + prestigeManager.getCrowns());
+
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.
         spawnInitialObjectsIfNeeded();
@@ -298,28 +313,7 @@ public class EventManager {
 
         if (gridIsEmpty) {
             Gdx.app.log(TAG, "Fresh grid detected — spawning starting objects");
-
-            // Prince always starts at position 0,0
-            spawnObject("prince", 1, 0, 0);
-
-            // Starting archery range (only facility unlocked at level 1)
-            spawnObject("homestead", 1, 1, 0);
-
-            // Two starting archers so the player can immediately merge
-            spawnObject("villager", 7, 0, 1);
-            spawnObject("woodsman", 7, 1, 1);
-            ///*
-            spawnObject("archer", 6, 2, 1);
-            spawnObject("archer", 6, 1, 2);
-            spawnObject("archer", 6, 2, 2);
-
-            spawnObject("archer", 6, 2, 0);
-            spawnObject("archer", 6, 0, 2);
-
-            spawnObject("archer", 6, 0, 3);
-            spawnObject("archer", 6, 1, 3);
-
-            spawnObject("archer", 6, 2, 3);
+            spawnStarterBoard();
 
             Item starterSword = GDLInstance.createItem("sword", 1);
             if (starterSword != null) {
@@ -331,12 +325,94 @@ public class EventManager {
                 inventory.addItem(starterPotion);
                 Gdx.app.log(TAG, "Added starter item: " + starterPotion);
             }
-            //*/
 
         } else {
             Gdx.app.log(TAG, "Saved grid loaded — skipping initial spawns");
         }
     }
+
+    /**
+     * Spawns the starting board objects (Prince, Homestead, starter units) —
+     * extracted out of spawnInitialObjectsIfNeeded() so a Prince Prestige
+     * reset can call this WITHOUT also re-seeding the starter inventory
+     * items (sword+potion), which must only ever happen once, on a true
+     * fresh install.
+     */
+    private void spawnStarterBoard() {
+        // Prince always starts at position 0,0
+        spawnObject("prince", 1, 0, 0);
+
+        // Starting archery range (only facility unlocked at level 1)
+        spawnObject("homestead", 1, 1, 0);
+
+        // Two starting archers so the player can immediately merge
+        spawnObject("villager", 7, 0, 1);
+        spawnObject("woodsman", 7, 1, 1);
+        spawnObject("archer", 6, 2, 1);
+        spawnObject("archer", 6, 1, 2);
+        spawnObject("archer", 6, 2, 2);
+
+        spawnObject("archer", 6, 2, 0);
+        spawnObject("archer", 6, 0, 2);
+
+        spawnObject("archer", 6, 0, 3);
+        spawnObject("archer", 6, 1, 3);
+
+        spawnObject("archer", 6, 2, 3);
+    }
+
+    /**
+     * Performs a Prince Prestige reset: credits Crowns, wipes the board
+     * (grid/objects/resources/progression/counters/reward-queue/locks),
+     * trims Inventory down to the player's protected "Heirloom Vault" set,
+     * respawns the starter board at the purchased start level, and queues
+     * the bootstrap unlock chests the player would otherwise be missing.
+     * Deliberately does NOT reconstruct EventManager — see plan notes on why
+     * (would reload the very state being wiped and re-fire constructor-only
+     * side effects like daily login gold and shop refresh).
+     */
+    public void performPrestigeReset() {
+        int currentLevel = BATTLE_FIELD_MANAGER.getLevel();
+        prestigeManager.creditPrestige(currentLevel);
+
+        // Wipe the board — objects, locks, resources. Every board object is
+        // permanently gone at once, so clean up RuneSystem's per-unit
+        // tracking the same way merge/combat-death/dismiss already do
+        // (onUnitPermanentlyLost) — otherwise appliedRunes would leak an
+        // orphaned entry per wiped unit forever (the exact memory-pressure
+        // bug that method was introduced to fix).
+        for (String id : GRID_OBJECT_MANAGER.getObjectMap().keySet()) {
+            runeSystem.onUnitPermanentlyLost(id);
+        }
+        GRID_OBJECT_MANAGER.getObjectMap().clear();
+        GRID_OBJECT_MANAGER.getLockedObjects().clear();
+        for (int[] value : resourceManager.getConsumableMap().values()) {
+            if (value != null && value.length >= 3) {
+                value[0] = 0;
+                value[1] = 0;
+                value[2] = 0;
+            }
+        }
+
+        // Trim inventory to the protected set; every unit is about to be
+        // wiped at once, so clear equipped wholesale rather than per-unit.
+        inventory.retainOnly(prestigeManager.getProtectedItemIds());
+        inventory.clearAllEquipped();
+
+        int startLevel = prestigeManager.getStartLevel();
+        BATTLE_FIELD_MANAGER.resetForPrestige(startLevel);
+        int[] startGridSize = PrinceLevelConfig.getGridSizeForLevel(startLevel);
+        gridInstance.resetToSize(startGridSize[0], startGridSize[1]);
+
+        spawnStarterBoard();
+
+        if (BATTLE_FIELD_MANAGER.getListener() != null) {
+            BATTLE_FIELD_MANAGER.getListener().onPrestigeReset();
+        }
+
+        Gdx.app.log(TAG, "Prestige reset complete — new start level " + startLevel);
+    }
+
     // GETTERS
 
     public Grid getGridInstance() {
@@ -394,7 +470,8 @@ public class EventManager {
         }
 
         String[] unitString = facility.spawn(
-            GDLInstance.getSpawnConfiguration(facility.getType() + "_" + facility.getLvl()));
+            GDLInstance.getSpawnConfiguration(facility.getType() + "_" + facility.getLvl()),
+            prestigeManager.getSpawnBias());
         if (unitString != null) {
             spawnObject(unitString[0], Integer.parseInt(unitString[1]),
                 facility.getxPos(), facility.getyPos());
@@ -1046,7 +1123,8 @@ public class EventManager {
         // Roll what unit to spawn
         String[] unitString = facility.spawn(
             GDLInstance.getSpawnConfiguration(
-                facility.getType() + "_" + facility.getLvl()));
+                facility.getType() + "_" + facility.getLvl()),
+            prestigeManager.getSpawnBias());
         if (unitString == null) return;
 
         facility.triggerPulse();

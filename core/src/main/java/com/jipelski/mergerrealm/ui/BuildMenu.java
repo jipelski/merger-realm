@@ -16,6 +16,7 @@ import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.data.StorageData;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameDataLoader;
+import com.jipelski.mergerrealm.util.PrestigeManager;
 import com.jipelski.mergerrealm.util.PrinceLevelConfig;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
@@ -71,6 +72,7 @@ public class BuildMenu {
     // Cached items
     private final List<BuildableItem> items = new ArrayList<>();
     private int princeLevelCache = -1;
+    private int prestigeCostTierCache = -1;
 
     // Touch
     private final Vector2 touchPos = new Vector2();
@@ -119,12 +121,20 @@ public class BuildMenu {
 
     private void refreshItems() {
         int princeLvl = eventManager.getBattleFieldManager().getLevel();
-        if (princeLvl == princeLevelCache && !items.isEmpty()) return;
+        int prestigeCostTier = eventManager.getPrestigeManager().getBuildCostTier();
+        // Prince level changes are rare (level-ups); a Prestige build-cost
+        // purchase doesn't touch level at all, so it must ALSO invalidate
+        // this cache or a mid-run purchase shows stale (undiscounted) prices
+        // until something else happens to trigger a refresh.
+        if (princeLvl == princeLevelCache && prestigeCostTier == prestigeCostTierCache
+            && !items.isEmpty()) return;
 
         princeLevelCache = princeLvl;
+        prestigeCostTierCache = prestigeCostTier;
         items.clear();
 
         GameDataLoader gdl = eventManager.getGameDataLoader();
+        PrestigeManager prestigeManager = eventManager.getPrestigeManager();
 
         for (String type : ALL_BUILDABLES) {
             GenData data = gdl.getGameData(type, 1);
@@ -136,15 +146,15 @@ public class BuildMenu {
 
             if (data instanceof FacilityData) {
                 FacilityData fd = (FacilityData) data;
-                item.buildCost1 = fd.getBuildCost1();
-                item.buildCost2 = fd.getBuildCost2();
-                item.buildCost3 = fd.getBuildCost3();
-                item.buildCost4 = fd.getBuildCost4();
+                item.buildCost1 = prestigeManager.getDiscountedBuildCost(fd.getBuildCost1());
+                item.buildCost2 = prestigeManager.getDiscountedBuildCost(fd.getBuildCost2());
+                item.buildCost3 = prestigeManager.getDiscountedBuildCost(fd.getBuildCost3());
+                item.buildCost4 = prestigeManager.getDiscountedBuildCost(fd.getBuildCost4());
             } else if (data instanceof StorageData) {
                 StorageData sd = (StorageData) data;
-                item.buildCost1 = sd.getBuild_cost1();
-                item.buildCost2 = sd.getBuild_cost2();
-                item.buildCost3 = sd.getBuild_cost3();
+                item.buildCost1 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost1());
+                item.buildCost2 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost2());
+                item.buildCost3 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost3());
                 item.buildCost4 = 0;
             }
 

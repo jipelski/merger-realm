@@ -195,6 +195,45 @@ public class BattleFieldManager {
         return false;
     }
 
+    /**
+     * Resets progression state for a Prince Prestige reset. Level/XP jump
+     * straight to startLevel — bypassing incremental increaseXP() level-ups
+     * is fine since isFacilityUnlocked() is a pure function of the current
+     * level, independently consulted at build time. But the usual bootstrap
+     * unlock-reward chests (only ever queued inside increaseXP()) won't have
+     * fired, and those chests carry the tokens needed to build anything — so
+     * this re-queues them for every unlock level being skipped past.
+     *
+     * Nemesis counters are ZEROED, never removed: increaseCounter() looks up
+     * an entry by type and silently no-ops forever if it's missing, which
+     * would permanently break that monster's spawning.
+     */
+    public void resetForPrestige(int startLevel) {
+        level = startLevel;
+        current_xp = 0;
+        xp_required = PrinceLevelConfig.getXpRequired(startLevel);
+
+        rewardQueue.clear();
+        for (int lv = 2; lv <= startLevel; lv++) {
+            String unlockedFacility = PrinceLevelConfig.getFacilityUnlockAtLevel(lv);
+            if (unlockedFacility == null) continue;
+            String chestType = PrinceLevelConfig.getRewardChest(unlockedFacility);
+            if (chestType != null) {
+                rewardQueue.addLast(new GenData(chestType,
+                    "Reward for unlocking " + unlockedFacility, 1));
+            }
+        }
+
+        for (int[] counter : globalCounter.values()) {
+            if (counter != null && counter.length >= 1) {
+                counter[0] = 0;
+            }
+        }
+
+        Gdx.app.log(TAG, "Prestige reset: level=" + level + ", "
+            + rewardQueue.size() + " bootstrap chests queued");
+    }
+
     public boolean checkStatus(String type) {
         return Boolean.TRUE.equals(lockedStatus.get(type));
     }

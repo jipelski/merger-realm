@@ -78,20 +78,29 @@ public class ResourceManager {
     /**
      * Ticks resource generation. Adds gen rate to amount, capped at pool size.
      * Only applies to food, wood, and iron.
+     *
+     * @param genMultiplier Prince Prestige's "faster gen" multiplier (1.0 =
+     *                      no bonus). Applied only here, at accumulation
+     *                      time — NOT baked into the stored gen rate itself,
+     *                      since that rate is a per-unit accumulator (see
+     *                      RuneSystem's Fortune boost) that must stay stable
+     *                      across spawn/despawn regardless of a global,
+     *                      purchasable multiplier changing mid-run.
      */
-    public void updateResources() {
+    public void updateResources(float genMultiplier) {
         for (String t : consumableMap.keySet()) {
             if (t.equals("food") || t.equals("wood") || t.equals("iron")) {
                 int[] value = consumableMap.get(t);
                 if (value == null) continue;
                 if (value[1] <= 0) continue; // no gen rate, skip
 
+                int gain = Math.round(value[1] * genMultiplier);
                 if (value[2] > 0) {
                     // Has a pool cap — clamp to it
-                    value[0] = Math.min(value[0] + value[1], value[2]);
+                    value[0] = Math.min(value[0] + gain, value[2]);
                 } else {
                     // No storage built yet — still generate but with a base cap
-                    value[0] = Math.min(value[0] + value[1], 1000);
+                    value[0] = Math.min(value[0] + gain, 1000);
                 }
             }
         }

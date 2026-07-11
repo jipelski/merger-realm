@@ -47,6 +47,7 @@ import com.jipelski.mergerrealm.util.GameEventListener;
 import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
+import com.jipelski.mergerrealm.util.PrestigeManager;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
@@ -59,6 +60,7 @@ import com.jipelski.mergerrealm.ui.LayoutConfig;
 import com.jipelski.mergerrealm.ui.UITextureManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
+import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.util.TutorialManager;
 
 import java.util.ArrayList;
@@ -132,6 +134,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private float goldChipX, goldChipY, goldChipW, goldChipH;
     private GoldShopPanel goldShopPanel;
+    private PrestigePanel prestigePanel;
     private RaidPanel raidPanel;
 
     /**
@@ -272,6 +275,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         goldShopPanel = new GoldShopPanel(eventManager, viewport, uiTex);
         inputHandler.setGoldShopPanel(goldShopPanel);
 
+        prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
+        inputHandler.setPrestigePanel(prestigePanel);
+
         offlinePopup = new OfflinePopup(uiTex);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
@@ -286,6 +292,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float lockBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
+            LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
 
         /*float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
@@ -350,8 +359,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int woodBefore = rm.getAmount("wood");
         int ironBefore = rm.getAmount("iron");
 
+        float genMultiplier = eventManager.getPrestigeManager().getResourceGenMultiplier();
         for (long i = 0; i < ticks; i++) {
-            rm.updateResources();
+            rm.updateResources(genMultiplier);
         }
 
         int foodGained = rm.getAmount("food") - foodBefore;
@@ -464,7 +474,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
-            && !raidPanel.isVisible() && !trophyShopPanel.isVisible()  && !goldShopPanel.isVisible()) {
+            && !raidPanel.isVisible() && !trophyShopPanel.isVisible()  && !goldShopPanel.isVisible()
+            && !prestigePanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -642,6 +653,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.end();
         }
 
+        if (prestigePanel.isVisible()) {
+            prestigePanel.drawBackground(shapeRenderer);
+            batch.begin();
+            prestigePanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
         // Tutorial overlay + target ring — drawn after every other panel but
         // BEFORE the offline popup (unlike those panels, deliberately not
         // "on top of everything": if a fresh install also has a stale
@@ -677,7 +695,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (resourceTimer >= RESOURCE_INTERVAL) {
             resourceTimer -= RESOURCE_INTERVAL;
             ResourceManager rm = eventManager.getResourceManager();
-            rm.updateResources();
+            rm.updateResources(eventManager.getPrestigeManager().getResourceGenMultiplier());
             eventManager.healWoundedUnits();
         }
         saveDirty = true;
@@ -987,7 +1005,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         BattleFieldManager bfm = eventManager.getBattleFieldManager();
 
-        fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
+        // Gold "LEVEL" label = tap here, Prince Prestige is ready.
+        if (eventManager.getPrestigeManager().canPrestige()) {
+            fontSmall.setColor(1f, 0.85f, 0.3f, 1f);
+        } else {
+            fontSmall.setColor(0.6f, 0.6f, 0.7f, 1f);
+        }
         drawCenteredText(fontSmall, "LEVEL",
             LayoutConfig.LEVEL_BOX_X + boxSize / 2f, boxTop - 14f);
 
@@ -1753,6 +1776,23 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             grid.getWidth(), grid.getHeight());
     }
 
+    @Override
+    public void onPrestigeReset() {
+        Gdx.app.log(TAG, "Prestige reset — recalculating layout");
+        // Same layout refresh as onGridExpanded() — the reset can both shrink
+        // and grow the grid relative to where it was.
+        calculateGridLayout();
+        wallGate.updateLayout();
+        Grid grid = eventManager.getGridInstance();
+        inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
+            grid.getWidth(), grid.getHeight());
+
+        inputHandler.clearSelection();
+        if (buildMenu.isVisible()) buildMenu.hide();
+
+        saveGame();
+    }
+
     // ── Tutorial hooks — forwarded to TutorialManager. tutorialManager is
     // constructed partway through create(), but BATTLE_FIELD_MANAGER's
     // listener (= this class) is wired up earlier, so these null-check the
@@ -1803,6 +1843,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float lockBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
+            LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
 
         // Also recalculate bottom bar button bounds
         inputHandler.setBuildButtonBounds(
@@ -1917,6 +1960,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             // Tutorial progress — see TutorialManager's persistence javadoc.
             jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());
             jsonManager.saveStringSet("tutorial_tips_seen", tutorialManager.getTipsSeen());
+
+            // Prince Prestige — see PrestigeManager's persistence section.
+            PrestigeManager pm = eventManager.getPrestigeManager();
+            jsonManager.saveArray("prestige_currency", pm.getSaveState());
+            jsonManager.saveRuneCrafted("prestige_upgrades", pm.getUpgradeTiers());
+            jsonManager.saveStringSet("prestige_protected_items", pm.getProtectedItemIds());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {
