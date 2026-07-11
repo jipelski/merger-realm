@@ -22,6 +22,7 @@ import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
+import com.jipelski.mergerrealm.ui.OutfitPanel;
 
 import java.util.Objects;
 
@@ -157,6 +158,9 @@ public class GridInputHandler extends InputAdapter {
     private float prestigeBoxX, prestigeBoxY, prestigeBoxW, prestigeBoxH;
     public void setPrestigePanel(PrestigePanel panel) { this.prestigePanel = panel; }
 
+    private OutfitPanel outfitPanel;
+    public void setOutfitPanel(OutfitPanel panel) { this.outfitPanel = panel; }
+
     public void setPrestigeBoxBounds(float x, float y, float w, float h) {
         this.prestigeBoxX = x; this.prestigeBoxY = y; this.prestigeBoxW = w; this.prestigeBoxH = h;
     }
@@ -218,6 +222,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (prestigePanel != null && prestigePanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (outfitPanel != null && outfitPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -418,6 +426,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (outfitPanel != null && outfitPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (trophyShopPanel != null && trophyShopPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -475,6 +487,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (prestigePanel != null && prestigePanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (outfitPanel != null && outfitPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
 
@@ -571,10 +587,24 @@ public class GridInputHandler extends InputAdapter {
             handleFacilityTap();
         } else if (isChest(obj.getType())) {
             handleChestTap();
+        } else if ("prince".equals(obj.getType())) {
+            handlePrinceTap();
         }
         else {
             // Non-facility: normal tap (token collect, chest open, etc.)
             eventManager.tap(draggedObjectId);
+        }
+    }
+
+    /**
+     * Second tap on the already-selected Prince opens the Outfit panel —
+     * mirrors handleFacilityTap()'s "select, then tap again to act"
+     * convention. Tapping the Prince today otherwise does nothing beyond
+     * selecting him (EventManager.tap() has no "prince" case).
+     */
+    private void handlePrinceTap() {
+        if (wasAlreadySelected && outfitPanel != null) {
+            outfitPanel.open();
         }
     }
 

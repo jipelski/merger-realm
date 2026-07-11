@@ -48,6 +48,7 @@ import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.PrestigeManager;
+import com.jipelski.mergerrealm.util.OutfitManager;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
@@ -61,6 +62,7 @@ import com.jipelski.mergerrealm.ui.UITextureManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
+import com.jipelski.mergerrealm.ui.OutfitPanel;
 import com.jipelski.mergerrealm.util.TutorialManager;
 
 import java.util.ArrayList;
@@ -135,6 +137,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private float goldChipX, goldChipY, goldChipW, goldChipH;
     private GoldShopPanel goldShopPanel;
     private PrestigePanel prestigePanel;
+    private OutfitPanel outfitPanel;
     private RaidPanel raidPanel;
 
     /**
@@ -278,6 +281,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
 
+        outfitPanel = new OutfitPanel(eventManager, viewport, uiTex);
+        inputHandler.setOutfitPanel(outfitPanel);
+
         offlinePopup = new OfflinePopup(uiTex);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
@@ -359,7 +365,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int woodBefore = rm.getAmount("wood");
         int ironBefore = rm.getAmount("iron");
 
-        float genMultiplier = eventManager.getPrestigeManager().getResourceGenMultiplier();
+        float genMultiplier = eventManager.getPrestigeManager().getResourceGenMultiplier()
+            * eventManager.getOutfitManager().getResourceGenMultiplier();
         for (long i = 0; i < ticks; i++) {
             rm.updateResources(genMultiplier);
         }
@@ -475,7 +482,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
             && !raidPanel.isVisible() && !trophyShopPanel.isVisible()  && !goldShopPanel.isVisible()
-            && !prestigePanel.isVisible()) {
+            && !prestigePanel.isVisible() && !outfitPanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -660,6 +667,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.end();
         }
 
+        if (outfitPanel.isVisible()) {
+            outfitPanel.drawBackground(shapeRenderer);
+            batch.begin();
+            outfitPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
         // Tutorial overlay + target ring — drawn after every other panel but
         // BEFORE the offline popup (unlike those panels, deliberately not
         // "on top of everything": if a fresh install also has a stale
@@ -695,7 +709,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (resourceTimer >= RESOURCE_INTERVAL) {
             resourceTimer -= RESOURCE_INTERVAL;
             ResourceManager rm = eventManager.getResourceManager();
-            rm.updateResources(eventManager.getPrestigeManager().getResourceGenMultiplier());
+            rm.updateResources(eventManager.getPrestigeManager().getResourceGenMultiplier()
+                * eventManager.getOutfitManager().getResourceGenMultiplier());
             eventManager.healWoundedUnits();
         }
         saveDirty = true;
@@ -1966,6 +1981,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             jsonManager.saveArray("prestige_currency", pm.getSaveState());
             jsonManager.saveRuneCrafted("prestige_upgrades", pm.getUpgradeTiers());
             jsonManager.saveStringSet("prestige_protected_items", pm.getProtectedItemIds());
+
+            // Prince Outfits — see OutfitManager's persistence section.
+            OutfitManager om = eventManager.getOutfitManager();
+            jsonManager.saveStringSet("owned_outfits", om.getOwnedOutfitIds());
+            jsonManager.saveStringSet("equipped_outfit", om.getEquippedOutfitIdAsSet());
 
             Gdx.app.log(TAG, "Game saved successfully");
         } catch (Exception e) {

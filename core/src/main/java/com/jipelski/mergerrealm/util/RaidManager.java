@@ -375,6 +375,22 @@ public class RaidManager {
             }
         }
 
+        // Prince Outfit HP bonus — same "locked in at formation" pattern as
+        // the Dragonscale bonus above (there's no live per-tick max-HP
+        // recompute anywhere in raid combat; the whole party's loadout
+        // commits the moment the raid starts).
+        float outfitHpMultiplier = eventManager.getOutfitManager().getRaidHpMultiplier();
+        if (outfitHpMultiplier != 1f) {
+            for (int i = 0; i < 4; i++) {
+                if (activeRaid.isSlotOccupied(i)) {
+                    int boosted = Math.round(activeRaid.getPartyMaxHp()[i] * outfitHpMultiplier);
+                    activeRaid.getPartyMaxHp()[i] = boosted;
+                    activeRaid.getPartyCurrentHp()[i] = Math.min(
+                        activeRaid.getPartyCurrentHp()[i], boosted);
+                }
+            }
+        }
+
         // Load first room enemies
         loadRoom(0);
 
@@ -520,6 +536,12 @@ public class RaidManager {
             if (setBonuses.holderDamageBonus[slot] > 0)
                 dmg = Math.round(dmg * (1f + setBonuses.holderDamageBonus[slot]));
         }
+
+        // Prince Outfit damage bonus — live, read fresh every attack (unlike
+        // the HP bonus above, this joins the existing chain of per-attack
+        // multipliers instead of being locked in at formation), so an
+        // outfit swap mid-raid takes effect on the very next hit.
+        dmg = Math.round(dmg * eventManager.getOutfitManager().getRaidDamageMultiplier());
 
         // ── Fury crit window ──
         boolean crit = false;

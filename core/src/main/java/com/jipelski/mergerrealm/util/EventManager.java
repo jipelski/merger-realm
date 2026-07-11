@@ -96,6 +96,9 @@ public class EventManager {
     private PrestigeManager prestigeManager;
     public PrestigeManager getPrestigeManager() { return prestigeManager; }
 
+    private OutfitManager outfitManager;
+    public OutfitManager getOutfitManager() { return outfitManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
@@ -246,6 +249,15 @@ public class EventManager {
         prestigeManager.setProtectedItemIds(savedProtectedItems);
 
         Gdx.app.log(TAG, "PrestigeManager loaded — Crowns: " + prestigeManager.getCrowns());
+
+        this.outfitManager = new OutfitManager(this, jsonManager);
+        java.util.Set<String> savedOwnedOutfits = jsonManager.loadStringSet("owned_outfits");
+        outfitManager.setOwnedOutfitIds(savedOwnedOutfits);
+
+        java.util.Set<String> savedEquippedOutfit = jsonManager.loadStringSet("equipped_outfit");
+        outfitManager.setEquippedOutfitIdFromSet(savedEquippedOutfit);
+
+        Gdx.app.log(TAG, "OutfitManager loaded — equipped: " + outfitManager.getEquippedOutfitId());
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.

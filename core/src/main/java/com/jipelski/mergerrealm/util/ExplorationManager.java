@@ -403,9 +403,14 @@ public class ExplorationManager {
             int eventInterval = getZoneEventInterval(slot.getZone());
             if (eventInterval <= 0) continue;
 
-            // Swiftness runes shorten the event interval (faster exploration cadence)
+            // Swiftness runes (per-unit) and a Prince Outfit (player-global)
+            // both shorten the event interval (faster exploration cadence).
+            // Read fresh every tick, never snapshotted — a mid-trip outfit
+            // swap affects the in-progress trip's remaining cadence, same as
+            // a Swiftness rune change would.
             float speedMultiplier = eventManager.getRuneSystem()
-                .getExplorationSpeedMultiplier(slot.getUnitId());
+                .getExplorationSpeedMultiplier(slot.getUnitId())
+                * eventManager.getOutfitManager().getExplorationSpeedMultiplier();
             long eventIntervalMs = (long) (eventInterval * 1000L / speedMultiplier);
             long elapsed = now - slot.getStartTimeMs();
             long nextEventAt = slot.getLastEventTimeMs() + eventIntervalMs;
@@ -635,9 +640,14 @@ public class ExplorationManager {
         if (zoneIndex < 0) return;
 
         double[] rates = RARE_DROP_RATES[zoneIndex];
+        // Prince Outfit find-odds bonus — each rate is an independent
+        // Math.random() < rate check (not a weighted pick), so the
+        // multiplier applies per-rate and must be clamped individually to
+        // avoid ever exceeding a guaranteed 100% chance.
+        double findMultiplier = eventManager.getOutfitManager().getExplorationFindMultiplier();
 
         // ── Phoenix Feather ──
-        if (rates[0] > 0 && Math.random() < rates[0]) {
+        if (rates[0] > 0 && Math.random() < Math.min(1.0, rates[0] * findMultiplier)) {
             String id = "phoenix_feather_" + System.currentTimeMillis()
                 + "_" + (int)(Math.random() * 10000);
             slot.addLoot(ExplorationLoot.item("phoenix_feather", 1, id));
@@ -645,7 +655,7 @@ public class ExplorationManager {
         }
 
         // ── Amulet of Ascension ──
-        if (rates[1] > 0 && Math.random() < rates[1]) {
+        if (rates[1] > 0 && Math.random() < Math.min(1.0, rates[1] * findMultiplier)) {
             String id = "amulet_of_ascension_" + System.currentTimeMillis()
                 + "_" + (int)(Math.random() * 10000);
             slot.addLoot(ExplorationLoot.item("amulet_of_ascension", 1, id));
@@ -653,7 +663,7 @@ public class ExplorationManager {
         }
 
         // ── Rune Fragment (random type) ──
-        if (rates[2] > 0 && Math.random() < rates[2]) {
+        if (rates[2] > 0 && Math.random() < Math.min(1.0, rates[2] * findMultiplier)) {
             String fragmentType = RUNE_FRAGMENT_TYPES[
                 (int)(Math.random() * RUNE_FRAGMENT_TYPES.length)];
             String id = fragmentType + "_" + System.currentTimeMillis()
@@ -667,7 +677,7 @@ public class ExplorationManager {
         }
 
         // ── Ancient Map ──
-        if (rates[3] > 0 && Math.random() < rates[3]) {
+        if (rates[3] > 0 && Math.random() < Math.min(1.0, rates[3] * findMultiplier)) {
             String id = "ancient_map_" + System.currentTimeMillis()
                 + "_" + (int)(Math.random() * 10000);
             slot.addLoot(ExplorationLoot.item("ancient_map", 1, id));
@@ -680,7 +690,7 @@ public class ExplorationManager {
         if ("ruins".equals(zone)) goldDropRate = 0.01;
         else if ("wastes".equals(zone)) goldDropRate = 0.02;
 
-        if (goldDropRate > 0 && Math.random() < goldDropRate) {
+        if (goldDropRate > 0 && Math.random() < Math.min(1.0, goldDropRate * findMultiplier)) {
             eventManager.getGoldManager().onExplorationGoldFind();
             slot.addEvent(eventTimeMs, "A gold nugget glints in the rubble!", "loot");
         }
