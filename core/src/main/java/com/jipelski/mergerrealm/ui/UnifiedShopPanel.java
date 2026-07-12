@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
+import com.jipelski.mergerrealm.util.DailyLoginManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.RaidManager;
@@ -33,6 +34,10 @@ import java.util.List;
  *     three actionable buy rows (fill resources, revive party, extra
  *     explore slot) plus two informational rows (instant spawn, speed
  *     exploration) that point to their in-context on-grid buttons.
+ *   Daily — the 7-day login streak calendar. Delegates its drawing/hit-test
+ *     to a DailyLoginPopup reference (set via setDailyLoginPopup) so the
+ *     calendar strip and its claim state are a single source of truth
+ *     shared with the auto-opens-on-launch popup, not a second copy.
  *
  * Opened either on the Gold tab (top-bar gold chip) or the Equipment tab
  * (RaidPanel's [Shop] button) via open(int tab).
@@ -48,8 +53,9 @@ public class UnifiedShopPanel {
     public static final int TAB_CONSUMABLES = 1;
     public static final int TAB_RARE = 2;
     public static final int TAB_GOLD = 3;
-    private static final int NUM_TABS = 4;
-    private static final String[] TAB_LABELS = {"Equipment", "Consume", "Rare", "Gold"};
+    public static final int TAB_DAILY = 4;
+    private static final int NUM_TABS = 5;
+    private static final String[] TAB_LABELS = {"Equipment", "Consume", "Rare", "Gold", "Daily"};
     // Indexed by tab for tabs 0-2 — maps a trophy tab to its ShopEntry.category.
     private static final String[] TAB_CATEGORY = {"equipment", "consumable", "rare"};
     private int activeTab = TAB_EQUIPMENT;
@@ -103,12 +109,18 @@ public class UnifiedShopPanel {
             "Use from an active exploration", false),
     };
 
+    // Daily tab's calendar strip is drawn/hit-tested by this shared reference
+    // — see the class javadoc.
+    private DailyLoginPopup dailyLoginPopup;
+
     public UnifiedShopPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
         this.eventManager = eventManager;
         this.viewport = viewport;
         this.uiTex = uiTex;
         this.glyphLayout = new GlyphLayout();
     }
+
+    public void setDailyLoginPopup(DailyLoginPopup popup) { this.dailyLoginPopup = popup; }
 
     // ══════════════════════════════════════════════════════════════
     // STATE
@@ -144,7 +156,7 @@ public class UnifiedShopPanel {
     }
 
     private void recalculateScroll() {
-        if (activeTab == TAB_GOLD) {
+        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY) {
             maxScrollY = 0f;
             scrollY = 0f;
             return;
@@ -167,6 +179,14 @@ public class UnifiedShopPanel {
     private float getTabY() { return getMenuTop() - HEADER_HEIGHT - TAB_HEIGHT; }
     private float getContentTop() { return getTabY(); }
     private float getContentHeight() { return getContentTop() - getMenuBottom(); }
+
+    // Daily tab's content rect, passed to DailyLoginPopup's shared calendar
+    // renderer — same "8px inset" convention DailyLoginPopup uses for its
+    // own standalone content area.
+    private float getDailyX() { return getMenuX() + 8f; }
+    private float getDailyY() { return getMenuBottom() + 8f; }
+    private float getDailyWidth() { return getMenuWidth() - 16f; }
+    private float getDailyHeight() { return getContentHeight() - 16f; }
 
     // ══════════════════════════════════════════════════════════════
     // DRAWING
@@ -216,6 +236,11 @@ public class UnifiedShopPanel {
             }
         }
 
+        // ── Daily tab calendar strip — delegated to the shared renderer ──
+        if (activeTab == TAB_DAILY && dailyLoginPopup != null) {
+            dailyLoginPopup.drawCalendarBg(sr, getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
+        }
+
         sr.end();
         Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
     }
@@ -232,6 +257,11 @@ public class UnifiedShopPanel {
             GoldManager gm = eventManager.getGoldManager();
             fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
             fontSmall.draw(batch, "Gold: " + gm.getGold(), getMenuX() + 12f, getMenuTop() - 32f);
+        } else if (activeTab == TAB_DAILY) {
+            DailyLoginManager dlm = eventManager.getDailyLoginManager();
+            fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            fontSmall.draw(batch, "Streak: Day " + dlm.getDayToClaim() + "/" + DailyLoginManager.STREAK_LENGTH,
+                getMenuX() + 12f, getMenuTop() - 32f);
         } else {
             TrophyShop shop = eventManager.getTrophyShop();
             RaidManager rm = eventManager.getRaidManager();
@@ -261,6 +291,11 @@ public class UnifiedShopPanel {
         // ── Body ──
         if (activeTab == TAB_GOLD) {
             drawGoldRows(batch, fontSmall);
+        } else if (activeTab == TAB_DAILY) {
+            if (dailyLoginPopup != null) {
+                dailyLoginPopup.drawCalendarContent(batch, font, fontSmall,
+                    getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
+            }
         } else {
             drawTrophyRows(batch, fontSmall);
         }
@@ -364,10 +399,10 @@ public class UnifiedShopPanel {
     public boolean handleTouchDragged(int screenX, int screenY) {
         if (!visible || !touchDown) return false;
 
-        // The Gold tab's 5 rows always fit — nothing to scroll — but the
-        // drag must still be swallowed so it doesn't fall through to the
-        // grid underneath.
-        if (activeTab == TAB_GOLD) return true;
+        // The Gold tab's 5 rows and the Daily tab's calendar strip always
+        // fit — nothing to scroll — but the drag must still be swallowed so
+        // it doesn't fall through to the grid underneath.
+        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY) return true;
 
         touchPos.set(screenX, screenY);
         viewport.unproject(touchPos);
@@ -432,6 +467,11 @@ public class UnifiedShopPanel {
                     }
                     y -= (ROW_HEIGHT_GOLD + ROW_GAP_GOLD);
                 }
+            }
+        } else if (activeTab == TAB_DAILY) {
+            if (dailyLoginPopup != null) {
+                dailyLoginPopup.handleCalendarTap(touchPos.x, touchPos.y,
+                    getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
             }
         } else {
             float buyX = getMenuX() + getMenuWidth() - 58f;

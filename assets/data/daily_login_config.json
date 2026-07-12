@@ -1,0 +1,15 @@
+{
+  "daily_common": [
+    {"unitType":"food_pouch","level":1,"spawnProbability":0.24},
+    {"unitType":"wood_pouch","level":1,"spawnProbability":0.23},
+    {"unitType":"iron_pouch","level":1,"spawnProbability":0.23},
+    {"unitType":"nail_chest","level":1,"spawnProbability":0.22},
+    {"unitType":"knight","level":1,"spawnProbability":0.05},
+    {"unitType":"homestead","level":1,"spawnProbability":0.03}
+  ],
+  "daily_day7": [
+    {"unitType":"villager","level":1,"spawnProbability":0.34},
+    {"unitType":"woodsman","level":1,"spawnProbability":0.33},
+    {"unitType":"knight","level":1,"spawnProbability":0.33}
+  ]
+}

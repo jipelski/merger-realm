@@ -52,6 +52,7 @@ public class GameDataLoader {
         loadPrince("prince");
         loadSpawnConfiguration("facility_config");
         loadSpawnConfiguration("chest_config");
+        loadSpawnConfiguration("daily_login_config");
         logLoadedData();
         loadItemDefinitions("items");
     }

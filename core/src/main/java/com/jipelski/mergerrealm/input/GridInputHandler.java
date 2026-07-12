@@ -18,6 +18,7 @@ import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
+import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
@@ -76,6 +77,7 @@ public class GridInputHandler extends InputAdapter {
     private float lockBtnX, lockBtnY, lockBtnW, lockBtnH;
 
     private OfflinePopup offlinePopup;
+    private DailyLoginPopup dailyLoginPopup;
 
     private InventoryMenu inventoryMenu;
     private float invBtnX, invBtnY, invBtnW, invBtnH;
@@ -107,6 +109,10 @@ public class GridInputHandler extends InputAdapter {
 
     public void setBuildMenu(BuildMenu buildMenu) {
         this.buildMenu = buildMenu;
+    }
+
+    public void setDailyLoginPopup(DailyLoginPopup popup) {
+        this.dailyLoginPopup = popup;
     }
 
     public void setOfflinePopup(OfflinePopup popup) {
@@ -316,6 +322,15 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        // Checked AFTER offlinePopup (not alongside the unifiedShopPanel/
+        // prestigePanel/outfitPanel tier above) — this is the one panel that
+        // can genuinely be visible at the same time as the offline popup
+        // (both may auto-open back-to-back on launch/resume), and the
+        // offline popup must win the tap when that happens.
+        if (dailyLoginPopup != null && dailyLoginPopup.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
         // Build menu intercepts touches in its area
         if (buildMenu != null && buildMenu.isVisible()) {
             if (buildMenu.touchDown(worldPos.x, worldPos.y)) {
@@ -420,6 +435,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (dailyLoginPopup != null && dailyLoginPopup.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (raidPanel != null && raidPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -477,6 +496,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (dailyLoginPopup != null && dailyLoginPopup.handleTouchUp(screenX, screenY)) {
             return true;
         }
 

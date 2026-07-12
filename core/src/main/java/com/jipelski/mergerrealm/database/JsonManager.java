@@ -394,7 +394,8 @@ public class JsonManager {
     }
 
     // Reuses existing methods:
-    //   saveArray("gold_state", ...) for balance + extra slots + login timestamp
+    //   saveArray("gold_state", ...) for balance + extra slots
+    //   saveArray("daily_login_state", ...) for the login-streak timestamp + day
     //   saveLockedObjects("gold_claimed", ...) for claimed reward keys (Set<String>)
 
     // If saveLockedObjects/loadLockedObjects already save/load Set<String>,

@@ -38,6 +38,7 @@ import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
 import com.jipelski.mergerrealm.ui.RaidPanel;
 import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
+import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -45,6 +46,7 @@ import com.jipelski.mergerrealm.util.GameDataLoader;
 import com.jipelski.mergerrealm.util.GameEventListener;
 import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GoldManager;
+import com.jipelski.mergerrealm.util.DailyLoginManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.PrestigeManager;
 import com.jipelski.mergerrealm.util.OutfitManager;
@@ -135,6 +137,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private float goldChipX, goldChipY, goldChipW, goldChipH;
     private UnifiedShopPanel unifiedShopPanel;
+    private DailyLoginPopup dailyLoginPopup;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
     private RaidPanel raidPanel;
@@ -271,6 +274,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setUnifiedShopPanel(unifiedShopPanel);
         raidPanel.setUnifiedShopPanel(unifiedShopPanel);
 
+        dailyLoginPopup = new DailyLoginPopup(eventManager, viewport, uiTex);
+        unifiedShopPanel.setDailyLoginPopup(dailyLoginPopup);
+        inputHandler.setDailyLoginPopup(dailyLoginPopup);
+
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
 
@@ -318,8 +325,22 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setTutorialOverlay(tutorialOverlay);
 
         processOfflineProgress();
+        checkDailyLoginPopup();
 
         Gdx.app.log(TAG, "=== Init complete ===");
+    }
+
+    /**
+     * Auto-opens the Daily Login popup whenever a streak reward is
+     * claimable. Called alongside processOfflineProgress() in both create()
+     * and resume() (same "check on cold launch AND foreground resume"
+     * convention offline progress already uses) so a player who backgrounds
+     * the app past the 24h window is reminded as soon as they return.
+     */
+    private void checkDailyLoginPopup() {
+        if (eventManager.getDailyLoginManager().isClaimAvailable()) {
+            dailyLoginPopup.open();
+        }
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -464,7 +485,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
             && !raidPanel.isVisible() && !unifiedShopPanel.isVisible()
-            && !prestigePanel.isVisible() && !outfitPanel.isVisible()) {
+            && !prestigePanel.isVisible() && !outfitPanel.isVisible()
+            && !dailyLoginPopup.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -646,6 +668,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             outfitPanel.drawBackground(shapeRenderer);
             batch.begin();
             outfitPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (dailyLoginPopup.isVisible()) {
+            dailyLoginPopup.drawBackground(shapeRenderer);
+            batch.begin();
+            dailyLoginPopup.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
@@ -1856,6 +1885,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     public void resume() {
         Gdx.app.log(TAG, "Resumed — checking offline progress...");
         processOfflineProgress();
+        checkDailyLoginPopup();
     }
 
     @Override
@@ -1940,12 +1970,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
             // Gold
             GoldManager gm = eventManager.getGoldManager();
-            long loginMs2 = gm.getLastDailyLoginMs();
             jsonManager.saveArray("gold_state", new int[]{
-                gm.getGold(), gm.getExtraExploreSlots(),
-                (int)(loginMs2 >>> 32), (int)(loginMs2)
+                gm.getGold(), gm.getExtraExploreSlots()
             });
             jsonManager.saveStringSet("gold_claimed", gm.getClaimedRewards());
+
+            // Daily Login streak — see DailyLoginManager's persistence section.
+            DailyLoginManager dlm = eventManager.getDailyLoginManager();
+            long dailyClaimMs2 = dlm.getLastClaimMs();
+            jsonManager.saveArray("daily_login_state", new int[]{
+                (int)(dailyClaimMs2 >>> 32), (int)(dailyClaimMs2),
+                dlm.getSavedLastClaimDay()
+            });
 
             // Tutorial progress — see TutorialManager's persistence javadoc.
             jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());

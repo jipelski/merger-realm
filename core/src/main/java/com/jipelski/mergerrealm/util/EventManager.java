@@ -93,6 +93,9 @@ public class EventManager {
     private GoldManager goldManager;
     public GoldManager getGoldManager() { return goldManager; }
 
+    private DailyLoginManager dailyLoginManager;
+    public DailyLoginManager getDailyLoginManager() { return dailyLoginManager; }
+
     private PrestigeManager prestigeManager;
     public PrestigeManager getPrestigeManager() { return prestigeManager; }
 
@@ -200,11 +203,9 @@ public class EventManager {
 
         // Load gold saved state
         int[] goldState = jsonManager.loadArray("gold_state");
-        if (goldState != null && goldState.length >= 3) {
+        if (goldState != null && goldState.length >= 2) {
             goldManager.setGold(goldState[0]);
             goldManager.setExtraExploreSlots(goldState[1]);
-            goldManager.setLastDailyLoginMs(
-                ((long) goldState[2] << 32) | (goldState.length > 3 ? goldState[3] & 0xFFFFFFFFL : 0));
         }
 
         java.util.Set<String> claimedRewards = jsonManager.loadStringSet("gold_claimed");
@@ -212,13 +213,16 @@ public class EventManager {
             goldManager.setClaimedRewards(claimedRewards);
         }
 
-        // Award daily login Gold
-        int dailyGold = goldManager.onDailyLogin();
-        if (dailyGold > 0) {
-            Gdx.app.log(TAG, "Daily login bonus: +" + dailyGold + " Gold");
-        }
-
         Gdx.app.log(TAG, "GoldManager loaded — balance: " + goldManager.getGold());
+
+        this.dailyLoginManager = new DailyLoginManager(this);
+        int[] savedDailyLogin = jsonManager.loadArray("daily_login_state");
+        if (savedDailyLogin != null && savedDailyLogin.length >= 3) {
+            long lastClaimMs = ((long) savedDailyLogin[0] << 32) | (savedDailyLogin[1] & 0xFFFFFFFFL);
+            dailyLoginManager.setLastClaimMs(lastClaimMs);
+            dailyLoginManager.setLastClaimDay(savedDailyLogin[2]);
+        }
+        Gdx.app.log(TAG, "DailyLoginManager loaded — last claim day: " + dailyLoginManager.getSavedLastClaimDay());
 
         this.enchantedSetManager = new EnchantedSetManager(this);
         String enchantedJson = jsonManager.readRawJson("enchanted_sets");
@@ -666,14 +670,18 @@ public class EventManager {
         shopState.put("lastWeeklyRefresh", trophyShop.getLastWeeklyRefresh());
         jsonInstance.saveShopState("trophy_shop", shopState);
 
-        long loginMs = goldManager.getLastDailyLoginMs();
         jsonInstance.saveArray("gold_state", new int[]{
             goldManager.getGold(),
-            goldManager.getExtraExploreSlots(),
-            (int)(loginMs >>> 32),
-            (int)(loginMs)
+            goldManager.getExtraExploreSlots()
         });
         jsonInstance.saveStringSet("gold_claimed", goldManager.getClaimedRewards());
+
+        long dailyClaimMs = dailyLoginManager.getLastClaimMs();
+        jsonInstance.saveArray("daily_login_state", new int[]{
+            (int)(dailyClaimMs >>> 32),
+            (int)(dailyClaimMs),
+            dailyLoginManager.getSavedLastClaimDay()
+        });
     }
 
     public void removeObject(String id) {

@@ -15,7 +15,7 @@ import java.util.Set;
  *   - First-clear raid nodes: 5-15 Gold
  *   - First 3-star raid clears: 10 Gold
  *   - Prince level milestones (every 5 levels): 20 Gold
- *   - Daily login bonus: 2-5 Gold
+ *   - Daily login streak (DailyLoginManager): 2-15 Gold, escalating over 7 days
  *   - Exploration rare find (~1% in Ruins/Wastes): 1-3 Gold
  *   - Dismiss max-level legendary unit: 10 Gold
  *
@@ -45,8 +45,6 @@ public class GoldManager {
     public static final int COST_EXTRA_EXPLORE_SLOT = 40;
 
     // ── Earning amounts ──
-    public static final int EARN_DAILY_LOGIN_MIN = 2;
-    public static final int EARN_DAILY_LOGIN_MAX = 5;
     public static final int EARN_PRINCE_MILESTONE = 20;
     public static final int EARN_FIRST_3STAR = 10;
     public static final int EARN_DISMISS_LEGENDARY = 10;
@@ -64,10 +62,6 @@ public class GoldManager {
 
     // ── Extra exploration slots purchased ──
     private int extraExploreSlots = 0;
-
-    // ── Daily login tracking ──
-    private long lastDailyLoginMs = 0;
-    private static final long DAILY_MS = 24L * 60 * 60 * 1000;
 
     // ── Reference ──
     private final EventManager eventManager;
@@ -162,23 +156,6 @@ public class GoldManager {
 
         claimedRewards.add(key);
         addGold(EARN_PRINCE_MILESTONE, "prince_milestone_" + newLevel);
-    }
-
-    /**
-     * Awards daily login Gold. Call once when the game opens.
-     * Returns the amount awarded, or 0 if already claimed today.
-     */
-    public int onDailyLogin() {
-        long now = System.currentTimeMillis();
-        if (lastDailyLoginMs > 0 && now - lastDailyLoginMs < DAILY_MS) {
-            return 0; // already claimed today
-        }
-
-        lastDailyLoginMs = now;
-        int amount = EARN_DAILY_LOGIN_MIN
-            + (int)(Math.random() * (EARN_DAILY_LOGIN_MAX - EARN_DAILY_LOGIN_MIN + 1));
-        addGold(amount, "daily_login");
-        return amount;
     }
 
     /**
@@ -344,7 +321,4 @@ public class GoldManager {
 
     public Set<String> getClaimedRewards() { return claimedRewards; }
     public void setClaimedRewards(Set<String> rewards) { this.claimedRewards = rewards; }
-
-    public long getLastDailyLoginMs() { return lastDailyLoginMs; }
-    public void setLastDailyLoginMs(long ms) { this.lastDailyLoginMs = ms; }
 }
