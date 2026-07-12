@@ -334,6 +334,7 @@ public class RaidPanel {
                 String label = name;
                 if ("boss".equals(type)) label = "★ " + name + " ★";
                 else if ("side".equals(type)) label = "⊕ " + name;
+                else if ("challenge".equals(type)) label = "⚔ " + name;
                 font.draw(batch, label, getMenuX() + 16f, y);
 
                 // Star rating
@@ -343,11 +344,20 @@ public class RaidPanel {
                 fontSmall.draw(batch, starStr.toString(),
                     getMenuX() + getMenuWidth() - 50f, y);
 
-                // Rooms count
-                List<Map<String, Object>> rooms = (List<Map<String, Object>>) node.get("rooms");
+                // Rooms count, or Boss Token entry cost for challenge nodes
+                // (shown instead so a tap on Start doesn't silently fail
+                // from RaidManager.startRaid's token guard with no warning).
+                Object tokenCostObj = node.get("tokenCost");
+                int tokenCost = tokenCostObj instanceof Number ? ((Number) tokenCostObj).intValue() : 0;
                 fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-                fontSmall.draw(batch, (rooms != null ? rooms.size() : 0) + " rooms",
-                    getMenuX() + 16f, y - 20f);
+                if (tokenCost > 0) {
+                    fontSmall.draw(batch, "Cost: " + tokenCost + " Boss Tokens",
+                        getMenuX() + 16f, y - 20f);
+                } else {
+                    List<Map<String, Object>> rooms = (List<Map<String, Object>>) node.get("rooms");
+                    fontSmall.draw(batch, (rooms != null ? rooms.size() : 0) + " rooms",
+                        getMenuX() + 16f, y - 20f);
+                }
             } else {
                 font.setColor(0.4f, 0.4f, 0.5f, 1f);
                 font.draw(batch, name + " — LOCKED", getMenuX() + 16f, y);

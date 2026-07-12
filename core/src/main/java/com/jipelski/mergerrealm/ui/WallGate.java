@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
+import com.jipelski.mergerrealm.util.SoundManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 
 import java.util.LinkedList;
@@ -65,6 +66,9 @@ public class WallGate {
 
     private RaidPanel raidPanel;
     public void setRaidPanel(RaidPanel panel) { this.raidPanel = panel; }
+
+    private SoundManager soundManager;
+    public void setSoundManager(SoundManager soundManager) { this.soundManager = soundManager; }
 
     // Exposed so the tutorial overlay can draw a highlight ring around the
     // gate without duplicating updateLayout()'s centering math.
@@ -125,6 +129,7 @@ public class WallGate {
             if (explorePanel != null) {
                 explorePanel.open();
                 Gdx.app.log(TAG, "Explore panel opened");
+                if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             }
             return true;
         }
@@ -136,6 +141,7 @@ public class WallGate {
             if (raidPanel != null) {
                 raidPanel.open();
                 Gdx.app.log(TAG, "Raid panel opened");
+                if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             }
             return true;
         }
@@ -175,6 +181,7 @@ public class WallGate {
             queue.removeFirst(); // only remove after successful spawn
             Gdx.app.log(TAG, "Claimed reward: " + type + " lvl " + level
                 + " (" + queue.size() + " remaining)");
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.REWARD);
         }
 
         return true;

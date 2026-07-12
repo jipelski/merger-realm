@@ -1,0 +1,10 @@
+{
+  "hidden_temple": [
+    {"unitType":"food_pouch","level":3,"spawnProbability":0.18},
+    {"unitType":"wood_pouch","level":3,"spawnProbability":0.18},
+    {"unitType":"iron_pouch","level":3,"spawnProbability":0.18},
+    {"unitType":"relic_chest","level":1,"spawnProbability":0.20},
+    {"unitType":"knight","level":4,"spawnProbability":0.16},
+    {"unitType":"elder_villager","level":1,"spawnProbability":0.10}
+  ]
+}

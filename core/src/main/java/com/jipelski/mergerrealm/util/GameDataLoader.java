@@ -53,6 +53,7 @@ public class GameDataLoader {
         loadSpawnConfiguration("facility_config");
         loadSpawnConfiguration("chest_config");
         loadSpawnConfiguration("daily_login_config");
+        loadSpawnConfiguration("hidden_temple_config");
         logLoadedData();
         loadItemDefinitions("items");
     }

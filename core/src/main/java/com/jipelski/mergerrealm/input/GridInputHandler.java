@@ -16,9 +16,11 @@ import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameTypes;
 import com.jipelski.mergerrealm.util.GridObjectManager;
+import com.jipelski.mergerrealm.util.SoundManager;
 
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
+import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
@@ -78,6 +80,7 @@ public class GridInputHandler extends InputAdapter {
 
     private OfflinePopup offlinePopup;
     private DailyLoginPopup dailyLoginPopup;
+    private HiddenTemplePopup hiddenTemplePopup;
 
     private InventoryMenu inventoryMenu;
     private float invBtnX, invBtnY, invBtnW, invBtnH;
@@ -90,6 +93,9 @@ public class GridInputHandler extends InputAdapter {
 
     private UnifiedShopPanel unifiedShopPanel;
     private float goldChipX, goldChipY, goldChipW, goldChipH;
+
+    private SoundManager soundManager;
+    public void setSoundManager(SoundManager soundManager) { this.soundManager = soundManager; }
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
         this.eventManager = eventManager;
@@ -113,6 +119,10 @@ public class GridInputHandler extends InputAdapter {
 
     public void setDailyLoginPopup(DailyLoginPopup popup) {
         this.dailyLoginPopup = popup;
+    }
+
+    public void setHiddenTemplePopup(HiddenTemplePopup popup) {
+        this.hiddenTemplePopup = popup;
     }
 
     public void setOfflinePopup(OfflinePopup popup) {
@@ -273,6 +283,14 @@ public class GridInputHandler extends InputAdapter {
             return true; // consume all touches during unit selection
         }
 
+        // Checked ahead of inventoryMenu below so the popup wins the touch
+        // while the menu stays open (browsing) underneath it — same tier as
+        // the other panel-openers above (unifiedShop/prestige/outfit/raid/
+        // explore), all of which also precede the inventory check.
+        if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
         // ── Inventory menu touches (browsing mode) ──
         if (inventoryMenu != null && inventoryMenu.handleTouchDown(screenX, screenY)) {
             return true;
@@ -290,6 +308,7 @@ public class GridInputHandler extends InputAdapter {
             && worldPos.x >= invBtnX && worldPos.x <= invBtnX + invBtnW
             && worldPos.y >= invBtnY && worldPos.y <= invBtnY + invBtnH) {
             inventoryMenu.toggle();
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             return true;
         }
 
@@ -345,6 +364,7 @@ public class GridInputHandler extends InputAdapter {
         if (buildMenu != null && !buildMenu.isVisible() && isBuildButtonTap(worldPos.x, worldPos.y)) {
             buildMenu.toggle();
             clearSelection();
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             return true;
         }
 
@@ -447,6 +467,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (inventoryMenu != null && inventoryMenu.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -510,6 +534,9 @@ public class GridInputHandler extends InputAdapter {
         if (explorePanel != null && explorePanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
+        if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
         if (inventoryMenu != null && inventoryMenu.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -546,6 +573,7 @@ public class GridInputHandler extends InputAdapter {
             && isGoldChipTap(worldPos.x, worldPos.y)) {
             unifiedShopPanel.open(UnifiedShopPanel.TAB_GOLD);
             clearSelection();
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             return true;
         }
 
@@ -558,6 +586,7 @@ public class GridInputHandler extends InputAdapter {
             && isPrestigeBoxTap(worldPos.x, worldPos.y)) {
             prestigePanel.open();
             clearSelection();
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             return true;
         }
 

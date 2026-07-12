@@ -254,6 +254,16 @@ public class RaidManager {
                 String mainKey = findMainNodeAtOrder(chapterId, order);
                 return mainKey != null && completionMap.containsKey(chapterId + ":" + mainKey);
             }
+            if ("challenge".equals(type)) {
+                // Challenge nodes (e.g. Boss Rush) have no main/side order
+                // prerequisite — chapter-level unlock (Prince level) already
+                // gates reachability via isChapterUnlocked, checked
+                // separately by the caller. Without this branch a challenge
+                // node falls into the main-node fallthrough below and is
+                // permanently locked (order 1 looks for a main node at
+                // order 0, which never exists).
+                return true;
+            }
             // Main nodes at order N require main at order N-1 cleared
             String prevMain = findMainNodeAtOrder(chapterId, order - 1);
             return prevMain != null && completionMap.containsKey(chapterId + ":" + prevMain);
@@ -318,6 +328,22 @@ public class RaidManager {
         if (currentRooms == null || currentRooms.isEmpty()) {
             Gdx.app.log(TAG, "Node has no rooms");
             return false;
+        }
+
+        // Challenge nodes (e.g. Boss Rush) charge Boss Tokens on entry —
+        // toInt defaults to 0 for every existing node, so this is a no-op
+        // for the normal story chapters. Deduct immediately on a successful
+        // start so an aborted/failed attempt still costs the entry fee,
+        // same as how a raid can't be un-started once units are removed
+        // from the grid below.
+        int tokenCost = toInt(node, "tokenCost");
+        if (tokenCost > 0 && bossTokens < tokenCost) {
+            Gdx.app.log(TAG, "startRaid: insufficient Boss Tokens ("
+                + bossTokens + "/" + tokenCost + ")");
+            return false;
+        }
+        if (tokenCost > 0) {
+            bossTokens -= tokenCost;
         }
 
         // Create raid state

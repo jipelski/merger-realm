@@ -505,9 +505,12 @@ public class ExplorationManager {
         }
 
         String enemyName = (String) enemy.get("name");
-        int enemyDamage = ((Number) enemy.get("damage")).intValue();
-        int enemyHp = ((Number) enemy.get("hp")).intValue();
-        int enemyXp = ((Number) enemy.get("xp")).intValue();
+        // A malformed enemy entry degrades to a non-event (0 HP → trivially
+        // "defeated", 0 damage taken, 0 XP) rather than crashing — see
+        // toInt's javadoc for why 0 is the safe default here specifically.
+        int enemyDamage = toInt(enemy, "damage", 0);
+        int enemyHp = toInt(enemy, "hp", 0);
+        int enemyXp = toInt(enemy, "xp", 0);
 
         @SuppressWarnings("unchecked")
         List<String> texts = (List<String>) enemy.get("texts");
@@ -742,7 +745,12 @@ public class ExplorationManager {
     @SuppressWarnings("unchecked")
     private int getZoneEventInterval(String zone) {
         Map<String, Object> z = (Map<String, Object>) zoneData.get(zone);
-        return z != null ? ((Number) z.get("eventInterval")).intValue() : 90;
+        // toInt handles both "zone not found" (z null) and "key missing
+        // within a found zone" with the one default — the old
+        // `z != null ? cast : 90` ternary only covered the former, so a
+        // zone missing just this key would NPE on the cast before the
+        // fallback could apply.
+        return toInt(z, "eventInterval", 90);
     }
 
     @SuppressWarnings("unchecked")
@@ -754,28 +762,27 @@ public class ExplorationManager {
     @SuppressWarnings("unchecked")
     private int getZoneItemTier(String zone) {
         Map<String, Object> z = (Map<String, Object>) zoneData.get(zone);
-        return z != null ? ((Number) z.get("itemTier")).intValue() : 1;
+        // Same unreachable-fallback bug as getZoneEventInterval above,
+        // fixed the same way.
+        return toInt(z, "itemTier", 1);
     }
 
     @SuppressWarnings("unchecked")
     private int getZoneHealPercent(String zone) {
         Map<String, Object> z = (Map<String, Object>) zoneData.get(zone);
-        return z != null && z.containsKey("healPercent")
-            ? ((Number) z.get("healPercent")).intValue() : 0;
+        return toInt(z, "healPercent", 0);
     }
 
     @SuppressWarnings("unchecked")
     private int getZoneTrapDamage(String zone) {
         Map<String, Object> z = (Map<String, Object>) zoneData.get(zone);
-        return z != null && z.containsKey("trapDamage")
-            ? ((Number) z.get("trapDamage")).intValue() : 0;
+        return toInt(z, "trapDamage", 0);
     }
 
     @SuppressWarnings("unchecked")
     private int getZoneCurseDuration(String zone) {
         Map<String, Object> z = (Map<String, Object>) zoneData.get(zone);
-        return z != null && z.containsKey("curseDuration")
-            ? ((Number) z.get("curseDuration")).intValue() : 3;
+        return toInt(z, "curseDuration", 3);
     }
 
     /**
@@ -787,8 +794,10 @@ public class ExplorationManager {
         if (z == null) return "nothing";
 
         List<Map<String, Object>> events = (List<Map<String, Object>>) z.get("events");
+        // A malformed row's weight defaults to 0 — WeightedRoll treats that
+        // as unpickable rather than throwing mid-roll.
         Map<String, Object> picked = WeightedRoll.weightedPick(events,
-            e -> ((Number) e.get("weight")).intValue());
+            e -> toInt(e, "weight", 0));
         return picked != null ? (String) picked.get("type") : "nothing";
     }
 
@@ -816,10 +825,14 @@ public class ExplorationManager {
         List<Map<String, Object>> resources = (List<Map<String, Object>>) z.get("resources");
         for (Map<String, Object> r : resources) {
             if (resource.equals(r.get("resource"))) {
-                return new int[]{
-                    ((Number) r.get("min")).intValue(),
-                    ((Number) r.get("max")).intValue()
-                };
+                int min = toInt(r, "min", 0);
+                int max = toInt(r, "max", 0);
+                // Guards a second crash mode on malformed data: a row with
+                // min present but max missing/lower would otherwise produce
+                // an inverted range, and callers pass this straight into a
+                // random-in-range call that throws on a negative bound.
+                max = Math.max(min, max);
+                return new int[]{ min, max };
             }
         }
         return new int[]{1, 10};
@@ -840,10 +853,11 @@ public class ExplorationManager {
         List<Map<String, Object>> tokens = (List<Map<String, Object>>) z.get("tokens");
         for (Map<String, Object> t : tokens) {
             if (token.equals(t.get("token"))) {
-                return new int[]{
-                    ((Number) t.get("min")).intValue(),
-                    ((Number) t.get("max")).intValue()
-                };
+                int min = toInt(t, "min", 0);
+                int max = toInt(t, "max", 0);
+                // Same range-inversion guard as getResourceRange above.
+                max = Math.max(min, max);
+                return new int[]{ min, max };
             }
         }
         return new int[]{1, 1};
@@ -855,7 +869,7 @@ public class ExplorationManager {
         // behavior for rollToken's null/empty case too — not something this
         // cleanup pass is fixing, just preserving).
         Map<String, Object> picked = WeightedRoll.weightedPick(entries,
-            e -> ((Number) e.get("weight")).intValue());
+            e -> toInt(e, "weight", 0));
         return picked != null ? (String) picked.get(key) : "food";
     }
 
@@ -872,6 +886,26 @@ public class ExplorationManager {
 
     // ── Helpers ──
 
+    /**
+     * Safe int coercion for exploration JSON fields — returns {@code def} if
+     * the map is null, the key is absent, or the value isn't a Number (a
+     * single {@code instanceof Number} check covers both Double and
+     * Integer, since both implement Number — no need for RaidManager's
+     * redundant 3-way instanceof chain). This class previously had 14 raw
+     * {@code ((Number) map.get(key))} casts that NPE'd or threw
+     * ClassCastException on a missing/malformed key — every one now routes
+     * through here. Unlike RaidManager/EnchantedSetManager's single
+     * baked-in default, {@code def} is explicit per call, because
+     * zone/enemy fields genuinely need different safe defaults (e.g. a
+     * probability weight safely defaults to 0/unpickable, but
+     * eventInterval defaulting to 0 would make it a divide-by-zero-adjacent
+     * degenerate rate instead of the intended 90).
+     */
+    private int toInt(Map<String, Object> map, String key, int def) {
+        if (map == null) return def;
+        Object val = map.get(key);
+        return val instanceof Number ? ((Number) val).intValue() : def;
+    }
 
     /**
      * Returns the slot for a given unit ID, or null if not exploring.

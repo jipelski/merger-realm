@@ -289,6 +289,26 @@
           ]
         }
       ]
+    },
+    {
+      "id": "boss_rush",
+      "name": "Boss Rush",
+      "unlockLevel": 35,
+      "nodes": [
+        {
+          "id": "br_gauntlet", "name": "The Gauntlet", "type": "challenge", "order": 1,
+          "tokenCost": 3,
+          "firstClearTrophies": 100, "repeatTrophies": 50,
+          "enchantedDropChance": 0.75, "enchantedSet": "any",
+          "rooms": [
+            {"enemies": ["goblin_king"], "lootChance": 1.0},
+            {"enemies": ["lich"], "lootChance": 1.0},
+            {"enemies": ["orc_warchief"], "lootChance": 1.0},
+            {"enemies": ["shadow_lord"], "lootChance": 1.0},
+            {"enemies": ["arch_demon"], "lootChance": 1.0}
+          ]
+        }
+      ]
     }
   ]
 }

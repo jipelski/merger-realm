@@ -1,23 +1,23 @@
 {
   "silo": [
     {"level":1,"sprite_path":"silo_1","description":"A small grain store","maxLVL":5,"storage_type":"food","storage_size":3000,"build_cost1":15,"build_cost2":15,"build_cost3":0,"build_cost4":0},
-    {"level":2,"sprite_path":"silo_2","description":"Expanded storage","maxLVL":5,"storage_type":"food","storage_size":5500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":3,"sprite_path":"silo_3","description":"Proper granary","maxLVL":5,"storage_type":"food","storage_size":8000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":4,"sprite_path":"silo_4","description":"Feeds the kingdom","maxLVL":5,"storage_type":"food","storage_size":11500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":5,"sprite_path":"silo_5","description":"Royal food reserves (Max level)","maxLVL":5,"storage_type":"food","storage_size":15000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
+    {"level":2,"sprite_path":"silo_2","description":"Expanded storage","maxLVL":5,"storage_type":"food","storage_size":6500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":3,"sprite_path":"silo_3","description":"Proper granary","maxLVL":5,"storage_type":"food","storage_size":14000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":4,"sprite_path":"silo_4","description":"Feeds the kingdom","maxLVL":5,"storage_type":"food","storage_size":29000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":5,"sprite_path":"silo_5","description":"Royal food reserves (Max level)","maxLVL":5,"storage_type":"food","storage_size":60000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
   ],
   "timberyard": [
     {"level":1,"sprite_path":"timberyard_1","description":"A stack of logs","maxLVL":5,"storage_type":"wood","storage_size":2500,"build_cost1":0,"build_cost2":15,"build_cost3":15,"build_cost4":0},
-    {"level":2,"sprite_path":"timberyard_2","description":"Organized lumber","maxLVL":5,"storage_type":"wood","storage_size":4750,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":3,"sprite_path":"timberyard_3","description":"Full lumberyard","maxLVL":5,"storage_type":"wood","storage_size":7000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":4,"sprite_path":"timberyard_4","description":"Timber empire","maxLVL":5,"storage_type":"wood","storage_size":9500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":5,"sprite_path":"timberyard_5","description":"Endless supply (Max level)","maxLVL":5,"storage_type":"wood","storage_size":12000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
+    {"level":2,"sprite_path":"timberyard_2","description":"Organized lumber","maxLVL":5,"storage_type":"wood","storage_size":5500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":3,"sprite_path":"timberyard_3","description":"Full lumberyard","maxLVL":5,"storage_type":"wood","storage_size":12000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":4,"sprite_path":"timberyard_4","description":"Timber empire","maxLVL":5,"storage_type":"wood","storage_size":25000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":5,"sprite_path":"timberyard_5","description":"Endless supply (Max level)","maxLVL":5,"storage_type":"wood","storage_size":52000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
   ],
   "ironvault": [
     {"level":1,"sprite_path":"ironvault_1","description":"A locked box","maxLVL":5,"storage_type":"iron","storage_size":2000,"build_cost1":0,"build_cost2":0,"build_cost3":15,"build_cost4":15},
-    {"level":2,"sprite_path":"ironvault_2","description":"Reinforced storage","maxLVL":5,"storage_type":"iron","storage_size":3750,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":3,"sprite_path":"ironvault_3","description":"Vault with guards","maxLVL":5,"storage_type":"iron","storage_size":5500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":4,"sprite_path":"ironvault_4","description":"Dwarven engineering","maxLVL":5,"storage_type":"iron","storage_size":7250,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
-    {"level":5,"sprite_path":"ironvault_5","description":"Impenetrable reserves (Max level)","maxLVL":5,"storage_type":"iron","storage_size":9000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
+    {"level":2,"sprite_path":"ironvault_2","description":"Reinforced storage","maxLVL":5,"storage_type":"iron","storage_size":4500,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":3,"sprite_path":"ironvault_3","description":"Vault with guards","maxLVL":5,"storage_type":"iron","storage_size":10000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":4,"sprite_path":"ironvault_4","description":"Dwarven engineering","maxLVL":5,"storage_type":"iron","storage_size":21000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0},
+    {"level":5,"sprite_path":"ironvault_5","description":"Impenetrable reserves (Max level)","maxLVL":5,"storage_type":"iron","storage_size":44000,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0}
   ]
 }

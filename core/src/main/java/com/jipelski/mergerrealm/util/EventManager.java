@@ -96,6 +96,9 @@ public class EventManager {
     private DailyLoginManager dailyLoginManager;
     public DailyLoginManager getDailyLoginManager() { return dailyLoginManager; }
 
+    private HiddenTempleManager hiddenTempleManager;
+    public HiddenTempleManager getHiddenTempleManager() { return hiddenTempleManager; }
+
     private PrestigeManager prestigeManager;
     public PrestigeManager getPrestigeManager() { return prestigeManager; }
 
@@ -228,6 +231,10 @@ public class EventManager {
         String enchantedJson = jsonManager.readRawJson("enchanted_sets");
         enchantedSetManager.loadData(enchantedJson);
         Gdx.app.log(TAG, "EnchantedSetManager loaded");
+
+        // No save/load — an ancient_map's presence in Inventory is the only
+        // state this system needs; see HiddenTempleManager's class javadoc.
+        this.hiddenTempleManager = new HiddenTempleManager(this);
 
         // Load saved state
         Map<String, Integer> savedFragments = jsonManager.loadRuneFragments("rune_fragments");

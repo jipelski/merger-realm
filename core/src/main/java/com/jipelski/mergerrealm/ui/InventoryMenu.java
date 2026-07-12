@@ -109,6 +109,9 @@ public class InventoryMenu {
     private final UITextureManager uiTex;
     private final GlyphLayout glyphLayout;
 
+    private HiddenTemplePopup hiddenTemplePopup;
+    public void setHiddenTemplePopup(HiddenTemplePopup popup) { this.hiddenTemplePopup = popup; }
+
     // ── Touch state ──
     private final Vector2 touchPos = new Vector2();
     private boolean touchDown = false;
@@ -1030,7 +1033,18 @@ public class InventoryMenu {
                 handleFragmentTabTouch();
                 return true;
             }
-            selectedItem = filteredItems.get(idx);
+            Item tapped = filteredItems.get(idx);
+            // ancient_map needs no unit target — open the Hidden Temple
+            // confirm card instead of entering SELECTING_UNIT. Consuming
+            // the item happens inside the popup, not here (see
+            // HiddenTemplePopup.openConfirm/openTemple).
+            if ("ancient_map".equals(tapped.getType())) {
+                if (hiddenTemplePopup != null) {
+                    hiddenTemplePopup.openConfirm(tapped.getId());
+                }
+                return true;
+            }
+            selectedItem = tapped;
             state = State.SELECTING_UNIT;
             Gdx.app.log(TAG, "Selected: " + selectedItem.getName() + " — pick a unit");
             return true;

@@ -39,6 +39,7 @@ import com.jipelski.mergerrealm.ui.ExplorePanel;
 import com.jipelski.mergerrealm.ui.RaidPanel;
 import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
+import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -53,6 +54,7 @@ import com.jipelski.mergerrealm.util.OutfitManager;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
+import com.jipelski.mergerrealm.util.SoundManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 import com.jipelski.mergerrealm.util.TextUtil;
 
@@ -96,6 +98,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private JsonManager jsonManager;
     private EventManager eventManager;
     private SpriteManager spriteManager;
+    private SoundManager soundManager;
     private GridInputHandler inputHandler;
 
     // ── Game tick ──
@@ -138,6 +141,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private float goldChipX, goldChipY, goldChipW, goldChipH;
     private UnifiedShopPanel unifiedShopPanel;
     private DailyLoginPopup dailyLoginPopup;
+    private HiddenTemplePopup hiddenTemplePopup;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
     private RaidPanel raidPanel;
@@ -229,12 +233,17 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         eventManager.getBattleFieldManager().setGameEventListener(this);
 
+        soundManager = new SoundManager(jsonManager);
+        soundManager.load();
+
         wallGate = new WallGate(eventManager, spriteManager, uiTex);
+        wallGate.setSoundManager(soundManager);
         wallGate.updateLayout();
 
         calculateGridLayout();
 
         inputHandler = new GridInputHandler(eventManager, viewport);
+        inputHandler.setSoundManager(soundManager);
         Grid grid = eventManager.getGridInstance();
         inputHandler.setGridLayout(gridStartX, gridStartY, cellSize, LayoutConfig.CELL_GAP,
             grid.getWidth(), grid.getHeight());
@@ -277,6 +286,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         dailyLoginPopup = new DailyLoginPopup(eventManager, viewport, uiTex);
         unifiedShopPanel.setDailyLoginPopup(dailyLoginPopup);
         inputHandler.setDailyLoginPopup(dailyLoginPopup);
+
+        // Triggered by tapping an ancient_map in InventoryMenu (see its
+        // item-tap handling) rather than an auto-open check like
+        // dailyLoginPopup above — see HiddenTemplePopup's class javadoc.
+        hiddenTemplePopup = new HiddenTemplePopup(eventManager, viewport, uiTex);
+        inventoryMenu.setHiddenTemplePopup(hiddenTemplePopup);
+        inputHandler.setHiddenTemplePopup(hiddenTemplePopup);
 
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
@@ -324,7 +340,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         tutorialManager.start();
         inputHandler.setTutorialOverlay(tutorialOverlay);
 
+        // Suppressed so offline catch-up (facility spawns, level-ups) replayed
+        // from a long-offline gap doesn't play a burst of SFX on cold launch.
+        soundManager.setSuppressed(true);
         processOfflineProgress();
+        soundManager.setSuppressed(false);
         checkDailyLoginPopup();
 
         Gdx.app.log(TAG, "=== Init complete ===");
@@ -675,6 +695,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             dailyLoginPopup.drawBackground(shapeRenderer);
             batch.begin();
             dailyLoginPopup.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (hiddenTemplePopup.isVisible()) {
+            hiddenTemplePopup.drawBackground(shapeRenderer);
+            batch.begin();
+            hiddenTemplePopup.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
@@ -1820,26 +1847,31 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     @Override
     public void onUnitSpawnedFromFacility(String facilityType) {
         if (tutorialManager != null) tutorialManager.onUnitSpawnedFromFacility(facilityType);
+        if (soundManager != null) soundManager.play(SoundManager.SfxId.SPAWN);
     }
 
     @Override
     public void onUnitMerged(String type, int newLevel) {
         if (tutorialManager != null) tutorialManager.onUnitMerged(type, newLevel);
+        if (soundManager != null) soundManager.play(SoundManager.SfxId.MERGE);
     }
 
     @Override
     public void onUnitDismissedToPrince(String type) {
         if (tutorialManager != null) tutorialManager.onUnitDismissedToPrince(type);
+        if (soundManager != null) soundManager.play(SoundManager.SfxId.DISMISS);
     }
 
     @Override
     public void onMonsterSpawned(String type) {
         if (tutorialManager != null) tutorialManager.onMonsterSpawned(type);
+        if (soundManager != null) soundManager.play(SoundManager.SfxId.MONSTER);
     }
 
     @Override
     public void onLevelUp(int newLevel) {
         if (tutorialManager != null) tutorialManager.onLevelUp(newLevel);
+        if (soundManager != null) soundManager.play(SoundManager.SfxId.LEVEL_UP);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -1884,7 +1916,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     @Override
     public void resume() {
         Gdx.app.log(TAG, "Resumed — checking offline progress...");
+        // See create()'s matching suppress/unsuppress — same reasoning.
+        soundManager.setSuppressed(true);
         processOfflineProgress();
+        soundManager.setSuppressed(false);
         checkDailyLoginPopup();
     }
 
@@ -1898,6 +1933,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         font.dispose();
         fontSmall.dispose();
         spriteManager.dispose();
+        soundManager.dispose();
         uiTex.dispose();
         whiteTex.dispose();
     }
@@ -1986,6 +2022,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             // Tutorial progress — see TutorialManager's persistence javadoc.
             jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());
             jsonManager.saveStringSet("tutorial_tips_seen", tutorialManager.getTipsSeen());
+
+            // Audio mute/volume — see SoundManager's persistence javadoc.
+            // No mute UI exists yet; this just persists the state for one.
+            jsonManager.saveArray("audio_settings", soundManager.getSaveState());
 
             // Prince Prestige — see PrestigeManager's persistence section.
             PrestigeManager pm = eventManager.getPrestigeManager();

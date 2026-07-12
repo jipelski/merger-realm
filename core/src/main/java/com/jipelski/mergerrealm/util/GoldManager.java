@@ -55,6 +55,7 @@ public class GoldManager {
     public static final int EARN_RAID_MAIN_NODE = 5;
     public static final int EARN_RAID_SIDE_NODE = 8;
     public static final int EARN_RAID_BOSS_NODE = 15;
+    public static final int EARN_RAID_CHALLENGE_NODE = 25;
 
     // ── Tracking one-time rewards ──
     // Stores keys like "raid:gw_boss", "milestone:10", "3star:gw_outpost"
@@ -124,9 +125,10 @@ public class GoldManager {
 
         int amount;
         switch (nodeType) {
-            case "boss": amount = EARN_RAID_BOSS_NODE; break;
-            case "side": amount = EARN_RAID_SIDE_NODE; break;
-            default:     amount = EARN_RAID_MAIN_NODE; break;
+            case "boss":      amount = EARN_RAID_BOSS_NODE; break;
+            case "side":      amount = EARN_RAID_SIDE_NODE; break;
+            case "challenge": amount = EARN_RAID_CHALLENGE_NODE; break;
+            default:          amount = EARN_RAID_MAIN_NODE; break;
         }
 
         claimedRewards.add(key);

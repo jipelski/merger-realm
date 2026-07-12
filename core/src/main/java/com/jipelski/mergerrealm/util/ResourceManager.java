@@ -92,16 +92,13 @@ public class ResourceManager {
             if (t.equals("food") || t.equals("wood") || t.equals("iron")) {
                 int[] value = consumableMap.get(t);
                 if (value == null) continue;
-                if (value[1] <= 0) continue; // no gen rate, skip
 
-                int gain = Math.round(value[1] * genMultiplier);
-                if (value[2] > 0) {
-                    // Has a pool cap — clamp to it
-                    value[0] = Math.min(value[0] + gain, value[2]);
-                } else {
-                    // No storage built yet — still generate but with a base cap
-                    value[0] = Math.min(value[0] + gain, 1000);
-                }
+                // Clamp runs unconditionally (even at 0 gain) so a resource
+                // left over-cap by a storage teardown gets trimmed within one
+                // tick instead of only ever being lowered here on active gen.
+                int gain = value[1] > 0 ? Math.round(value[1] * genMultiplier) : 0;
+                int cap = value[2] > 0 ? value[2] : 1000; // no storage built yet — base cap
+                value[0] = Math.min(value[0] + gain, cap);
             }
         }
     }
@@ -162,8 +159,13 @@ public class ResourceManager {
     }
 
     /**
-     * Modifies the resource pool size. If the pool shrinks,
-     * clamps the current amount to the new cap.
+     * Modifies the resource pool size (cap only — does not touch the stored
+     * amount). A storage merge tears down both source buildings before
+     * spawning the merged one (remove, remove, add), so clamping the stored
+     * amount here would discard resources against an intermediate, not-yet-
+     * final cap. Genuine over-cap teardown (e.g. dismissing a lone storage
+     * building) is instead trimmed by the next updateResources() tick, which
+     * clamps unconditionally.
      */
     public void modifyResourcePoolSize(String resource, int amount, boolean increase) {
         int[] value = consumableMap.get(resource);
@@ -171,14 +173,7 @@ public class ResourceManager {
             Gdx.app.log(TAG, "modifyResourcePoolSize: unknown resource=" + resource);
             return;
         }
-        // Not reachable via normal add/remove ordering today (pool = base 1000 +
-        // sum of present storages' sizes), but guard the floor defensively anyway.
         value[2] = Math.max(0, increase ? value[2] + amount : value[2] - amount);
-        // Clamp current amount if it now exceeds the new cap
-        if (value[2] > 0 && value[0] > value[2]) {
-            value[0] = value[2];
-            Gdx.app.log(TAG, resource + " clamped to new cap: " + value[2]);
-        }
     }
 
     public void modifyResourceRate(String resource, int amount, boolean increase) {
