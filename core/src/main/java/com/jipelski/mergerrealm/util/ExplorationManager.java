@@ -58,15 +58,15 @@ public class ExplorationManager {
      *
      * Zone indices:  0=forest, 1=mountain, 2=mines, 3=ruins, 4=wastes
      * Drop indices:  0=phoenix_feather, 1=amulet_of_ascension,
-     *                2=rune_fragment, 3=ancient_map
+     *                2=rune_fragment, 3=ancient_map, 4=resource_pouch
      */
     private static final double[][] RARE_DROP_RATES = {
-        //              feather  ascension  fragment  map
-        /* forest   */ { 0.000,   0.000,     0.005,   0.000 },
-        /* mountain */ { 0.000,   0.000,     0.010,   0.000 },
-        /* mines    */ { 0.000,   0.000,     0.020,   0.005 },
-        /* ruins    */ { 0.005,   0.000,     0.030,   0.010 },
-        /* wastes   */ { 0.020,   0.005,     0.050,   0.020 },
+        //              feather  ascension  fragment  map     pouch
+        /* forest   */ { 0.000,   0.000,     0.005,   0.000,  0.008 },
+        /* mountain */ { 0.000,   0.000,     0.010,   0.000,  0.010 },
+        /* mines    */ { 0.000,   0.000,     0.020,   0.005,  0.012 },
+        /* ruins    */ { 0.005,   0.000,     0.030,   0.010,  0.016 },
+        /* wastes   */ { 0.020,   0.005,     0.050,   0.020,  0.020 },
     };
 
     private static final String[] ZONE_INDEX_MAP = {
@@ -76,6 +76,13 @@ public class ExplorationManager {
     private static final String[] RUNE_FRAGMENT_TYPES = {
         "rune_fragment_might", "rune_fragment_vitality",
         "rune_fragment_fortune", "rune_fragment_swiftness"
+    };
+
+    // Indexable mirror of GameTypes.RESOURCE_POUCHES (a Set, not indexable) for
+    // the random pick below — GameTypes remains the source of truth for
+    // type-membership checks elsewhere.
+    private static final String[] POUCH_TYPES = {
+        "food_pouch", "wood_pouch", "iron_pouch"
     };
 
     // Flavor text for rare drops
@@ -335,6 +342,20 @@ public class ExplorationManager {
                         }
                     }
                     break;
+                case "grid_object": {
+                    // food_pouch/wood_pouch/iron_pouch — place on the grid, or
+                    // queue it (same pattern as the returning-explorer fallback
+                    // just below) if there's no room.
+                    int[] cell = eventManager.getGridInstance().getClosestEmptyCell(0, 0);
+                    if (cell != null) {
+                        eventManager.spawnObject(l.getType(), l.getLevel(), cell[0], cell[1]);
+                    } else {
+                        eventManager.getBattleFieldManager().addToQueue(
+                            new com.jipelski.mergerrealm.data.GenData(
+                                l.getType(), "Exploration find", l.getLevel()));
+                    }
+                    break;
+                }
             }
         }
 
@@ -693,6 +714,13 @@ public class ExplorationManager {
         if (goldDropRate > 0 && Math.random() < Math.min(1.0, goldDropRate * findMultiplier)) {
             eventManager.getGoldManager().onExplorationGoldFind();
             slot.addEvent(eventTimeMs, "A gold nugget glints in the rubble!", "loot");
+        }
+
+        // ── Resource Pouch rare find ──
+        if (rates[4] > 0 && Math.random() < Math.min(1.0, rates[4] * findMultiplier)) {
+            String pouchType = POUCH_TYPES[(int)(Math.random() * POUCH_TYPES.length)];
+            slot.addLoot(ExplorationLoot.gridObject(pouchType, 1));
+            slot.addEvent(eventTimeMs, "You recovered a bulging supply pouch!", "loot");
         }
     }
 

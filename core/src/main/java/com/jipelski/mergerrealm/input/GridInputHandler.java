@@ -10,9 +10,8 @@ import com.jipelski.mergerrealm.grid.Grid;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.ui.BuildMenu;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
-import com.jipelski.mergerrealm.ui.GoldShopPanel;
 import com.jipelski.mergerrealm.ui.RaidPanel;
-import com.jipelski.mergerrealm.ui.TrophyShopPanel;
+import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameTypes;
@@ -87,7 +86,7 @@ public class GridInputHandler extends InputAdapter {
 
     private WallGate wallGate;
 
-    private GoldShopPanel goldShopPanel;
+    private UnifiedShopPanel unifiedShopPanel;
     private float goldChipX, goldChipY, goldChipW, goldChipH;
 
     public GridInputHandler(EventManager eventManager, Viewport viewport) {
@@ -147,12 +146,7 @@ public class GridInputHandler extends InputAdapter {
     private RaidPanel raidPanel;
     public void setRaidPanel(RaidPanel panel) { this.raidPanel = panel; }
 
-    private TrophyShopPanel trophyShopPanel;
-    public void setTrophyShopPanel(TrophyShopPanel panel) {
-        this.trophyShopPanel = panel;
-    }
-
-    public void setGoldShopPanel(GoldShopPanel panel) { this.goldShopPanel = panel; }
+    public void setUnifiedShopPanel(UnifiedShopPanel panel) { this.unifiedShopPanel = panel; }
 
     private PrestigePanel prestigePanel;
     private float prestigeBoxX, prestigeBoxY, prestigeBoxW, prestigeBoxH;
@@ -217,7 +211,7 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
-        if (goldShopPanel != null && goldShopPanel.handleTouchDown(screenX, screenY)) {
+        if (unifiedShopPanel != null && unifiedShopPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -226,10 +220,6 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchDown(screenX, screenY)) {
-            return true;
-        }
-
-        if (trophyShopPanel != null && trophyShopPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -301,7 +291,7 @@ public class GridInputHandler extends InputAdapter {
         // same top-right corner as the shop panel's own close button, so opening
         // immediately would let this same gesture's touchUp be misread as a tap
         // on the now-visible panel's close button, closing it right back.
-        if (goldShopPanel != null && isGoldChipTap(worldPos.x, worldPos.y)) {
+        if (unifiedShopPanel != null && isGoldChipTap(worldPos.x, worldPos.y)) {
             return true;
         }
 
@@ -418,7 +408,7 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        if (goldShopPanel != null && goldShopPanel.handleTouchDragged(screenX, screenY)) {
+        if (unifiedShopPanel != null && unifiedShopPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
 
@@ -427,10 +417,6 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchDragged(screenX, screenY)) {
-            return true;
-        }
-
-        if (trophyShopPanel != null && trophyShopPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
 
@@ -482,7 +468,7 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
-        if (goldShopPanel != null && goldShopPanel.handleTouchUp(screenX, screenY)) {
+        if (unifiedShopPanel != null && unifiedShopPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
 
@@ -491,10 +477,6 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchUp(screenX, screenY)) {
-            return true;
-        }
-
-        if (trophyShopPanel != null && trophyShopPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
 
@@ -526,9 +508,9 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
-        // Open the gold shop here (not on touchDown — see touchDown for why).
-        // goldShopPanel.handleTouchUp() above already returned for the visible
-        // case, so reaching here means it's still closed.
+        // Open the unified shop here (not on touchDown — see touchDown for
+        // why). unifiedShopPanel.handleTouchUp() above already returned for
+        // the visible case, so reaching here means it's still closed.
         // Guard against the three "pick a unit from the grid" header modes —
         // their compact headers cover the top of the screen (where the chip
         // sits) and deliberately return false here so grid taps fall through;
@@ -537,9 +519,9 @@ public class GridInputHandler extends InputAdapter {
             (inventoryMenu != null && inventoryMenu.isSelectingUnit())
             || (explorePanel != null && explorePanel.isSelectingUnit())
             || (raidPanel != null && raidPanel.isFormingParty());
-        if (goldShopPanel != null && !pickingUnitFromGrid
+        if (unifiedShopPanel != null && !pickingUnitFromGrid
             && isGoldChipTap(worldPos.x, worldPos.y)) {
-            goldShopPanel.open();
+            unifiedShopPanel.open(UnifiedShopPanel.TAB_GOLD);
             clearSelection();
             return true;
         }

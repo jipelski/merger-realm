@@ -79,9 +79,9 @@ public class RaidPanel {
 
     private final RaidArenaRenderer arena;
 
-    private TrophyShopPanel trophyShopPanel;
-    public void setTrophyShopPanel(TrophyShopPanel panel) {
-        this.trophyShopPanel = panel;
+    private UnifiedShopPanel unifiedShopPanel;
+    public void setUnifiedShopPanel(UnifiedShopPanel panel) {
+        this.unifiedShopPanel = panel;
     }
 
     // ── Touch ──
@@ -271,9 +271,9 @@ public class RaidPanel {
                 + "  |  Boss Tokens: " + rm.getBossTokens(),
             getMenuX() + 12f, getContentTop() - 8f);
 
-        // Trophy button
+        // Shop button
         fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-        fontSmall.draw(batch, "[Trophy Shop]",
+        fontSmall.draw(batch, "[Shop]",
             getMenuX() + getMenuWidth() - 110f, getContentTop() - 8f);
 
         float rowY = getContentTop() - 36f;
@@ -600,9 +600,9 @@ public class RaidPanel {
 
         if (touchPos.y >= getContentTop() - 20f && touchPos.y <= getContentTop()
             && touchPos.x >= getMenuX() + getMenuWidth() - 120f) {
-            // Open trophy shop — need a reference to the panel
-            if (trophyShopPanel != null) {
-                trophyShopPanel.open();
+            // Open the unified shop on the Equipment tab
+            if (unifiedShopPanel != null) {
+                unifiedShopPanel.open(UnifiedShopPanel.TAB_EQUIPMENT);
             }
             return true;
         }

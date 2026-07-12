@@ -2,12 +2,15 @@ package com.jipelski.mergerrealm.model;
 
 /**
  * A piece of loot found during exploration.
- * Can be a resource, token, or item.
+ * Can be a resource, token, item, or grid object.
  *
  * lootCategory:
- *   "resource" — food/wood/iron (amount used)
- *   "token"    — nail/slate/ingot/relic (amount used)
- *   "item"     — sword/shield/amulet/potion/phoenix_feather (level used, amount = 1)
+ *   "resource"    — food/wood/iron (amount used)
+ *   "token"       — nail/slate/ingot/relic (amount used)
+ *   "item"        — sword/shield/amulet/potion/phoenix_feather (level used, amount = 1)
+ *   "grid_object" — food_pouch/wood_pouch/iron_pouch (level used, amount = 1) —
+ *                   placed on the grid via EventManager.spawnObject(), falling
+ *                   back to the Wall Gate reward queue if the grid is full
  */
 public class ExplorationLoot {
 
@@ -39,6 +42,10 @@ public class ExplorationLoot {
 
     public static ExplorationLoot item(String type, int level, String itemId) {
         return new ExplorationLoot("item", type, 1, level, itemId);
+    }
+
+    public static ExplorationLoot gridObject(String type, int level) {
+        return new ExplorationLoot("grid_object", type, 1, level, null);
     }
 
     // Getters

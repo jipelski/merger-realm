@@ -36,9 +36,8 @@ import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.RaidState;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.ui.ExplorePanel;
-import com.jipelski.mergerrealm.ui.GoldShopPanel;
 import com.jipelski.mergerrealm.ui.RaidPanel;
-import com.jipelski.mergerrealm.ui.TrophyShopPanel;
+import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -135,7 +134,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private Texture whiteTex;
 
     private float goldChipX, goldChipY, goldChipW, goldChipH;
-    private GoldShopPanel goldShopPanel;
+    private UnifiedShopPanel unifiedShopPanel;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
     private RaidPanel raidPanel;
@@ -181,8 +180,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private String cachedStatsLine = null;
     private String cachedExtraLine = null;
     private float statsRefreshTimer = 0f;
-
-    private TrophyShopPanel trophyShopPanel;
 
     // ── Tutorial ──
     private TutorialManager tutorialManager;
@@ -270,13 +267,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             raidPanel.open();
         }
 
-        trophyShopPanel = new TrophyShopPanel(eventManager, viewport, uiTex);
-        inputHandler.setTrophyShopPanel(trophyShopPanel);
-
-        raidPanel.setTrophyShopPanel(trophyShopPanel);
-
-        goldShopPanel = new GoldShopPanel(eventManager, viewport, uiTex);
-        inputHandler.setGoldShopPanel(goldShopPanel);
+        unifiedShopPanel = new UnifiedShopPanel(eventManager, viewport, uiTex);
+        inputHandler.setUnifiedShopPanel(unifiedShopPanel);
+        raidPanel.setUnifiedShopPanel(unifiedShopPanel);
 
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
@@ -325,17 +318,6 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setTutorialOverlay(tutorialOverlay);
 
         processOfflineProgress();
-
-        // DEBUG: temporary — resource pouches have no real spawn source yet.
-        // Remove this block once they're wired into a chest/facility/exploration reward.
-        GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
-        if (!gom.hasObjectOfType("food_pouch")
-            && !gom.hasObjectOfType("wood_pouch")
-            && !gom.hasObjectOfType("iron_pouch")) {
-            eventManager.spawnObject("food_pouch", 1, 0, 0);
-            eventManager.spawnObject("wood_pouch", 1, 0, 0);
-            eventManager.spawnObject("iron_pouch", 1, 0, 0);
-        }
 
         Gdx.app.log(TAG, "=== Init complete ===");
     }
@@ -481,7 +463,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
-            && !raidPanel.isVisible() && !trophyShopPanel.isVisible()  && !goldShopPanel.isVisible()
+            && !raidPanel.isVisible() && !unifiedShopPanel.isVisible()
             && !prestigePanel.isVisible() && !outfitPanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
@@ -646,17 +628,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         }
         wasRaidVisible = raidPanel.isVisible();
 
-        if (trophyShopPanel.isVisible()) {
-            trophyShopPanel.drawBackground(shapeRenderer);
+        if (unifiedShopPanel.isVisible()) {
+            unifiedShopPanel.drawBackground(shapeRenderer);
             batch.begin();
-            trophyShopPanel.drawContent(batch, font, fontSmall);
-            batch.end();
-        }
-
-        if (goldShopPanel.isVisible()) {
-            goldShopPanel.drawBackground(shapeRenderer);
-            batch.begin();
-            goldShopPanel.drawContent(batch, font, fontSmall);
+            unifiedShopPanel.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
