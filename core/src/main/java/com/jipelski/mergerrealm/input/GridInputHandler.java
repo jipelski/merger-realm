@@ -512,6 +512,20 @@ public class GridInputHandler extends InputAdapter {
 
         toWorldCoords(screenX, screenY);
 
+        // A drag that reaches touchUp must always finalize as a drop and fully
+        // reset drag state HERE, before the location-based button branches below
+        // (gold chip, prestige box, wall gate, build menu). Those early-return, and
+        // if the finger lifts over one of their zones mid-drag they'd skip the reset
+        // at the bottom of this method — leaving `dragging`/`draggedObjectId` set so
+        // the sprite stays frozen at the drop point until the next grid tap. A
+        // genuine drag-release is never a button tap, so bypassing them is correct.
+        if (dragging) {
+            stopHolding();
+            handleDrop();
+            resetDragState();
+            return true;
+        }
+
         // Open the gold shop here (not on touchDown — see touchDown for why).
         // goldShopPanel.handleTouchUp() above already returned for the visible
         // case, so reaching here means it's still closed.
@@ -561,18 +575,8 @@ public class GridInputHandler extends InputAdapter {
         if (!touching) return false;
 
         stopHolding();
-
-        if (!dragging) {
-            handleTap();
-        } else {
-            handleDrop();
-        }
-
-        touching = false;
-        dragging = false;
-        originCellX = -1;
-        originCellY = -1;
-        draggedObjectId = null;
+        handleTap();
+        resetDragState();
         return true;
     }
 
@@ -740,6 +744,14 @@ public class GridInputHandler extends InputAdapter {
         holdTimer = 0f;
         holdDelay = 0f;
         holdFacilityId = null;
+    }
+
+    private void resetDragState() {
+        touching = false;
+        dragging = false;
+        originCellX = -1;
+        originCellY = -1;
+        draggedObjectId = null;
     }
 
     /*private boolean isFacility(String type) {
