@@ -27,6 +27,17 @@ import java.util.List;
  * Buying and equipping are deliberately separate actions — owning several
  * outfits and freely swapping which one is active, same mental model as
  * Inventory's equip/unequip.
+ *
+ * The outfit-row list is drawn/hit-tested by rect-parameterized helpers
+ * (drawOutfitRowsBg/drawOutfitRowsContent/handleOutfitRowTap) so
+ * UnifiedShopPanel can render the exact same rows inside its own Outfit tab
+ * instead of duplicating the layout — same "one source of truth, two entry
+ * points" pattern DailyLoginPopup already established for its calendar
+ * strip (see that class's javadoc). Both this standalone panel (via the
+ * Prince-tap trigger above) and the shop tab stay independently openable —
+ * they can never be visible at once through normal input, since
+ * UnifiedShopPanel's modal handling already blocks grid taps (including a
+ * Prince tap) while it's open.
  */
 public class OutfitPanel {
 
@@ -95,11 +106,29 @@ public class OutfitPanel {
         sr.setColor(0.2f, 0.16f, 0.1f, 1f); // gold-tinted header — same family as GoldShopPanel
         sr.rect(getMenuX(), getMenuTop() - HEADER_HEIGHT, getMenuWidth(), HEADER_HEIGHT);
 
+        drawOutfitRowsBg(sr, getMenuX(), getMenuBottom(), getMenuWidth(), getContentTop() - getMenuBottom());
+        sr.end();
+        Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
+    }
+
+    /**
+     * Row-background rects only — raw setColor/rect calls, assumes the
+     * caller already has an open sr.begin(ShapeType.Filled)/end() block
+     * (this class's own drawBackground() above and UnifiedShopPanel's
+     * Outfit tab both satisfy this — same contract DailyLoginPopup's
+     * drawCalendarBg documents for the identical reason). Takes the full
+     * available content rect (not pre-inset) and applies its own
+     * x+8f/w-16f per-row inset internally, unchanged from this panel's own
+     * prior numbers — matches UnifiedShopPanel's own Gold-tab rows, which
+     * use the identical convention, so both callers can pass a plain
+     * content rect with no special-casing.
+     */
+    public void drawOutfitRowsBg(ShapeRenderer sr, float x, float y, float w, float h) {
         OutfitManager om = eventManager.getOutfitManager();
         GoldManager gm = eventManager.getGoldManager();
         List<OutfitManager.OutfitData> outfits = om.getAllOutfits();
 
-        float y = getContentTop() - ROW_HEIGHT;
+        float rowY = (y + h) - ROW_HEIGHT;
         for (OutfitManager.OutfitData outfit : outfits) {
             boolean equipped = om.isEquipped(outfit.id);
             boolean owned = om.isOwned(outfit.id);
@@ -108,18 +137,14 @@ public class OutfitPanel {
             if (equipped) sr.setColor(0.16f, 0.22f, 0.16f, 1f);
             else if (affordable) sr.setColor(0.18f, 0.18f, 0.24f, 1f);
             else sr.setColor(0.14f, 0.14f, 0.18f, 1f);
-            sr.rect(getMenuX() + 8f, y, getMenuWidth() - 16f, ROW_HEIGHT);
-            y -= (ROW_HEIGHT + ROW_GAP);
+            sr.rect(x + 8f, rowY, w - 16f, ROW_HEIGHT);
+            rowY -= (ROW_HEIGHT + ROW_GAP);
         }
-        sr.end();
-        Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
     }
 
     public void drawContent(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
         if (!visible) return;
-        OutfitManager om = eventManager.getOutfitManager();
         GoldManager gm = eventManager.getGoldManager();
-        List<OutfitManager.OutfitData> outfits = om.getAllOutfits();
 
         font.setColor(1f, 0.85f, 0.25f, 1f);
         font.draw(batch, "Prince Outfits", getMenuX() + 12f, getMenuTop() - 12f);
@@ -130,7 +155,20 @@ public class OutfitPanel {
         IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
             "Balance: " + gm.getGold(), "gold", getMenuX() + 12f, getMenuTop() - 34f, 16f);
 
-        float y = getContentTop() - ROW_HEIGHT;
+        drawOutfitRowsContent(batch, fontSmall,
+            getMenuX(), getMenuBottom(), getMenuWidth(), getContentTop() - getMenuBottom());
+
+        font.setColor(Color.WHITE);
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    /** Row name/description/action-text only — see drawOutfitRowsBg for the shared rect convention. */
+    public void drawOutfitRowsContent(SpriteBatch batch, BitmapFont fontSmall, float x, float y, float w, float h) {
+        OutfitManager om = eventManager.getOutfitManager();
+        GoldManager gm = eventManager.getGoldManager();
+        List<OutfitManager.OutfitData> outfits = om.getAllOutfits();
+
+        float rowY = (y + h) - ROW_HEIGHT;
         for (OutfitManager.OutfitData outfit : outfits) {
             boolean equipped = om.isEquipped(outfit.id);
             boolean owned = om.isOwned(outfit.id);
@@ -138,11 +176,11 @@ public class OutfitPanel {
 
             fontSmall.setColor(0.85f, 0.85f, 0.95f, 1f);
             String nameLine = outfit.name + (equipped ? "  [Equipped]" : "");
-            fontSmall.draw(batch, nameLine, getMenuX() + 16f, y + ROW_HEIGHT - 12f);
+            fontSmall.draw(batch, nameLine, x + 16f, rowY + ROW_HEIGHT - 12f);
 
             fontSmall.setColor(0.55f, 0.55f, 0.62f, 1f);
-            fontSmall.draw(batch, outfit.description, getMenuX() + 16f, y + ROW_HEIGHT - 30f,
-                getMenuWidth() - 150f, com.badlogic.gdx.utils.Align.left, true);
+            fontSmall.draw(batch, outfit.description, x + 16f, rowY + ROW_HEIGHT - 30f,
+                w - 150f, com.badlogic.gdx.utils.Align.left, true);
 
             List<IconText.Seg> actionSegs = rowActionSegs(om, outfit);
             if (equipped) fontSmall.setColor(0.9f, 0.4f, 0.4f, 1f);
@@ -152,13 +190,10 @@ public class OutfitPanel {
 
             float actionW = IconText.measure(fontSmall, glyphLayout, actionSegs, 14f);
             IconText.draw(batch, fontSmall, glyphLayout, spriteManager, actionSegs,
-                getMenuX() + getMenuWidth() - 16f - actionW, y + ROW_HEIGHT - 20f, 14f);
+                x + w - 16f - actionW, rowY + ROW_HEIGHT - 20f, 14f);
 
-            y -= (ROW_HEIGHT + ROW_GAP);
+            rowY -= (ROW_HEIGHT + ROW_GAP);
         }
-
-        font.setColor(Color.WHITE);
-        fontSmall.setColor(Color.WHITE);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -192,23 +227,31 @@ public class OutfitPanel {
             return true;
         }
 
+        handleOutfitRowTap(touchPos.x, touchPos.y,
+            getMenuX(), getMenuBottom(), getMenuWidth(), getContentTop() - getMenuBottom());
+        return true;
+    }
+
+    /**
+     * Row hit-test only — action taps land in the right-aligned region of
+     * each row, mirrors GoldShopPanel's [Buy] hit zone. Same full-content-rect
+     * convention as drawOutfitRowsBg/drawOutfitRowsContent.
+     */
+    public void handleOutfitRowTap(float worldX, float worldY, float x, float y, float w, float h) {
         OutfitManager om = eventManager.getOutfitManager();
         List<OutfitManager.OutfitData> outfits = om.getAllOutfits();
 
-        // Action taps — right-aligned region of each row, mirrors GoldShopPanel's [Buy] hit zone
-        float actionX = getMenuX() + getMenuWidth() - 90f;
-        float y = getContentTop() - ROW_HEIGHT;
+        float actionX = x + w - 90f;
+        float rowY = (y + h) - ROW_HEIGHT;
         for (OutfitManager.OutfitData outfit : outfits) {
-            if (touchPos.y >= y && touchPos.y <= y + ROW_HEIGHT) {
-                if (touchPos.x >= actionX) {
+            if (worldY >= rowY && worldY <= rowY + ROW_HEIGHT) {
+                if (worldX >= actionX) {
                     handleRowAction(om, outfit);
                 }
-                return true;
+                return;
             }
-            y -= (ROW_HEIGHT + ROW_GAP);
+            rowY -= (ROW_HEIGHT + ROW_GAP);
         }
-
-        return true;
     }
 
     private void handleRowAction(OutfitManager om, OutfitManager.OutfitData outfit) {

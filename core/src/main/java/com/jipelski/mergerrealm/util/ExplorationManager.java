@@ -219,7 +219,7 @@ public class ExplorationManager {
         slot.setUnitGenRate(unit.getGen_rate());
         slot.setUnitResource(unit.getResource());
         slot.setZone(zone);
-        slot.setStartTimeMs(System.currentTimeMillis());
+        slot.setStartTimeMs(eventManager.getServerTimeManager().getTrustedTimeMillis());
         slot.setLastEventTimeMs(0);
 
         // Check for equipped item
@@ -269,11 +269,12 @@ public class ExplorationManager {
         }
 
         slot.setReturning(true);
-        slot.setRecallTimeMs(System.currentTimeMillis());
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
+        slot.setRecallTimeMs(trustedNow);
 
         long exploreSeconds = (slot.getRecallTimeMs() - slot.getStartTimeMs()) / 1000;
         long returnSeconds = exploreSeconds / 2;
-        slot.addEvent(slot.getElapsedMs(),
+        slot.addEvent(slot.getElapsedMs(trustedNow),
             TextUtil.capitalize(slot.getUnitType()) + " is heading home... (ETA: "
                 + TextUtil.formatDurationSeconds(returnSeconds) + ")", "nothing");
 
@@ -299,7 +300,7 @@ public class ExplorationManager {
         ExplorationSlot slot = activeSlots.get(slotIndex);
 
         // Must have arrived or be dead
-        if (!slot.isDead() && !slot.hasArrived()) {
+        if (!slot.isDead() && !slot.hasArrived(eventManager.getServerTimeManager().getTrustedTimeMillis())) {
             Gdx.app.log(TAG, "Unit hasn't returned yet");
             return false;
         }
@@ -413,7 +414,7 @@ public class ExplorationManager {
      * lastEventTimeMs and now.
      */
     public void update() {
-        long now = System.currentTimeMillis();
+        long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
 
         for (int i = activeSlots.size() - 1; i >= 0; i--) {
             ExplorationSlot slot = activeSlots.get(i);
@@ -941,7 +942,7 @@ public class ExplorationManager {
         if (feather == null) return false;
 
         slot.usePhoenixFeather();
-        slot.addEvent(slot.getElapsedMs(),
+        slot.addEvent(slot.getElapsedMs(eventManager.getServerTimeManager().getTrustedTimeMillis()),
             "A Phoenix Feather burns bright — " + TextUtil.capitalize(slot.getUnitType())
                 + " rises from the ashes! (HP: " + slot.getUnitCurrentHp()
                 + "/" + slot.getUnitMaxHp() + ")", "heal");

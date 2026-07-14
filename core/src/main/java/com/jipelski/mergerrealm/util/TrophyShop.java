@@ -17,7 +17,9 @@ import java.util.Map;
  *   - Weekly items: phoenix feather, rune fragments, amulet of ascension, ancient map
  *
  * Stock is tracked per shop entry (type + level).
- * Refresh timestamps are stored and checked against System.currentTimeMillis().
+ * Refresh timestamps are stored and checked against
+ * eventManager.getServerTimeManager().getTrustedTimeMillis() (not the raw
+ * device clock — see ServerTimeManager).
  */
 public class TrophyShop {
 
@@ -115,7 +117,7 @@ public class TrophyShop {
      * Call this once per game tick or when opening the shop.
      */
     public void checkRefresh() {
-        long now = System.currentTimeMillis();
+        long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
 
         if (lastDailyRefresh == 0 || now - lastDailyRefresh >= DAILY_MS) {
             refreshDaily();
@@ -150,8 +152,9 @@ public class TrophyShop {
         for (ShopEntry entry : CATALOG) {
             currentStock.put(entry.getStockKey(), entry.maxStock);
         }
-        lastDailyRefresh = System.currentTimeMillis();
-        lastWeeklyRefresh = System.currentTimeMillis();
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
+        lastDailyRefresh = trustedNow;
+        lastWeeklyRefresh = trustedNow;
     }
 
     /**
@@ -165,7 +168,7 @@ public class TrophyShop {
      * Returns time until next daily refresh in milliseconds.
      */
     public long getTimeUntilDailyRefresh() {
-        long elapsed = System.currentTimeMillis() - lastDailyRefresh;
+        long elapsed = eventManager.getServerTimeManager().getTrustedTimeMillis() - lastDailyRefresh;
         return Math.max(0, DAILY_MS - elapsed);
     }
 
@@ -173,7 +176,7 @@ public class TrophyShop {
      * Returns time until next weekly refresh in milliseconds.
      */
     public long getTimeUntilWeeklyRefresh() {
-        long elapsed = System.currentTimeMillis() - lastWeeklyRefresh;
+        long elapsed = eventManager.getServerTimeManager().getTrustedTimeMillis() - lastWeeklyRefresh;
         return Math.max(0, WEEKLY_MS - elapsed);
     }
 

@@ -56,7 +56,7 @@ public class AdManager {
      * processOfflineProgress()/checkDailyLoginPopup() convention).
      */
     public void checkDailyReset() {
-        long now = System.currentTimeMillis();
+        long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
         if (windowStartMs == 0) {
             windowStartMs = now;
             return;

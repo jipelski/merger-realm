@@ -27,6 +27,7 @@ import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.ui.OutfitPanel;
+import com.jipelski.mergerrealm.ui.SettingsPanel;
 import com.jipelski.mergerrealm.ui.InfoPanel;
 import com.jipelski.mergerrealm.ui.AdRewardPopup;
 import com.jipelski.mergerrealm.util.AdManager;
@@ -199,6 +200,19 @@ public class GridInputHandler extends InputAdapter {
     private OutfitPanel outfitPanel;
     public void setOutfitPanel(OutfitPanel panel) { this.outfitPanel = panel; }
 
+    private SettingsPanel settingsPanel;
+    private float settingsBtnX, settingsBtnY, settingsBtnW, settingsBtnH;
+    public void setSettingsPanel(SettingsPanel panel) { this.settingsPanel = panel; }
+
+    public void setSettingsButtonBounds(float x, float y, float w, float h) {
+        this.settingsBtnX = x; this.settingsBtnY = y; this.settingsBtnW = w; this.settingsBtnH = h;
+    }
+
+    private boolean isSettingsButtonTap(float wx, float wy) {
+        return wx >= settingsBtnX && wx <= settingsBtnX + settingsBtnW
+            && wy >= settingsBtnY && wy <= settingsBtnY + settingsBtnH;
+    }
+
     private InfoPanel infoPanel;
     public void setInfoPanel(InfoPanel panel) { this.infoPanel = panel; }
 
@@ -274,6 +288,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (settingsPanel != null && settingsPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -517,6 +535,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (settingsPanel != null && settingsPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (infoPanel != null && infoPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -600,6 +622,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (settingsPanel != null && settingsPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
         if (infoPanel != null && infoPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -673,6 +699,16 @@ public class GridInputHandler extends InputAdapter {
         if (prestigePanel != null && !pickingUnitFromGrid
             && isPrestigeBoxTap(worldPos.x, worldPos.y)) {
             prestigePanel.open();
+            clearSelection();
+            if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
+            return true;
+        }
+
+        // Open Settings here (not on touchDown — same touchUp-not-touchDown
+        // convention as every other panel-opening button in this file).
+        if (settingsPanel != null && !pickingUnitFromGrid
+            && isSettingsButtonTap(worldPos.x, worldPos.y)) {
+            settingsPanel.open();
             clearSelection();
             if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
             return true;

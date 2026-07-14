@@ -307,9 +307,16 @@
             {"enemies": ["shadow_lord"], "lootChance": 1.0},
             {"enemies": ["arch_demon"], "lootChance": 1.0}
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "endless_gauntlet",
+      "name": "Endless Gauntlet",
+      "unlockLevel": 20,
+      "nodes": [
         {
-          "id": "br_endless", "name": "Endless Gauntlet", "type": "endless", "order": 2,
+          "id": "br_endless", "name": "Endless Gauntlet", "type": "endless", "order": 1,
           "tokenCost": 1,
           "enemyPool": [
             "goblin_grunt", "goblin_archer", "goblin_brute", "goblin_shaman", "goblin_elite",

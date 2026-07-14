@@ -40,6 +40,12 @@ import java.util.List;
  *     to a DailyLoginPopup reference (set via setDailyLoginPopup) so the
  *     calendar strip and its claim state are a single source of truth
  *     shared with the auto-opens-on-launch popup, not a second copy.
+ *   Outfit — Prince Outfits. Delegates its drawing/hit-test to an
+ *     OutfitPanel reference (set via setOutfitPanel), same shared-rows
+ *     pattern as Daily above — the standalone OutfitPanel (opened by
+ *     tapping the already-selected Prince a second time) and this tab are
+ *     two independently-openable entry points onto the same OutfitManager
+ *     state, never both visible at once through normal input.
  *
  * Opened either on the Gold tab (top-bar gold chip) or the Equipment tab
  * (RaidPanel's [Shop] button) via open(int tab).
@@ -56,8 +62,10 @@ public class UnifiedShopPanel {
     public static final int TAB_RARE = 2;
     public static final int TAB_GOLD = 3;
     public static final int TAB_DAILY = 4;
-    private static final int NUM_TABS = 5;
-    private static final String[] TAB_LABELS = {"Equipment", "Consume", "Rare", "Gold", "Daily"};
+    public static final int TAB_OUTFITS = 5;
+    private static final int NUM_TABS = 6;
+    // "Outfit" kept short like Gold/Rare/Daily — 6 tabs now share the strip.
+    private static final String[] TAB_LABELS = {"Equipment", "Consume", "Rare", "Gold", "Daily", "Outfit"};
     // Indexed by tab for tabs 0-2 — maps a trophy tab to its ShopEntry.category.
     private static final String[] TAB_CATEGORY = {"equipment", "consumable", "rare"};
     private int activeTab = TAB_EQUIPMENT;
@@ -116,6 +124,10 @@ public class UnifiedShopPanel {
     // — see the class javadoc.
     private DailyLoginPopup dailyLoginPopup;
 
+    // Outfit tab's rows are drawn/hit-tested by this shared reference — same
+    // pattern as dailyLoginPopup above, see OutfitPanel's own class javadoc.
+    private OutfitPanel outfitPanel;
+
     // Opened for the Fill Resources / Revive Party rows' [Ad N/5] affordance
     // — see AdRewardPopup's class javadoc for the full picture across all
     // 4 ad-eligible actions.
@@ -131,6 +143,7 @@ public class UnifiedShopPanel {
     }
 
     public void setDailyLoginPopup(DailyLoginPopup popup) { this.dailyLoginPopup = popup; }
+    public void setOutfitPanel(OutfitPanel panel) { this.outfitPanel = panel; }
     public void setAdRewardPopup(AdRewardPopup popup) { this.adRewardPopup = popup; }
 
     /** Fill Resources / Revive Party rows also offer a free ad-watch path; the other 3 sinks don't. */
@@ -174,7 +187,7 @@ public class UnifiedShopPanel {
     }
 
     private void recalculateScroll() {
-        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY) {
+        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY || activeTab == TAB_OUTFITS) {
             maxScrollY = 0f;
             scrollY = 0f;
             return;
@@ -259,6 +272,11 @@ public class UnifiedShopPanel {
             dailyLoginPopup.drawCalendarBg(sr, getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
         }
 
+        // ── Outfit tab rows — delegated to the shared renderer ──
+        if (activeTab == TAB_OUTFITS && outfitPanel != null) {
+            outfitPanel.drawOutfitRowsBg(sr, getMenuX(), getMenuBottom(), getMenuWidth(), getContentHeight());
+        }
+
         sr.end();
         Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
     }
@@ -281,6 +299,11 @@ public class UnifiedShopPanel {
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
             fontSmall.draw(batch, "Streak: Day " + dlm.getDayToClaim() + "/" + DailyLoginManager.STREAK_LENGTH,
                 getMenuX() + 12f, getMenuTop() - 32f);
+        } else if (activeTab == TAB_OUTFITS) {
+            GoldManager gm = eventManager.getGoldManager();
+            fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
+            IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "gold",
+                " " + gm.getGold(), getMenuX() + 12f, getMenuTop() - 32f, 16f);
         } else {
             TrophyShop shop = eventManager.getTrophyShop();
             RaidManager rm = eventManager.getRaidManager();
@@ -314,6 +337,11 @@ public class UnifiedShopPanel {
             if (dailyLoginPopup != null) {
                 dailyLoginPopup.drawCalendarContent(batch, font, fontSmall,
                     getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
+            }
+        } else if (activeTab == TAB_OUTFITS) {
+            if (outfitPanel != null) {
+                outfitPanel.drawOutfitRowsContent(batch, fontSmall,
+                    getMenuX(), getMenuBottom(), getMenuWidth(), getContentHeight());
             }
         } else {
             drawTrophyRows(batch, fontSmall);
@@ -434,10 +462,11 @@ public class UnifiedShopPanel {
     public boolean handleTouchDragged(int screenX, int screenY) {
         if (!visible || !touchDown) return false;
 
-        // The Gold tab's 5 rows and the Daily tab's calendar strip always
-        // fit — nothing to scroll — but the drag must still be swallowed so
-        // it doesn't fall through to the grid underneath.
-        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY) return true;
+        // The Gold tab's 5 rows, the Daily tab's calendar strip, and the
+        // Outfit tab's 5 rows always fit — nothing to scroll — but the drag
+        // must still be swallowed so it doesn't fall through to the grid
+        // underneath.
+        if (activeTab == TAB_GOLD || activeTab == TAB_DAILY || activeTab == TAB_OUTFITS) return true;
 
         touchPos.set(screenX, screenY);
         viewport.unproject(touchPos);
@@ -521,6 +550,11 @@ public class UnifiedShopPanel {
             if (dailyLoginPopup != null) {
                 dailyLoginPopup.handleCalendarTap(touchPos.x, touchPos.y,
                     getDailyX(), getDailyY(), getDailyWidth(), getDailyHeight());
+            }
+        } else if (activeTab == TAB_OUTFITS) {
+            if (outfitPanel != null) {
+                outfitPanel.handleOutfitRowTap(touchPos.x, touchPos.y,
+                    getMenuX(), getMenuBottom(), getMenuWidth(), getContentHeight());
             }
         } else {
             float buyX = getMenuX() + getMenuWidth() - 58f;

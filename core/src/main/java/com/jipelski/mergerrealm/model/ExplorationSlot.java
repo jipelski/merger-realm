@@ -31,10 +31,10 @@ public class ExplorationSlot {
 
     // ── Exploration state ──
     private String zone;              // "forest", "mountain", "mines", "ruins", "wastes"
-    private long startTimeMs;         // System.currentTimeMillis() when exploration began
+    private long startTimeMs;         // trusted time (ServerTimeManager.getTrustedTimeMillis()) when exploration began
     private long lastEventTimeMs;     // timestamp of last processed event (relative to start)
     private boolean returning;        // unit is heading home
-    private long recallTimeMs;        // System.currentTimeMillis() when recall was initiated
+    private long recallTimeMs;        // trusted time (ServerTimeManager.getTrustedTimeMillis()) when recall was initiated
     private long returnSpeedupMs;     // accumulated gold-purchased return-time reduction
     private boolean dead;             // unit died during exploration
     private int cursedEncounters;     // remaining encounters with curse debuff (ruins)
@@ -137,29 +137,36 @@ public class ExplorationSlot {
     // ── Computed properties ──
 
     /**
-     * Total time the unit has been exploring (milliseconds).
+     * Total time the unit has been exploring (milliseconds). Requires an
+     * explicit trusted "now" (rather than reading the device clock itself)
+     * because this is a plain model class with no access to
+     * EventManager/ServerTimeManager — every caller must supply
+     * eventManager.getServerTimeManager().getTrustedTimeMillis() so a
+     * rolled-forward device clock can't inflate exploration time.
      */
-    public long getElapsedMs() {
-        return System.currentTimeMillis() - startTimeMs;
+    public long getElapsedMs(long now) {
+        return now - startTimeMs;
     }
 
     /**
-     * Time remaining before the unit returns home (milliseconds).
-     * Returns 0 if not returning or already arrived.
+     * Time remaining before the unit returns home (milliseconds). Returns 0
+     * if not returning or already arrived. See getElapsedMs() for why `now`
+     * is a required parameter rather than an internal clock read.
      */
-    public long getReturnRemainingMs() {
+    public long getReturnRemainingMs(long now) {
         if (!returning) return -1;
         long exploreTime = recallTimeMs - startTimeMs;
         long returnDuration = exploreTime / 2;
-        long elapsed = System.currentTimeMillis() - recallTimeMs;
+        long elapsed = now - recallTimeMs;
         return Math.max(0, returnDuration - elapsed - returnSpeedupMs);
     }
 
     /**
-     * Returns true if the unit has arrived home after being recalled.
+     * Returns true if the unit has arrived home after being recalled. See
+     * getElapsedMs() for why `now` is a required parameter.
      */
-    public boolean hasArrived() {
-        return returning && getReturnRemainingMs() <= 0;
+    public boolean hasArrived(long now) {
+        return returning && getReturnRemainingMs(now) <= 0;
     }
 
     /**

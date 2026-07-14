@@ -55,7 +55,7 @@ public class DailyLoginManager {
     /** True if never claimed, or 24h+ have elapsed since the last claim. */
     public boolean isClaimAvailable() {
         if (lastClaimMs <= 0) return true;
-        return System.currentTimeMillis() - lastClaimMs >= DAY_MS;
+        return eventManager.getServerTimeManager().getTrustedTimeMillis() - lastClaimMs >= DAY_MS;
     }
 
     public boolean isTodayClaimed() {
@@ -70,7 +70,7 @@ public class DailyLoginManager {
     public int getDayToClaim() {
         if (lastClaimMs <= 0) return 1;
 
-        long elapsed = System.currentTimeMillis() - lastClaimMs;
+        long elapsed = eventManager.getServerTimeManager().getTrustedTimeMillis() - lastClaimMs;
         if (elapsed < DAY_MS) return lastClaimDay; // already claimed today
         if (elapsed < 2 * DAY_MS) return (lastClaimDay % STREAK_LENGTH) + 1;
         return 1; // streak lapsed
@@ -143,7 +143,7 @@ public class DailyLoginManager {
         }
 
         lastClaimDay = day;
-        lastClaimMs = System.currentTimeMillis();
+        lastClaimMs = eventManager.getServerTimeManager().getTrustedTimeMillis();
 
         Gdx.app.log(TAG, "Daily login day " + day + " claimed: +" + gold + " Gold"
             + (rewardType != null ? ", " + rewardType + " lv" + rewardLevel

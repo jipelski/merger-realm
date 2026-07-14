@@ -56,6 +56,7 @@ import com.jipelski.mergerrealm.util.OutfitManager;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.ResourceManager;
 import com.jipelski.mergerrealm.util.RuneSystem;
+import com.jipelski.mergerrealm.util.ServerTimeManager;
 import com.jipelski.mergerrealm.util.SoundManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 import com.jipelski.mergerrealm.util.TextUtil;
@@ -68,6 +69,7 @@ import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.ui.OutfitPanel;
+import com.jipelski.mergerrealm.ui.SettingsPanel;
 import com.jipelski.mergerrealm.ui.InfoPanel;
 import com.jipelski.mergerrealm.ui.AdRewardPopup;
 import com.jipelski.mergerrealm.ui.IconText;
@@ -121,6 +123,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
     private static final float LOCK_BTN_SIZE = 30f;
     private static final float INFO_BTN_SIZE = 16f;
+    private static final float SETTINGS_BTN_SIZE = 28f;
 
     // ── Offline tracking ──
     private static final String TIMESTAMP_KEY = "last_active_timestamp";
@@ -153,6 +156,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private RefinePanel refinePanel;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
+    private SettingsPanel settingsPanel;
     private InfoPanel infoPanel;
     private AdRewardPopup adRewardPopup;
     private RaidPanel raidPanel;
@@ -325,6 +329,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         outfitPanel = new OutfitPanel(eventManager, viewport, uiTex, spriteManager);
         inputHandler.setOutfitPanel(outfitPanel);
+        unifiedShopPanel.setOutfitPanel(outfitPanel);
+
+        settingsPanel = new SettingsPanel(eventManager, viewport, uiTex, spriteManager, soundManager);
+        inputHandler.setSettingsPanel(settingsPanel);
 
         infoPanel = new InfoPanel(eventManager, spriteManager, viewport, uiTex);
         inputHandler.setInfoPanel(infoPanel);
@@ -363,6 +371,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
             LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
 
+        // Gear icon — sits in the blank strip above the nemesis box (between
+        // the resource rows and the level/nemesis boxes), always visible
+        // regardless of selection, unlike the info/lock buttons.
+        float settingsBtnX = LayoutConfig.getNemesisBoxX()
+            + (LayoutConfig.NEMESIS_BOX_SIZE - SETTINGS_BTN_SIZE) / 2f;
+        float settingsBtnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE + 6f;
+        inputHandler.setSettingsButtonBounds(settingsBtnX, settingsBtnY, SETTINGS_BTN_SIZE, SETTINGS_BTN_SIZE);
+
         /*float lockBtnX = LayoutConfig.getNemesisBoxX() + (LayoutConfig.NEMESIS_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() - LOCK_BTN_SIZE - 4f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);*/
@@ -384,6 +400,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         tutorialOverlay.updateLayout();
         tutorialManager.start();
         inputHandler.setTutorialOverlay(tutorialOverlay);
+
+        // Must run BEFORE processOfflineProgress() — checkpoint() refreshes
+        // the trusted-clock anchor (and rejects an implausible wall-clock
+        // jump) that processOfflineProgress() then reads via
+        // getTrustedTimeMillis(). sync() is fire-and-forget (async, no-ops
+        // today with no backend configured — see ServerTimeManager).
+        eventManager.getServerTimeManager().checkpoint();
+        eventManager.getServerTimeManager().sync();
 
         // Suppressed so offline catch-up (facility spawns, level-ups) replayed
         // from a long-offline gap doesn't play a burst of SFX on cold launch.
@@ -420,7 +444,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (savedTimestamp == null || savedTimestamp.length < 2) return;
 
         long savedTime = ((long) savedTimestamp[0] << 32) | (savedTimestamp[1] & 0xFFFFFFFFL);
-        long now = System.currentTimeMillis();
+        long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
         long elapsedMs = now - savedTime;
         if (elapsedMs <= 0) return;
 
@@ -518,7 +542,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     }
 
     private void saveTimestamp() {
-        long now = System.currentTimeMillis();
+        long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
         jsonManager.saveArray(TIMESTAMP_KEY, new int[]{(int) (now >>> 32), (int) now});
     }
 
@@ -553,7 +577,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             && !raidPanel.isVisible() && !unifiedShopPanel.isVisible()
             && !prestigePanel.isVisible() && !outfitPanel.isVisible()
             && !infoPanel.isVisible() && !salvagePanel.isVisible()
-            && !refinePanel.isVisible() && !dailyLoginPopup.isVisible()) {
+            && !refinePanel.isVisible() && !dailyLoginPopup.isVisible()
+            && !settingsPanel.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -664,6 +689,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawInfoBarContentTextured();
             drawLockButton();
             drawInfoButton();
+            drawSettingsButton();
 
             uiTex.drawPanel(batch, uiTex.panelDark,
                 0, LayoutConfig.getWallY(),
@@ -736,6 +762,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             outfitPanel.drawBackground(shapeRenderer);
             batch.begin();
             outfitPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (settingsPanel.isVisible()) {
+            settingsPanel.drawBackground(shapeRenderer);
+            batch.begin();
+            settingsPanel.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
@@ -1473,6 +1506,30 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         font.setColor(Color.WHITE);
     }
 
+    /**
+     * Opens SettingsPanel. Always visible (unlike the lock/info buttons,
+     * which only show for a selected object) — sits in the blank strip
+     * above the nemesis box; see SETTINGS_BTN_SIZE's bounds computation in
+     * create()/resize(). Uses the "⚙" glyph already relied on elsewhere
+     * in the UI font (RaidPanel's "⚠"/"★" glyphs); if it doesn't
+     * render on a real device, swap for a plain ASCII label like "S".
+     */
+    private void drawSettingsButton() {
+        float btnX = LayoutConfig.getNemesisBoxX()
+            + (LayoutConfig.NEMESIS_BOX_SIZE - SETTINGS_BTN_SIZE) / 2f;
+        float btnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE + 6f;
+
+        uiTex.drawPanel(batch, uiTex.btnNormal, btnX, btnY, SETTINGS_BTN_SIZE, SETTINGS_BTN_SIZE);
+
+        font.setColor(Color.LIGHT_GRAY);
+        String gearText = "⚙";
+        glyphLayout.setText(font, gearText);
+        font.draw(batch, gearText,
+            btnX + (SETTINGS_BTN_SIZE - glyphLayout.width) / 2f,
+            btnY + SETTINGS_BTN_SIZE / 2f + glyphLayout.height / 2f);
+        font.setColor(Color.WHITE);
+    }
+
     private void drawOutlineRect(float x, float y, float size, float thickness) {
         // Top
         shapeRenderer.rect(x - thickness, y + size, size + thickness * 2, thickness);
@@ -2018,6 +2075,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
             LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
 
+        float settingsBtnX = LayoutConfig.getNemesisBoxX()
+            + (LayoutConfig.NEMESIS_BOX_SIZE - SETTINGS_BTN_SIZE) / 2f;
+        float settingsBtnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE + 6f;
+        inputHandler.setSettingsButtonBounds(settingsBtnX, settingsBtnY, SETTINGS_BTN_SIZE, SETTINGS_BTN_SIZE);
+
         // Also recalculate bottom bar button bounds
         inputHandler.setBuildButtonBounds(
             LayoutConfig.getButtonX(0), LayoutConfig.getBtnY(),
@@ -2036,6 +2098,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     @Override
     public void resume() {
         Gdx.app.log(TAG, "Resumed — checking offline progress...");
+        // See create()'s matching checkpoint()/sync()-before-offline-progress
+        // ordering note — same reasoning applies on foreground resume.
+        eventManager.getServerTimeManager().checkpoint();
+        eventManager.getServerTimeManager().sync();
+
         // See create()'s matching suppress/unsuppress — same reasoning.
         soundManager.setSuppressed(true);
         processOfflineProgress();
@@ -2112,7 +2179,8 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             RaidManager raidMgr = eventManager.getRaidManager();
             jsonManager.saveRuneFragments("raid_completion", raidMgr.getCompletionMap());
             jsonManager.saveArray("raid_currency", new int[]{
-                raidMgr.getWarTrophies(), raidMgr.getBossTokens()
+                raidMgr.getWarTrophies(), raidMgr.getBossTokens(),
+                raidMgr.isEndlessWarningSuppressed() ? 1 : 0
             });
             // Always written, even when null (no active raid) — see
             // JsonManager.saveRaidState. Lets a raid resume after the process
@@ -2146,6 +2214,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
             // Watch-ad daily budget — see AdManager's persistence section.
             jsonManager.saveArray("ad_watch_state", eventManager.getAdManager().getSaveState());
+
+            // Player identity + trusted-clock anchor — see ServerTimeManager's
+            // persistence section.
+            ServerTimeManager stm = eventManager.getServerTimeManager();
+            jsonManager.saveStringSet("player_identity", stm.getPlayerIdAsSet());
+            jsonManager.saveArray("server_time_state", stm.getSaveState());
 
             // Tutorial progress — see TutorialManager's persistence javadoc.
             jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());

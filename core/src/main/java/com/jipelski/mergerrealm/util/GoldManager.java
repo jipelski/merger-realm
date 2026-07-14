@@ -257,12 +257,13 @@ public class GoldManager {
         if (slotIndex < 0 || slotIndex >= slots.size()) return null;
 
         com.jipelski.mergerrealm.model.ExplorationSlot slot = slots.get(slotIndex);
-        if (slot.isDead() || slot.hasArrived() || !slot.isReturning()) return null;
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
+        if (slot.isDead() || slot.hasArrived(trustedNow) || !slot.isReturning()) return null;
         return slot;
     }
 
     private void applySpeedup(int slotIndex, com.jipelski.mergerrealm.model.ExplorationSlot slot) {
-        long remaining = slot.getReturnRemainingMs();
+        long remaining = slot.getReturnRemainingMs(eventManager.getServerTimeManager().getTrustedTimeMillis());
         slot.setReturnSpeedupMs(slot.getReturnSpeedupMs() + remaining / 2);
         Gdx.app.log(TAG, "Exploration slot " + slotIndex + " return trip sped up (remaining time halved)");
     }

@@ -1,5 +1,6 @@
 package com.jipelski.mergerrealm.util;
 
+import com.jipelski.mergerrealm.testutil.EventManagerTestSupport;
 import com.jipelski.mergerrealm.testutil.GdxTestSupport;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -12,13 +13,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Covers AdManager's pure logic — the daily-window reset, per-action count
- * budget, and save-state packing — all of which never dereference
- * `eventManager` (confirmed by reading the class: only watchAd() touches it,
- * to reach GoldManager's do* effect cores). AdManager is constructed with a
- * null EventManager here, safe specifically because none of the methods
- * under test ever call watchAd(). Mirrors GoldManagerTest's outer-class
- * null-backed style.
+ * Covers AdManager's daily-window reset, per-action count budget, and
+ * save-state packing. Constructed via a real EventManager
+ * (EventManagerTestSupport.freshEventManager().getAdManager()) rather than
+ * GoldManagerTest's null-backed style — checkDailyReset() now reads
+ * eventManager.getServerTimeManager().getTrustedTimeMillis() (added when
+ * ServerTimeManager was introduced), so a null EventManager would NPE on
+ * every method under test (all of them call checkDailyReset() lazily). A
+ * fresh EventManager's ServerTimeManager has never had checkpoint() called
+ * on it (that only happens from MergerRealmGame.create()/resume()), so
+ * getTrustedTimeMillis() has no anchor yet and simply returns raw
+ * System.currentTimeMillis() — every assertion below still holds exactly as
+ * before this dependency was added.
  */
 class AdManagerTest {
 
@@ -31,7 +37,7 @@ class AdManagerTest {
 
     @BeforeEach
     void setUp() {
-        ads = new AdManager(null);
+        ads = EventManagerTestSupport.freshEventManager().getAdManager();
     }
 
     @Test

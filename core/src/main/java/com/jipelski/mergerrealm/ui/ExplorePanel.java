@@ -295,6 +295,7 @@ public class ExplorePanel {
         ExplorationManager em = eventManager.getExplorationManager();
         if (em == null) return;
 
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
         float slotY = getContentTop() - 24f;
         for (int i = 0; i < em.getActiveSlots().size(); i++) {
             float y = slotY - i * (SLOT_HEIGHT + SLOT_GAP);
@@ -302,7 +303,7 @@ public class ExplorePanel {
 
             if (slot.isDead()) {
                 sr.setColor(0.25f, 0.15f, 0.15f, 1f); // red tint
-            } else if (slot.hasArrived()) {
+            } else if (slot.hasArrived(trustedNow)) {
                 sr.setColor(0.15f, 0.25f, 0.15f, 1f); // green tint
             } else if (slot.isReturning()) {
                 sr.setColor(0.2f, 0.2f, 0.28f, 1f); // blue-ish
@@ -325,6 +326,7 @@ public class ExplorePanel {
         ExplorationManager em = eventManager.getExplorationManager();
         if (em == null) return;
 
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
         float slotY = getContentTop() - 24f;
         List<ExplorationSlot> slots = em.getActiveSlots();
 
@@ -353,14 +355,14 @@ public class ExplorePanel {
             if (slot.isDead()) {
                 status = "FALLEN | Loot ready";
                 fontSmall.setColor(0.9f, 0.3f, 0.3f, 1f);
-            } else if (slot.hasArrived()) {
+            } else if (slot.hasArrived(trustedNow)) {
                 status = "RETURNED | Tap to collect";
                 fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
             } else if (slot.isReturning()) {
-                long remainMs = slot.getReturnRemainingMs();
+                long remainMs = slot.getReturnRemainingMs(trustedNow);
                 status = "Returning... " + TextUtil.formatDurationMs(remainMs);
             } else {
-                long elapsed = slot.getElapsedMs();
+                long elapsed = slot.getElapsedMs(trustedNow);
                 status = "Exploring " + TextUtil.formatDurationMs(elapsed)
                     + " | HP: " + slot.getUnitCurrentHp() + "/" + slot.getUnitMaxHp();
             }
@@ -375,7 +377,7 @@ public class ExplorePanel {
             float btnX = getMenuX() + getMenuWidth() - BTN_WIDTH - 16f;
             float btnY = y - SLOT_HEIGHT + 8f;
 
-            if (slot.isDead() || slot.hasArrived()) {
+            if (slot.isDead() || slot.hasArrived(trustedNow)) {
                 // "Collect" button
                 fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
                 fontSmall.draw(batch, "[Collect]", btnX, btnY + 16f);
@@ -389,7 +391,7 @@ public class ExplorePanel {
             fontSmall.setColor(0.5f, 0.5f, 0.7f, 1f);
             fontSmall.draw(batch, "[Log]", btnX - 50f, btnY + 16f);
 
-            if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
+            if (!slot.isDead() && !slot.hasArrived(trustedNow) && slot.isReturning()) {
                 GoldManager gm = eventManager.getGoldManager();
                 boolean can = gm.canAfford(GoldManager.COST_SPEED_EXPLORATION);
                 if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
@@ -671,6 +673,7 @@ public class ExplorePanel {
         ExplorationManager em = eventManager.getExplorationManager();
         if (em == null) return true;
 
+        long trustedNow = eventManager.getServerTimeManager().getTrustedTimeMillis();
         float slotY = getContentTop() - 24f;
         List<ExplorationSlot> slots = em.getActiveSlots();
 
@@ -683,7 +686,7 @@ public class ExplorePanel {
 
                 // Action button area (right side)
                 if (touchPos.x >= btnX - 10f) {
-                    if (slot.isDead() || slot.hasArrived()) {
+                    if (slot.isDead() || slot.hasArrived(trustedNow)) {
                         em.collectResults(i);
                         Gdx.app.log(TAG, "Collected results from slot " + i);
                     } else if (!slot.isReturning()) {
@@ -704,7 +707,7 @@ public class ExplorePanel {
 
                 // speed button region (left of the Log button)
                 if (touchPos.x >= btnX - 110f && touchPos.x < btnX - 60f) {
-                    if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
+                    if (!slot.isDead() && !slot.hasArrived(trustedNow) && slot.isReturning()) {
                         eventManager.getGoldManager().speedUpExploration(i);
                     }
                     return true;
@@ -712,7 +715,7 @@ public class ExplorePanel {
 
                 // ad button region (left of the Rush button)
                 if (touchPos.x >= btnX - 175f && touchPos.x < btnX - 110f) {
-                    if (!slot.isDead() && !slot.hasArrived() && slot.isReturning() && adRewardPopup != null) {
+                    if (!slot.isDead() && !slot.hasArrived(trustedNow) && slot.isReturning() && adRewardPopup != null) {
                         adRewardPopup.open(AdManager.AdAction.SPEED_EXPLORATION, false, i, null);
                     }
                     return true;

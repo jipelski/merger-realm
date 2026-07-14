@@ -62,6 +62,11 @@ public class RaidManager {
     // ── Boss Tokens ──
     private int bossTokens = 0;
 
+    // ── Endless Gauntlet permadeath-warning opt-out ("don't show again") ──
+    // Persisted as the 3rd int in the "raid_currency" save array — see
+    // MergerRealmGame.saveGame()/EventManager's load block.
+    private boolean endlessWarningSuppressed = false;
+
     // ── Combat log ──
     private final List<String> combatLog = new ArrayList<>();
     private static final int MAX_LOG_LINES = 100;
@@ -159,6 +164,8 @@ public class RaidManager {
     public void setWarTrophies(int t) { this.warTrophies = t; }
     public int getBossTokens() { return bossTokens; }
     public void setBossTokens(int t) { this.bossTokens = t; }
+    public boolean isEndlessWarningSuppressed() { return endlessWarningSuppressed; }
+    public void setEndlessWarningSuppressed(boolean suppressed) { this.endlessWarningSuppressed = suppressed; }
     public Map<String, Integer> getCompletionMap() { return completionMap; }
     public void setCompletionMap(Map<String, Integer> map) { this.completionMap = map; }
 
@@ -1069,7 +1076,7 @@ public class RaidManager {
         DeadPartySnapshot snap = new DeadPartySnapshot();
         snap.snapshotId = java.util.UUID.randomUUID().toString();
         snap.depthReached = activeRaid.getCurrentRoomIndex() + 1;
-        snap.diedAtMs = System.currentTimeMillis();
+        snap.diedAtMs = eventManager.getServerTimeManager().getTrustedTimeMillis();
 
         Inventory inv = eventManager.getInventory();
         RuneSystem runes = eventManager.getRuneSystem();

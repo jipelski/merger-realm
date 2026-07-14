@@ -111,8 +111,23 @@ public class EventManager {
     private DeadPartyManager deadPartyManager;
     public DeadPartyManager getDeadPartyManager() { return deadPartyManager; }
 
+    private ServerTimeManager serverTimeManager;
+    public ServerTimeManager getServerTimeManager() { return serverTimeManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
+
+        // Constructed first — no dependencies on any other subsystem, and
+        // MergerRealmGame.create()/resume() call checkpoint()/sync() right
+        // after EventManager finishes constructing, so its persisted state
+        // (identity + trusted-clock anchor) must be fully loaded before this
+        // constructor returns.
+        this.serverTimeManager = new ServerTimeManager(this);
+        java.util.Set<String> savedPlayerId = jsonManager.loadStringSet("player_identity");
+        serverTimeManager.setPlayerIdFromSet(savedPlayerId);
+        serverTimeManager.setSaveState(jsonManager.loadArray("server_time_state"));
+        Gdx.app.log(TAG, "ServerTimeManager loaded — player: " + serverTimeManager.getPlayerId());
+
         this.gridInstance        = new Grid(jsonInstance);
         this.GDLInstance         = new GameDataLoader(jsonInstance);
         this.resourceManager     = new ResourceManager(jsonManager);
@@ -168,6 +183,9 @@ public class EventManager {
         if (savedRaidCurrency != null && savedRaidCurrency.length >= 2) {
             raidManager.setWarTrophies(savedRaidCurrency[0]);
             raidManager.setBossTokens(savedRaidCurrency[1]);
+        }
+        if (savedRaidCurrency != null && savedRaidCurrency.length >= 3) {
+            raidManager.setEndlessWarningSuppressed(savedRaidCurrency[2] != 0);
         }
 
         // Restore an in-progress raid (e.g. process was killed mid-raid) so
@@ -683,7 +701,8 @@ public class EventManager {
         jsonInstance.saveRuneApplications("rune_applications", runeSystem.getAppliedRunes());
         jsonInstance.saveRuneFragments("raid_completion", raidManager.getCompletionMap());
         jsonInstance.saveArray("raid_currency", new int[]{
-            raidManager.getWarTrophies(), raidManager.getBossTokens()
+            raidManager.getWarTrophies(), raidManager.getBossTokens(),
+            raidManager.isEndlessWarningSuppressed() ? 1 : 0
         });
         Map<String, Object> shopState = new java.util.HashMap<>();
         shopState.put("stock", trophyShop.getCurrentStock());

@@ -81,6 +81,12 @@ public class RaidPanel {
     // ── Arrange-party state ──
     private int arrangeSelectedSlot = -1; // -1 = no slot currently selected for swap
 
+    // ── Endless permadeath confirm gate — a content swap within ARRANGE_PARTY,
+    // same idiom as drawExtractDecision's swap within COMBAT. Both fields are
+    // transient per-gate-view state, reset whenever the gate isn't showing. ──
+    private boolean pendingEndlessConfirm = false;
+    private boolean confirmDoNotShowAgain = false;
+
     // ── Combat scroll ──
     private float logScrollY = 0f;
 
@@ -148,6 +154,8 @@ public class RaidPanel {
     private void resetParty() {
         for (int i = 0; i < 4; i++) partyUnitIds[i] = null;
         partySlotFilling = 0;
+        pendingEndlessConfirm = false;
+        confirmDoNotShowAgain = false;
     }
 
     /**
@@ -512,6 +520,11 @@ public class RaidPanel {
     // ── ARRANGE PARTY ──
 
     private void drawArrangePartyContent(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
+        if (pendingEndlessConfirm) {
+            drawEndlessConfirm(batch, font, fontSmall);
+            return;
+        }
+
         font.setColor(0.9f, 0.5f, 0.2f, 1f);
         font.draw(batch, "Arrange Party", getMenuX() + 12f, getMenuTop() - 10f);
         font.setColor(Color.WHITE);
@@ -545,6 +558,42 @@ public class RaidPanel {
         fontSmall.draw(batch, confirmLabel,
             getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f,
             getArrangeConfirmButtonY());
+
+        font.setColor(Color.WHITE);
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    // ── ENDLESS PERMADEATH CONFIRM GATE ──
+    // Content swap within ARRANGE_PARTY (same idiom as drawExtractDecision's
+    // swap within COMBAT) — forces an explicit acknowledgment before an
+    // endless raid starts, since a full wipe permanently deletes the party.
+    // Skipped entirely once RaidManager.isEndlessWarningSuppressed() is set
+    // via this screen's own "don't show again" checkbox.
+
+    private void drawEndlessConfirm(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
+        font.setColor(new Color(0.95f, 0.2f, 0.2f, 1f));
+        font.draw(batch, "⚠ PERMANENT DEATH", getMenuX() + 12f, getMenuTop() - 10f);
+
+        fontSmall.setColor(0.85f, 0.75f, 0.75f, 1f);
+        fontSmall.draw(batch,
+            "A wipe in the Endless Gauntlet loses your WHOLE PARTY forever — units are not "
+                + "recoverable. Extract at a checkpoint to bank rewards and keep your party safe.",
+            getMenuX() + 12f, getContentTop() - 10f, getMenuWidth() - 24f,
+            com.badlogic.gdx.utils.Align.left, true);
+
+        // "Don't show again" — only takes effect if the player proceeds via
+        // Start Raid (see handleEndlessConfirmTouch), never on Cancel.
+        float checkboxY = getMenuBottom() + 90f;
+        fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
+        fontSmall.draw(batch, (confirmDoNotShowAgain ? "[X] " : "[ ] ") + "Don't show this again",
+            getMenuX() + 12f, checkboxY);
+
+        // Buttons — left/right footer split, same convention as
+        // drawExtractDecision/handleExtractDecisionTouch.
+        fontSmall.setColor(0.6f, 0.7f, 0.9f, 1f);
+        fontSmall.draw(batch, "[ Cancel ]", getMenuX() + 24f, getMenuBottom() + 40f);
+        fontSmall.setColor(0.9f, 0.3f, 0.3f, 1f);
+        fontSmall.draw(batch, "[ Start Raid ]", getMenuX() + getMenuWidth() - 140f, getMenuBottom() + 40f);
 
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
@@ -785,6 +834,8 @@ public class RaidPanel {
                 && touchPos.y > getWorldHeight() - SELECT_HEADER_HEIGHT) {
                 state = State.ARRANGE_PARTY;
                 arrangeSelectedSlot = -1;
+                pendingEndlessConfirm = false;
+                confirmDoNotShowAgain = false;
                 return true;
             }
             if (touchPos.y > getWorldHeight() - SELECT_HEADER_HEIGHT) return true;
@@ -979,6 +1030,14 @@ public class RaidPanel {
     }
 
     private boolean handleArrangeTouch() {
+        // Endless permadeath confirm gate takes over the whole screen while
+        // pending — intercept before the Back/X/slot/confirm hit-tests below
+        // so they can't fire underneath it (same reasoning as COMBAT's own
+        // isAwaitingExtractDecision intercept in handleCombatTouch).
+        if (pendingEndlessConfirm) {
+            return handleEndlessConfirmTouch();
+        }
+
         // Close button (X) — fully closes the panel, same as every other state.
         if (touchPos.x > getMenuX() + getMenuWidth() - 40f
             && touchPos.y > getMenuTop() - HEADER_HEIGHT) {
@@ -1019,14 +1078,56 @@ public class RaidPanel {
             }
         }
 
-        // Confirm button
+        // Confirm button — endless raids detour through the permadeath
+        // confirm gate instead of starting immediately, unless the player
+        // has previously opted out via the gate's own checkbox.
         float btnY = getArrangeConfirmButtonY();
         if (touchPos.y >= btnY - 6f && touchPos.y <= btnY + 20f
             && touchPos.x >= getMenuX() && touchPos.x <= getMenuX() + getMenuWidth()) {
-            startRaidWithParty();
+            RaidManager rm = eventManager.getRaidManager();
+            if (rm.isEndlessNode(selectedChapterId, selectedNodeId)
+                && !rm.isEndlessWarningSuppressed()) {
+                pendingEndlessConfirm = true;
+                confirmDoNotShowAgain = false;
+            } else {
+                startRaidWithParty();
+            }
             return true;
         }
 
+        return true;
+    }
+
+    /**
+     * Endless permadeath confirm gate touch handling. Checkbox row toggles
+     * the "don't show again" opt-out — applied ONLY if the player proceeds
+     * via Start Raid, never on Cancel, so opting out requires having
+     * actually gone through with a run at least once. Button row mirrors
+     * handleExtractDecisionTouch's left/right footer-band split.
+     */
+    private boolean handleEndlessConfirmTouch() {
+        // Checkbox row
+        float checkboxY = getMenuBottom() + 90f;
+        if (touchPos.y >= checkboxY - 10f && touchPos.y <= checkboxY + 14f
+            && touchPos.x >= getMenuX() && touchPos.x <= getMenuX() + getMenuWidth()) {
+            confirmDoNotShowAgain = !confirmDoNotShowAgain;
+            return true;
+        }
+
+        // Button row — left half = Cancel, right half = Start Raid.
+        float btnY = getMenuBottom() + 40f;
+        if (touchPos.y >= btnY - 16f && touchPos.y <= btnY + 20f) {
+            if (touchPos.x <= getMenuX() + getMenuWidth() / 2f) {
+                pendingEndlessConfirm = false;
+            } else {
+                if (confirmDoNotShowAgain) {
+                    eventManager.getRaidManager().setEndlessWarningSuppressed(true);
+                }
+                pendingEndlessConfirm = false;
+                startRaidWithParty();
+            }
+            return true;
+        }
         return true;
     }
 
