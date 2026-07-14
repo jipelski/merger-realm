@@ -57,6 +57,9 @@ public class GoldManager {
     public static final int EARN_RAID_BOSS_NODE = 15;
     public static final int EARN_RAID_CHALLENGE_NODE = 25;
 
+    // Equipment salvage Gold by item level (index 0 = level 1)
+    public static final int[] SALVAGE_GOLD_PER_LEVEL = {1, 2, 3, 5, 8};
+
     // ── Tracking one-time rewards ──
     // Stores keys like "raid:gw_boss", "milestone:10", "3star:gw_outpost"
     private Set<String> claimedRewards = new HashSet<>();
@@ -177,8 +180,26 @@ public class GoldManager {
         addGold(EARN_DISMISS_LEGENDARY, "dismiss_legendary");
     }
 
+    /** Gold value of salvaging one unequipped sword/shield/amulet at the given level. */
+    public int getSalvageValue(int level) {
+        int idx = level - 1;
+        if (idx < 0 || idx >= SALVAGE_GOLD_PER_LEVEL.length) return 0;
+        return SALVAGE_GOLD_PER_LEVEL[idx];
+    }
+
+    public void onSalvageEquipment(int totalGold) {
+        addGold(totalGold, "salvage_equipment");
+    }
+
     // ══════════════════════════════════════════════════════════════
     // SPENDING — ACTIONS
+    //
+    // Each of these has a package-private "do*" effect-only core (no Gold
+    // charge) shared with AdManager's free-via-ad path — see AdManager.
+    // Exception: instantPeriodicSpawn() below is left untouched and has its
+    // own separate doInstantPeriodicSpawn() core rather than a shared
+    // extraction, so its documented spend-first/no-refund-on-missing-
+    // facility quirk (asserted by GoldManagerTest) can't be disturbed.
     // ══════════════════════════════════════════════════════════════
 
     /**
@@ -186,14 +207,17 @@ public class GoldManager {
      */
     public boolean fillResources() {
         if (!spendGold(COST_FILL_RESOURCES, "fill_resources")) return false;
+        doFillResources();
+        return true;
+    }
 
+    /** Free effect core for fillResources — no Gold charge. */
+    void doFillResources() {
         ResourceManager rm = eventManager.getResourceManager();
         rm.fillToMax("food");
         rm.fillToMax("wood");
         rm.fillToMax("iron");
-
         Gdx.app.log(TAG, "All resources filled to max");
-        return true;
     }
 
     /**
@@ -204,24 +228,43 @@ public class GoldManager {
      * @param slotIndex the exploration slot to speed up
      */
     public boolean speedUpExploration(int slotIndex) {
-        ExplorationManager em = eventManager.getExplorationManager();
-        if (em == null) return false;
-
-        java.util.List<com.jipelski.mergerrealm.model.ExplorationSlot> slots =
-            em.getActiveSlots();
-        if (slotIndex < 0 || slotIndex >= slots.size()) return false;
-
-        com.jipelski.mergerrealm.model.ExplorationSlot slot = slots.get(slotIndex);
-        if (slot.isDead() || slot.hasArrived() || !slot.isReturning()) return false;
+        com.jipelski.mergerrealm.model.ExplorationSlot slot = getSpeedupEligibleSlot(slotIndex);
+        if (slot == null) return false;
 
         if (!spendGold(COST_SPEED_EXPLORATION, "speed_exploration")) return false;
 
-        // Halve the remaining return time
+        applySpeedup(slotIndex, slot);
+        return true;
+    }
+
+    /**
+     * Free effect core for speedUpExploration — no Gold charge. Returns
+     * true if the slot was eligible and got sped up.
+     */
+    boolean doSpeedUpExploration(int slotIndex) {
+        com.jipelski.mergerrealm.model.ExplorationSlot slot = getSpeedupEligibleSlot(slotIndex);
+        if (slot == null) return false;
+        applySpeedup(slotIndex, slot);
+        return true;
+    }
+
+    private com.jipelski.mergerrealm.model.ExplorationSlot getSpeedupEligibleSlot(int slotIndex) {
+        ExplorationManager em = eventManager.getExplorationManager();
+        if (em == null) return null;
+
+        java.util.List<com.jipelski.mergerrealm.model.ExplorationSlot> slots =
+            em.getActiveSlots();
+        if (slotIndex < 0 || slotIndex >= slots.size()) return null;
+
+        com.jipelski.mergerrealm.model.ExplorationSlot slot = slots.get(slotIndex);
+        if (slot.isDead() || slot.hasArrived() || !slot.isReturning()) return null;
+        return slot;
+    }
+
+    private void applySpeedup(int slotIndex, com.jipelski.mergerrealm.model.ExplorationSlot slot) {
         long remaining = slot.getReturnRemainingMs();
         slot.setReturnSpeedupMs(slot.getReturnSpeedupMs() + remaining / 2);
-
         Gdx.app.log(TAG, "Exploration slot " + slotIndex + " return trip sped up (remaining time halved)");
-        return true;
     }
 
     /**
@@ -259,6 +302,35 @@ public class GoldManager {
     }
 
     /**
+     * Free effect core for the ad-watch path only. Deliberately a SEPARATE
+     * implementation from instantPeriodicSpawn() above (not extracted from
+     * it) — see the SPENDING section header comment for why.
+     */
+    boolean doInstantPeriodicSpawn(String facilityId) {
+        com.jipelski.mergerrealm.model.GameObject obj =
+            eventManager.getGRID_OBJECT_MANAGER().getObject(facilityId);
+        if (obj == null) return false;
+
+        if (!EventManager.PERIODIC_FACILITIES.contains(obj.getType())) {
+            Gdx.app.log(TAG, "Not a periodic facility: " + obj.getType());
+            return false;
+        }
+
+        com.jipelski.mergerrealm.model.Facility facility =
+            (com.jipelski.mergerrealm.model.Facility) obj;
+
+        com.jipelski.mergerrealm.data.FacilityData data =
+            (com.jipelski.mergerrealm.data.FacilityData)
+                eventManager.getGameDataLoader().getGameData(facility.getType(), facility.getLvl());
+        if (data != null && data.getTimeCost() > 0) {
+            facility.setSpawnTimer(data.getTimeCost());
+        }
+
+        Gdx.app.log(TAG, "Instant spawn triggered for " + facility.getType() + " (ad)");
+        return true;
+    }
+
+    /**
      * Revives all dead party members in the current raid at 50% HP.
      */
     public boolean reviveRaidParty() {
@@ -269,6 +341,19 @@ public class GoldManager {
             gold += COST_RAID_REVIVE_ALL; // refund
             return false;
         }
+
+        int revived = doReviveRaidParty();
+        return revived > 0;
+    }
+
+    /**
+     * Free effect core for reviveRaidParty — no Gold charge. Includes its
+     * own raid-active guard (returns 0 rather than relying on the caller),
+     * so it's safe to call directly. Returns the number of members revived.
+     */
+    int doReviveRaidParty() {
+        RaidManager rm = eventManager.getRaidManager();
+        if (rm == null || !rm.isRaidActive()) return 0;
 
         com.jipelski.mergerrealm.model.RaidState raid = rm.getActiveRaid();
         boolean[] dead = raid.getPartyDead();
@@ -285,8 +370,8 @@ public class GoldManager {
             }
         }
 
-        Gdx.app.log(TAG, "Revived " + revived + " party members via Gold");
-        return revived > 0;
+        Gdx.app.log(TAG, "Revived " + revived + " party members");
+        return revived;
     }
 
     /**

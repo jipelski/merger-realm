@@ -13,6 +13,7 @@ import com.jipelski.mergerrealm.model.ExplorationEvent;
 import com.jipelski.mergerrealm.model.ExplorationSlot;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Unit;
+import com.jipelski.mergerrealm.util.AdManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.ExplorationManager;
 import com.jipelski.mergerrealm.util.GoldManager;
@@ -92,6 +93,11 @@ public class ExplorePanel {
     private float touchStartY = 0f;
     private boolean scrolling = false;
 
+    // Opened for the per-slot [Ad N/5] affordance next to [Rush +10G] — see
+    // AdRewardPopup's class javadoc for the full picture across all 4
+    // ad-eligible actions.
+    private AdRewardPopup adRewardPopup;
+
     public ExplorePanel(EventManager eventManager, SpriteManager spriteManager,
                         Viewport viewport, UITextureManager uiTex) {
         this.eventManager = eventManager;
@@ -100,6 +106,8 @@ public class ExplorePanel {
         this.uiTex = uiTex;
         this.glyphLayout = new GlyphLayout();
     }
+
+    public void setAdRewardPopup(AdRewardPopup popup) { this.adRewardPopup = popup; }
 
     // ══════════════════════════════════════════════════════════════
     // STATE
@@ -386,6 +394,11 @@ public class ExplorePanel {
                 if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
                 else     fontSmall.setColor(0.5f, 0.4f, 0.2f, 1f);
                 fontSmall.draw(batch, "[Rush +10G]", btnX - 110f, btnY + 16f);
+
+                int remaining = eventManager.getAdManager().getRemaining(AdManager.AdAction.SPEED_EXPLORATION);
+                if (remaining > 0) fontSmall.setColor(0.3f, 0.75f, 0.95f, 1f);
+                else                fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
+                fontSmall.draw(batch, "[Ad " + remaining + "/" + AdManager.MAX_PER_DAY + "]", btnX - 175f, btnY + 16f);
             }
         }
 
@@ -687,6 +700,14 @@ public class ExplorePanel {
                 if (touchPos.x >= btnX - 110f && touchPos.x < btnX - 60f) {
                     if (!slot.isDead() && !slot.hasArrived() && slot.isReturning()) {
                         eventManager.getGoldManager().speedUpExploration(i);
+                    }
+                    return true;
+                }
+
+                // ad button region (left of the Rush button)
+                if (touchPos.x >= btnX - 175f && touchPos.x < btnX - 110f) {
+                    if (!slot.isDead() && !slot.hasArrived() && slot.isReturning() && adRewardPopup != null) {
+                        adRewardPopup.open(AdManager.AdAction.SPEED_EXPLORATION, false, i, null);
                     }
                     return true;
                 }

@@ -105,6 +105,9 @@ public class EventManager {
     private OutfitManager outfitManager;
     public OutfitManager getOutfitManager() { return outfitManager; }
 
+    private AdManager adManager;
+    public AdManager getAdManager() { return adManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
@@ -269,6 +272,10 @@ public class EventManager {
         outfitManager.setEquippedOutfitIdFromSet(savedEquippedOutfit);
 
         Gdx.app.log(TAG, "OutfitManager loaded — equipped: " + outfitManager.getEquippedOutfitId());
+
+        this.adManager = new AdManager(this);
+        adManager.setSaveState(jsonManager.loadArray("ad_watch_state"));
+        Gdx.app.log(TAG, "AdManager loaded");
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.
@@ -1327,6 +1334,44 @@ public class EventManager {
         }
 
         inventory.unequip(unitId);
+    }
+
+    /** Result of a salvageEquipment() call, for the UI to display. */
+    public static class SalvageResult {
+        public final int count;
+        public final int totalGold;
+        public SalvageResult(int count, int totalGold) {
+            this.count = count;
+            this.totalGold = totalGold;
+        }
+    }
+
+    /**
+     * Salvages every unequipped sword/shield/amulet at or below maxLevel for
+     * Gold. Sourced exclusively from Inventory.getUnequippedItems() — an
+     * item currently equipped on a unit is never touched, since removing an
+     * equipped item via Inventory.removeItem() directly (bypassing
+     * equipItem/unequipItem above) would leave the wearer's max_hp
+     * permanently inflated with no item backing the bonus.
+     */
+    public SalvageResult salvageEquipment(int maxLevel) {
+        int count = 0;
+        int totalGold = 0;
+        for (Item item : inventory.getUnequippedItems()) {
+            String type = item.getType();
+            boolean isEquipmentType = "sword".equals(type) || "shield".equals(type)
+                || "amulet".equals(type);
+            if (!isEquipmentType || item.getLevel() > maxLevel) continue;
+
+            totalGold += goldManager.getSalvageValue(item.getLevel());
+            inventory.removeItem(item.getId());
+            count++;
+        }
+        if (totalGold > 0) {
+            goldManager.onSalvageEquipment(totalGold);
+        }
+        Gdx.app.log(TAG, "Salvaged " + count + " equipment items for " + totalGold + " Gold");
+        return new SalvageResult(count, totalGold);
     }
 
     /**

@@ -33,6 +33,10 @@ import java.util.Map;
  *   SELECT_CHAPTER — choose a chapter
  *   SELECT_NODE    — choose a node within the chapter
  *   FORM_PARTY     — pick 4 units from grid (grid visible with tints)
+ *   ARRANGE_PARTY  — swap the selected units between front/back slots
+ *                    (slot 0/1 = front, 2/3 = back — see
+ *                    RaidState.DAMAGE_DISTRIBUTION for why this matters)
+ *                    before committing to the raid
  *   COMBAT         — live auto-combat view
  *   RESULTS        — raid complete/failed summary
  */
@@ -40,7 +44,7 @@ public class RaidPanel {
 
     private static final String TAG = "RaidPanel";
 
-    public enum State { CLOSED, SELECT_CHAPTER, SELECT_NODE, FORM_PARTY, COMBAT, RESULTS }
+    public enum State { CLOSED, SELECT_CHAPTER, SELECT_NODE, FORM_PARTY, ARRANGE_PARTY, COMBAT, RESULTS }
     private State state = State.CLOSED;
 
     // ── Layout ──
@@ -65,7 +69,10 @@ public class RaidPanel {
     private String selectedChapterId = null;
     private String selectedNodeId = null;
     private String[] partyUnitIds = new String[4];
-    private int partySlotFilling = 0; // which slot we're filling next (0-3)
+    private int partySlotFilling = 0; // count of filled slots (not a direct index — see onUnitSelected)
+
+    // ── Arrange-party state ──
+    private int arrangeSelectedSlot = -1; // -1 = no slot currently selected for swap
 
     // ── Combat scroll ──
     private float logScrollY = 0f;
@@ -148,11 +155,24 @@ public class RaidPanel {
             if (unitId.equals(id)) return false;
         }
 
-        partyUnitIds[partySlotFilling] = unitId;
+        // Scan for the first empty slot rather than writing directly at
+        // partySlotFilling's value — ARRANGE_PARTY can swap a unit into a
+        // slot index other than where fill-order would have placed it
+        // (e.g. an early unit swapped into slot 3, leaving slot 0/1 empty),
+        // so partySlotFilling can no longer be trusted as a direct array
+        // index once reordering exists. It still counts "how many filled"
+        // for the FORM_PARTY UI's `partySlotFilling > 0` gate — that stays
+        // correct since swaps never change the count, only positions.
+        int slot = -1;
+        for (int i = 0; i < 4; i++) {
+            if (partyUnitIds[i] == null) { slot = i; break; }
+        }
+        if (slot == -1) return false; // shouldn't happen given the guard above, but stay safe
+
+        partyUnitIds[slot] = unitId;
         partySlotFilling++;
 
-        Gdx.app.log(TAG, "Added unit to party slot " + (partySlotFilling - 1)
-            + ": " + unitId);
+        Gdx.app.log(TAG, "Added unit to party slot " + slot + ": " + unitId);
         return true;
     }
 
@@ -217,6 +237,30 @@ public class RaidPanel {
     private float getMenuBottom() { return MARGIN; }
     private float getContentTop() { return getMenuTop() - HEADER_HEIGHT; }
 
+    // ── Arrange-party slot geometry — shared by the background rects,
+    // content text, and touch hit-test below, so all three can never drift
+    // out of sync with each other (unlike a mismatch in most other panels'
+    // row geometry, a mismatch here would mean taps hit the wrong slot). ──
+    private float getArrangeGridStartX() {
+        float cardsWidth = PARTY_SLOT_SIZE * 2 + PARTY_GAP;
+        return getMenuX() + (getMenuWidth() - cardsWidth) / 2f;
+    }
+    private float getArrangeFrontRowY() {
+        return getContentTop() - 70f - PARTY_SLOT_SIZE;
+    }
+    private float getArrangeBackRowY() {
+        return getArrangeFrontRowY() - 40f - PARTY_SLOT_SIZE;
+    }
+    private float getArrangeSlotX(int slot) {
+        return getArrangeGridStartX() + (slot % 2) * (PARTY_SLOT_SIZE + PARTY_GAP);
+    }
+    private float getArrangeSlotY(int slot) {
+        return slot < 2 ? getArrangeFrontRowY() : getArrangeBackRowY();
+    }
+    private float getArrangeConfirmButtonY() {
+        return getArrangeBackRowY() - 40f;
+    }
+
     // ══════════════════════════════════════════════════════════════
     // DRAWING
     // ══════════════════════════════════════════════════════════════
@@ -238,6 +282,21 @@ public class RaidPanel {
         sr.setColor(0.18f, 0.18f, 0.26f, 1f);
         sr.rect(getMenuX(), getMenuTop() - HEADER_HEIGHT, getMenuWidth(), HEADER_HEIGHT);
 
+        if (state == State.ARRANGE_PARTY) {
+            for (int slot = 0; slot < 4; slot++) {
+                float x = getArrangeSlotX(slot);
+                float y = getArrangeSlotY(slot);
+                if (slot == arrangeSelectedSlot) {
+                    sr.setColor(0.9f, 0.7f, 0.2f, 1f); // selected — gold highlight
+                } else if (partyUnitIds[slot] != null) {
+                    sr.setColor(0.2f, 0.24f, 0.32f, 1f); // filled
+                } else {
+                    sr.setColor(0.15f, 0.15f, 0.18f, 1f); // empty
+                }
+                sr.rect(x, y, PARTY_SLOT_SIZE, PARTY_SLOT_SIZE);
+            }
+        }
+
         sr.end();
         Gdx.gl.glDisable(Gdx.gl.GL_BLEND);
     }
@@ -249,6 +308,7 @@ public class RaidPanel {
             case SELECT_CHAPTER: drawChapterSelect(batch, font, fontSmall); break;
             case SELECT_NODE:    drawNodeSelect(batch, font, fontSmall); break;
             case FORM_PARTY:     drawFormPartyContent(batch, font, fontSmall); break;
+            case ARRANGE_PARTY:  drawArrangePartyContent(batch, font, fontSmall); break;
             case COMBAT:         drawCombat(batch, font, fontSmall); break;
             case RESULTS:        drawResults(batch, font, fontSmall); break;
         }
@@ -411,8 +471,8 @@ public class RaidPanel {
 
         if (partySlotFilling > 0) {
             fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
-            fontSmall.draw(batch, "[START RAID]",
-                getWorldWidth() - 100f, top - 74f);
+            fontSmall.draw(batch, "[ARRANGE PARTY]",
+                getWorldWidth() - 130f, top - 74f);
         }
 
         // Legend
@@ -428,6 +488,72 @@ public class RaidPanel {
 
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
+    }
+
+    // ── ARRANGE PARTY ──
+
+    private void drawArrangePartyContent(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall) {
+        font.setColor(0.9f, 0.5f, 0.2f, 1f);
+        font.draw(batch, "Arrange Party", getMenuX() + 12f, getMenuTop() - 10f);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "X", getMenuX() + getMenuWidth() - 28f, getMenuTop() - 10f);
+
+        fontSmall.setColor(0.6f, 0.8f, 0.6f, 1f);
+        fontSmall.draw(batch, "< Back", getMenuX() + 12f, getMenuTop() - 28f);
+
+        fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
+        fontSmall.draw(batch,
+            "Front absorbs 50%/30% of incoming damage, Back 10%/10%. Tap two slots to swap.",
+            getMenuX() + 12f, getContentTop() - 12f, getMenuWidth() - 24f,
+            com.badlogic.gdx.utils.Align.left, true);
+
+        fontSmall.setColor(0.85f, 0.6f, 0.3f, 1f);
+        fontSmall.draw(batch, "FRONT", getArrangeGridStartX(), getArrangeFrontRowY() + PARTY_SLOT_SIZE + 16f);
+        fontSmall.setColor(0.5f, 0.6f, 0.85f, 1f);
+        fontSmall.draw(batch, "BACK", getArrangeGridStartX(), getArrangeBackRowY() + PARTY_SLOT_SIZE + 16f);
+
+        for (int slot = 0; slot < 4; slot++) {
+            drawArrangeSlotLabel(batch, fontSmall, slot);
+        }
+
+        String confirmLabel = "[ Confirm & Start Raid ]";
+        fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+        glyphLayout.setText(fontSmall, confirmLabel);
+        fontSmall.draw(batch, confirmLabel,
+            getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f,
+            getArrangeConfirmButtonY());
+
+        font.setColor(Color.WHITE);
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    private void drawArrangeSlotLabel(SpriteBatch batch, BitmapFont fontSmall, int slot) {
+        float x = getArrangeSlotX(slot);
+        float y = getArrangeSlotY(slot);
+        String unitId = partyUnitIds[slot];
+
+        if (unitId == null) {
+            fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
+            String label = "Empty";
+            glyphLayout.setText(fontSmall, label);
+            fontSmall.draw(batch, label,
+                x + PARTY_SLOT_SIZE / 2f - glyphLayout.width / 2f, y + PARTY_SLOT_SIZE / 2f);
+            return;
+        }
+
+        GameObject obj = eventManager.getGRID_OBJECT_MANAGER().getObject(unitId);
+        if (obj == null) return;
+
+        fontSmall.setColor(slot == arrangeSelectedSlot ? Color.BLACK : Color.WHITE);
+        String name = TextUtil.capitalize(obj.getType());
+        glyphLayout.setText(fontSmall, name);
+        fontSmall.draw(batch, name,
+            x + PARTY_SLOT_SIZE / 2f - glyphLayout.width / 2f, y + PARTY_SLOT_SIZE / 2f + 10f);
+
+        String lvl = "Lv." + obj.getLvl();
+        glyphLayout.setText(fontSmall, lvl);
+        fontSmall.draw(batch, lvl,
+            x + PARTY_SLOT_SIZE / 2f - glyphLayout.width / 2f, y + PARTY_SLOT_SIZE / 2f - 8f);
     }
 
     // ── COMBAT ──
@@ -560,11 +686,15 @@ public class RaidPanel {
                 resetParty();
                 return true;
             }
-            // Start raid button
+            // Arrange-party button — transitions to ARRANGE_PARTY instead of
+            // starting the raid directly; the actual startRaidWithParty()
+            // call now lives on ARRANGE_PARTY's own confirm button, after
+            // the player has had a chance to reorder front/back slots.
             if (partySlotFilling > 0
-                && touchPos.x > getWorldWidth() - 110f
+                && touchPos.x > getWorldWidth() - 140f
                 && touchPos.y > getWorldHeight() - SELECT_HEADER_HEIGHT) {
-                startRaidWithParty();
+                state = State.ARRANGE_PARTY;
+                arrangeSelectedSlot = -1;
                 return true;
             }
             if (touchPos.y > getWorldHeight() - SELECT_HEADER_HEIGHT) return true;
@@ -582,6 +712,7 @@ public class RaidPanel {
         switch (state) {
             case SELECT_CHAPTER: return handleChapterTouch();
             case SELECT_NODE:    return handleNodeTouch();
+            case ARRANGE_PARTY:  return handleArrangeTouch();
             case COMBAT:         return handleCombatTouch();
             case RESULTS:        return handleResultsTouch();
         }
@@ -732,6 +863,58 @@ public class RaidPanel {
         RaidManager rm = eventManager.getRaidManager();
         rm.endRaid();
         close();
+        return true;
+    }
+
+    private boolean handleArrangeTouch() {
+        // Close button (X) — fully closes the panel, same as every other state.
+        if (touchPos.x > getMenuX() + getMenuWidth() - 40f
+            && touchPos.y > getMenuTop() - HEADER_HEIGHT) {
+            close();
+            return true;
+        }
+
+        // Back — returns to FORM_PARTY WITHOUT resetting the party, so the
+        // player can add more units or just double-check the roster without
+        // losing their arrangement. Safe because onUnitSelected now scans
+        // for the first empty slot instead of trusting partySlotFilling as
+        // a direct index (see its comment).
+        if (touchPos.x < getMenuX() + 70f
+            && touchPos.y >= getMenuTop() - 34f && touchPos.y <= getMenuTop() - 14f) {
+            state = State.FORM_PARTY;
+            arrangeSelectedSlot = -1;
+            return true;
+        }
+
+        // Slot taps — tap one slot to select it, tap a second (different)
+        // slot to swap their contents, tap the same slot again to deselect.
+        for (int slot = 0; slot < 4; slot++) {
+            float x = getArrangeSlotX(slot);
+            float y = getArrangeSlotY(slot);
+            if (touchPos.x >= x && touchPos.x <= x + PARTY_SLOT_SIZE
+                && touchPos.y >= y && touchPos.y <= y + PARTY_SLOT_SIZE) {
+                if (arrangeSelectedSlot == -1) {
+                    arrangeSelectedSlot = slot;
+                } else if (arrangeSelectedSlot == slot) {
+                    arrangeSelectedSlot = -1;
+                } else {
+                    String tmp = partyUnitIds[arrangeSelectedSlot];
+                    partyUnitIds[arrangeSelectedSlot] = partyUnitIds[slot];
+                    partyUnitIds[slot] = tmp;
+                    arrangeSelectedSlot = -1;
+                }
+                return true;
+            }
+        }
+
+        // Confirm button
+        float btnY = getArrangeConfirmButtonY();
+        if (touchPos.y >= btnY - 6f && touchPos.y <= btnY + 20f
+            && touchPos.x >= getMenuX() && touchPos.x <= getMenuX() + getMenuWidth()) {
+            startRaidWithParty();
+            return true;
+        }
+
         return true;
     }
 

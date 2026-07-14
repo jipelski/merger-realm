@@ -112,6 +112,9 @@ public class InventoryMenu {
     private HiddenTemplePopup hiddenTemplePopup;
     public void setHiddenTemplePopup(HiddenTemplePopup popup) { this.hiddenTemplePopup = popup; }
 
+    private SalvagePanel salvagePanel;
+    public void setSalvagePanel(SalvagePanel panel) { this.salvagePanel = panel; }
+
     // ── Touch state ──
     private final Vector2 touchPos = new Vector2();
     private boolean touchDown = false;
@@ -522,6 +525,21 @@ public class InventoryMenu {
         font.setColor(Color.WHITE);
         font.draw(batch, "Inventory", getMenuX() + 12f, getMenuTop() - 10f);
         font.draw(batch, "X", getMenuX() + getMenuWidth() - 28f, getMenuTop() - 10f);
+
+        // Equipment sink entry point — only shown/tappable on the Equipment
+        // tab. Sits in the header's otherwise-empty middle ground, clear of
+        // the close button's own x > getMenuWidth()-40f hit-zone (see
+        // handleTouchUp) and deliberately NOT at the tab-row's "N items"
+        // position, which sits inside the full-width tab-switch hit-band.
+        if (activeTab == TAB_EQUIPMENT) {
+            fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            String salvageLabel = "[Salvage]";
+            glyphLayout.setText(fontSmall, salvageLabel);
+            fontSmall.draw(batch, salvageLabel,
+                getMenuX() + getMenuWidth() - 44f - glyphLayout.width,
+                getMenuTop() - 10f);
+            fontSmall.setColor(Color.WHITE);
+        }
 
         // Tab labels
         String[] tabLabels = {"Equipment", "Consume", "Fragments"};
@@ -999,6 +1017,19 @@ public class InventoryMenu {
         // Dismiss preview without action
         if (wasPreviewing) return true;
         if (scrolling) { scrolling = false; return true; }
+
+        // ── Salvage button (Equipment tab only) ── checked ahead of the
+        // close button below — its x-range [-140f, -44f] is clear of the
+        // close button's own x > -40f zone, so ordering doesn't strictly
+        // matter, but this keeps the two related header-button checks
+        // grouped together.
+        if (activeTab == TAB_EQUIPMENT && salvagePanel != null
+            && touchPos.x >= getMenuX() + getMenuWidth() - 140f
+            && touchPos.x <= getMenuX() + getMenuWidth() - 44f
+            && touchPos.y > getMenuTop() - HEADER_HEIGHT) {
+            salvagePanel.open();
+            return true;
+        }
 
         // ── Close button ──
         if (touchPos.x > getMenuX() + getMenuWidth() - 40f

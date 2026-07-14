@@ -8,8 +8,35 @@ dependencies {
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }
+
+  testImplementation platform('org.junit:junit-bom:5.11.0')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
+  // HeadlessApplication still loads gdx's native lib (unrelated to graphics —
+  // used by Gdx.utils internals) even with no GL context. Same artifact
+  // lwjgl3/build.gradle already uses for its own backend.
+  testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
 }
 
 jar {
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Same idiom lwjgl3/build.gradle already uses for its main sourceSet + run
+// task, applied to core's test sourceSet + test task instead: stages the
+// real assets/ tree (including data/*.json) into a build-directory location
+// tests can safely read from and write into. Gdx.files.internal(...) then
+// finds the real bundled JSON, and any Gdx.files.local(...) writes a real
+// EventManager makes during a test land inside build/ (disposable,
+// gitignored) — never the tracked assets/ folder or a real save location.
+sourceSets {
+  test {
+    resources.srcDirs += [ rootProject.file('assets').path ]
+  }
+}
+
+test {
+  useJUnitPlatform()
+  workingDir = file("$buildDir/resources/test")
 }

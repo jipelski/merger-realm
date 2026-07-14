@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
+import com.jipelski.mergerrealm.util.AdManager;
 import com.jipelski.mergerrealm.util.DailyLoginManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
@@ -113,6 +114,11 @@ public class UnifiedShopPanel {
     // — see the class javadoc.
     private DailyLoginPopup dailyLoginPopup;
 
+    // Opened for the Fill Resources / Revive Party rows' [Ad N/5] affordance
+    // — see AdRewardPopup's class javadoc for the full picture across all
+    // 4 ad-eligible actions.
+    private AdRewardPopup adRewardPopup;
+
     public UnifiedShopPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
         this.eventManager = eventManager;
         this.viewport = viewport;
@@ -121,6 +127,14 @@ public class UnifiedShopPanel {
     }
 
     public void setDailyLoginPopup(DailyLoginPopup popup) { this.dailyLoginPopup = popup; }
+    public void setAdRewardPopup(AdRewardPopup popup) { this.adRewardPopup = popup; }
+
+    /** Fill Resources / Revive Party rows also offer a free ad-watch path; the other 3 sinks don't. */
+    private AdManager.AdAction adActionFor(Sink s) {
+        if (s.cost == GoldManager.COST_FILL_RESOURCES) return AdManager.AdAction.FILL_RESOURCES;
+        if (s.cost == GoldManager.COST_RAID_REVIVE_ALL) return AdManager.AdAction.REVIVE_PARTY;
+        return null;
+    }
 
     // ══════════════════════════════════════════════════════════════
     // STATE
@@ -376,6 +390,19 @@ public class UnifiedShopPanel {
                 fontSmall.setColor(0.5f, 0.5f, 0.7f, 1f);
                 fontSmall.draw(batch, "in-game", getMenuX() + getMenuWidth() - 62f, y + ROW_HEIGHT_GOLD - 20f);
             }
+
+            // Free ad-watch alternative — bottom-right of the row, well below
+            // the cost/[Buy] line (see the Gold-tab tap handler for the
+            // matching non-overlapping hit-band split).
+            AdManager.AdAction adAction = adActionFor(s);
+            if (adAction != null) {
+                int remaining = eventManager.getAdManager().getRemaining(adAction);
+                if (remaining > 0) fontSmall.setColor(0.3f, 0.75f, 0.95f, 1f);
+                else                fontSmall.setColor(0.4f, 0.4f, 0.45f, 1f);
+                fontSmall.draw(batch, "[Ad " + remaining + "/" + AdManager.MAX_PER_DAY + "]",
+                    getMenuX() + getMenuWidth() - 90f, y + 14f);
+            }
+
             y -= (ROW_HEIGHT_GOLD + ROW_GAP_GOLD);
         }
     }
@@ -457,16 +484,30 @@ public class UnifiedShopPanel {
 
         // ── Row taps ──
         if (activeTab == TAB_GOLD) {
+            // Two non-overlapping hit-bands per row: [Buy] sits in the upper
+            // portion (same y as the cost text), [Ad N/5] in the lower
+            // portion (see drawGoldRows) — split by localY so a tap can never
+            // land in both at once, even though their x-ranges are close.
             float buyX = getMenuX() + getMenuWidth() - 62f;
-            if (touchPos.x >= buyX) {
-                float y = getContentTop() - ROW_HEIGHT_GOLD;
-                for (Sink s : sinks) {
-                    if (touchPos.y >= y && touchPos.y <= y + ROW_HEIGHT_GOLD) {
-                        if (s.actionable) executeSink(s);
+            float adX = getMenuX() + getMenuWidth() - 100f;
+            float rowSplitY = 25f;
+            float y = getContentTop() - ROW_HEIGHT_GOLD;
+            for (Sink s : sinks) {
+                if (touchPos.y >= y && touchPos.y <= y + ROW_HEIGHT_GOLD) {
+                    float localY = touchPos.y - y;
+                    AdManager.AdAction adAction = adActionFor(s);
+                    if (adAction != null && adRewardPopup != null
+                        && touchPos.x >= adX && localY < rowSplitY) {
+                        adRewardPopup.open(adAction, false, -1, null);
                         return true;
                     }
-                    y -= (ROW_HEIGHT_GOLD + ROW_GAP_GOLD);
+                    if (s.actionable && touchPos.x >= buyX && localY >= rowSplitY) {
+                        executeSink(s);
+                        return true;
+                    }
+                    return true;
                 }
+                y -= (ROW_HEIGHT_GOLD + ROW_GAP_GOLD);
             }
         } else if (activeTab == TAB_DAILY) {
             if (dailyLoginPopup != null) {

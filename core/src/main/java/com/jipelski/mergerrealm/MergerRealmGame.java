@@ -40,6 +40,7 @@ import com.jipelski.mergerrealm.ui.RaidPanel;
 import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
+import com.jipelski.mergerrealm.ui.SalvagePanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -66,6 +67,8 @@ import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.ui.OutfitPanel;
+import com.jipelski.mergerrealm.ui.InfoPanel;
+import com.jipelski.mergerrealm.ui.AdRewardPopup;
 import com.jipelski.mergerrealm.util.TutorialManager;
 
 import java.util.ArrayList;
@@ -114,6 +117,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private static final float SAVE_INTERVAL = 5f;
 
     private static final float LOCK_BTN_SIZE = 30f;
+    private static final float INFO_BTN_SIZE = 16f;
 
     // ── Offline tracking ──
     private static final String TIMESTAMP_KEY = "last_active_timestamp";
@@ -142,8 +146,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private UnifiedShopPanel unifiedShopPanel;
     private DailyLoginPopup dailyLoginPopup;
     private HiddenTemplePopup hiddenTemplePopup;
+    private SalvagePanel salvagePanel;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
+    private InfoPanel infoPanel;
+    private AdRewardPopup adRewardPopup;
     private RaidPanel raidPanel;
 
     /**
@@ -294,11 +301,32 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         inventoryMenu.setHiddenTemplePopup(hiddenTemplePopup);
         inputHandler.setHiddenTemplePopup(hiddenTemplePopup);
 
+        // Equipment sink — opened from InventoryMenu's [Salvage] header
+        // button on the Equipment tab, same wiring shape as hiddenTemplePopup
+        // above (opened from inside a panel, but drawn/touch-routed at the
+        // top level since panels don't nest batch/shape calls).
+        salvagePanel = new SalvagePanel(eventManager, viewport, uiTex);
+        inventoryMenu.setSalvagePanel(salvagePanel);
+        inputHandler.setSalvagePanel(salvagePanel);
+
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
 
         outfitPanel = new OutfitPanel(eventManager, viewport, uiTex);
         inputHandler.setOutfitPanel(outfitPanel);
+
+        infoPanel = new InfoPanel(eventManager, spriteManager, viewport, uiTex);
+        inputHandler.setInfoPanel(infoPanel);
+
+        // Shared "Watch Ad" confirm popup for the 4 actions that also have a
+        // Gold-cost path (see GoldManager/AdManager). Opened from the shop's
+        // Gold tab (Fill Resources/Revive Party), ExplorePanel's per-slot
+        // Rush button (Speed Exploration), and a periodic facility's 2nd tap
+        // (Instant Spawn — the only one of the 4 with no prior button).
+        adRewardPopup = new AdRewardPopup(eventManager, viewport, uiTex);
+        unifiedShopPanel.setAdRewardPopup(adRewardPopup);
+        explorePanel.setAdRewardPopup(adRewardPopup);
+        inputHandler.setAdRewardPopup(adRewardPopup);
 
         offlinePopup = new OfflinePopup(uiTex);
 
@@ -314,6 +342,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float lockBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - LOCK_BTN_SIZE - 2f;
         float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
+
+        // Sits in the sliver directly above the lock button, right-aligned
+        // to the same margin — see InfoPanel's opening button placement note.
+        float infoBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - INFO_BTN_SIZE - 2f;
+        float infoBtnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE - INFO_BTN_SIZE - 1f;
+        inputHandler.setInfoButtonBounds(infoBtnX, infoBtnY, INFO_BTN_SIZE, INFO_BTN_SIZE);
 
         inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
             LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
@@ -346,6 +380,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         processOfflineProgress();
         soundManager.setSuppressed(false);
         checkDailyLoginPopup();
+        eventManager.getAdManager().checkDailyReset();
 
         Gdx.app.log(TAG, "=== Init complete ===");
     }
@@ -506,6 +541,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
             && !raidPanel.isVisible() && !unifiedShopPanel.isVisible()
             && !prestigePanel.isVisible() && !outfitPanel.isVisible()
+            && !infoPanel.isVisible() && !salvagePanel.isVisible()
             && !dailyLoginPopup.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
@@ -616,6 +652,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             drawHUD();
             drawInfoBarContentTextured();
             drawLockButton();
+            drawInfoButton();
 
             uiTex.drawPanel(batch, uiTex.panelDark,
                 0, LayoutConfig.getWallY(),
@@ -691,6 +728,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             batch.end();
         }
 
+        if (infoPanel.isVisible()) {
+            infoPanel.drawBackground(shapeRenderer);
+            batch.begin();
+            infoPanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
         if (dailyLoginPopup.isVisible()) {
             dailyLoginPopup.drawBackground(shapeRenderer);
             batch.begin();
@@ -702,6 +746,22 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             hiddenTemplePopup.drawBackground(shapeRenderer);
             batch.begin();
             hiddenTemplePopup.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (salvagePanel.isVisible()) {
+            salvagePanel.drawBackground(shapeRenderer);
+            batch.begin();
+            salvagePanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        // Drawn last among the panels (top-most) — it can be opened from
+        // inside the shop's Gold tab, so it must paint over that panel too.
+        if (adRewardPopup.isVisible()) {
+            adRewardPopup.drawBackground(shapeRenderer);
+            batch.begin();
+            adRewardPopup.drawContent(batch, font, fontSmall);
             batch.end();
         }
 
@@ -1357,6 +1417,28 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             btnY + LOCK_BTN_SIZE / 2f + glyphLayout.height / 2f);
     }
 
+    /**
+     * Opens InfoPanel (all-levels reference table) for the selected object's
+     * type. Sits in the sliver directly above the lock button — see
+     * INFO_BTN_SIZE's bounds computation in create()/resize().
+     */
+    private void drawInfoButton() {
+        if (!inputHandler.hasSelection()) return;
+
+        float btnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - INFO_BTN_SIZE - 2f;
+        float btnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE - INFO_BTN_SIZE - 1f;
+
+        uiTex.drawPanel(batch, uiTex.btnNormal, btnX, btnY, INFO_BTN_SIZE, INFO_BTN_SIZE);
+
+        font.setColor(Color.CYAN);
+        String infoText = "i";
+        glyphLayout.setText(font, infoText);
+        font.draw(batch, infoText,
+            btnX + (INFO_BTN_SIZE - glyphLayout.width) / 2f,
+            btnY + INFO_BTN_SIZE / 2f + glyphLayout.height / 2f);
+        font.setColor(Color.WHITE);
+    }
+
     private void drawOutlineRect(float x, float y, float size, float thickness) {
         // Top
         shapeRenderer.rect(x - thickness, y + size, size + thickness * 2, thickness);
@@ -1895,6 +1977,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         float lockBtnY = LayoutConfig.getLevelBoxY() + (LayoutConfig.LEVEL_BOX_SIZE - LOCK_BTN_SIZE) / 2f;
         inputHandler.setLockButtonBounds(lockBtnX, lockBtnY, LOCK_BTN_SIZE, LOCK_BTN_SIZE);
 
+        float infoBtnX = LayoutConfig.getInfoTextX() + LayoutConfig.getInfoTextWidth() - INFO_BTN_SIZE - 2f;
+        float infoBtnY = LayoutConfig.getLevelBoxY() + LayoutConfig.LEVEL_BOX_SIZE - INFO_BTN_SIZE - 1f;
+        inputHandler.setInfoButtonBounds(infoBtnX, infoBtnY, INFO_BTN_SIZE, INFO_BTN_SIZE);
+
         inputHandler.setPrestigeBoxBounds(LayoutConfig.LEVEL_BOX_X, LayoutConfig.getLevelBoxY(),
             LayoutConfig.LEVEL_BOX_SIZE, LayoutConfig.LEVEL_BOX_SIZE);
 
@@ -1921,6 +2007,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         processOfflineProgress();
         soundManager.setSuppressed(false);
         checkDailyLoginPopup();
+        eventManager.getAdManager().checkDailyReset();
     }
 
     @Override
@@ -2018,6 +2105,9 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                 (int)(dailyClaimMs2 >>> 32), (int)(dailyClaimMs2),
                 dlm.getSavedLastClaimDay()
             });
+
+            // Watch-ad daily budget — see AdManager's persistence section.
+            jsonManager.saveArray("ad_watch_state", eventManager.getAdManager().getSaveState());
 
             // Tutorial progress — see TutorialManager's persistence javadoc.
             jsonManager.saveArray("tutorial_state", tutorialManager.getSaveState());

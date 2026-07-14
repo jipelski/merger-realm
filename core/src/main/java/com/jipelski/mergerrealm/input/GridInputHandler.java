@@ -21,10 +21,14 @@ import com.jipelski.mergerrealm.util.SoundManager;
 import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
+import com.jipelski.mergerrealm.ui.SalvagePanel;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.ui.OutfitPanel;
+import com.jipelski.mergerrealm.ui.InfoPanel;
+import com.jipelski.mergerrealm.ui.AdRewardPopup;
+import com.jipelski.mergerrealm.util.AdManager;
 
 import java.util.Objects;
 
@@ -77,10 +81,12 @@ public class GridInputHandler extends InputAdapter {
     private float buildBtnX, buildBtnY, buildBtnW, buildBtnH;
 
     private float lockBtnX, lockBtnY, lockBtnW, lockBtnH;
+    private float infoBtnX, infoBtnY, infoBtnW, infoBtnH;
 
     private OfflinePopup offlinePopup;
     private DailyLoginPopup dailyLoginPopup;
     private HiddenTemplePopup hiddenTemplePopup;
+    private SalvagePanel salvagePanel;
 
     private InventoryMenu inventoryMenu;
     private float invBtnX, invBtnY, invBtnW, invBtnH;
@@ -121,6 +127,10 @@ public class GridInputHandler extends InputAdapter {
         this.dailyLoginPopup = popup;
     }
 
+    public void setSalvagePanel(SalvagePanel panel) {
+        this.salvagePanel = panel;
+    }
+
     public void setHiddenTemplePopup(HiddenTemplePopup popup) {
         this.hiddenTemplePopup = popup;
     }
@@ -151,6 +161,18 @@ public class GridInputHandler extends InputAdapter {
             && wy >= lockBtnY && wy <= lockBtnY + lockBtnH;
     }
 
+    public void setInfoButtonBounds(float x, float y, float w, float h) {
+        this.infoBtnX = x;
+        this.infoBtnY = y;
+        this.infoBtnW = w;
+        this.infoBtnH = h;
+    }
+
+    private boolean isInfoButtonTap(float wx, float wy) {
+        return wx >= infoBtnX && wx <= infoBtnX + infoBtnW
+            && wy >= infoBtnY && wy <= infoBtnY + infoBtnH;
+    }
+
     public void setWallGate(WallGate wallGate) {
         this.wallGate = wallGate;
     }
@@ -170,6 +192,12 @@ public class GridInputHandler extends InputAdapter {
 
     private OutfitPanel outfitPanel;
     public void setOutfitPanel(OutfitPanel panel) { this.outfitPanel = panel; }
+
+    private InfoPanel infoPanel;
+    public void setInfoPanel(InfoPanel panel) { this.infoPanel = panel; }
+
+    private AdRewardPopup adRewardPopup;
+    public void setAdRewardPopup(AdRewardPopup popup) { this.adRewardPopup = popup; }
 
     public void setPrestigeBoxBounds(float x, float y, float w, float h) {
         this.prestigeBoxX = x; this.prestigeBoxY = y; this.prestigeBoxW = w; this.prestigeBoxH = h;
@@ -227,6 +255,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (adRewardPopup != null && adRewardPopup.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
         if (unifiedShopPanel != null && unifiedShopPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
@@ -236,6 +268,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (infoPanel != null && infoPanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -288,6 +324,10 @@ public class GridInputHandler extends InputAdapter {
         // the other panel-openers above (unifiedShop/prestige/outfit/raid/
         // explore), all of which also precede the inventory check.
         if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+
+        if (salvagePanel != null && salvagePanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -384,6 +424,15 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        // The actual open() fires on touchUp, not here — this button opens
+        // InfoPanel, a modal with its own close-zone, so it must follow the
+        // gold-chip/prestige-box convention (not the lock button's — the
+        // lock button doesn't open a panel, so the touchUp-misread-as-a-
+        // tap-on-the-new-panel bug class doesn't apply to it).
+        if (selectedObjectId != null && isInfoButtonTap(worldPos.x, worldPos.y)) {
+            return true;
+        }
+
         // Normal grid input from here
         int[] cell = worldToCell(worldPos.x, worldPos.y);
         if (cell == null) {
@@ -443,6 +492,10 @@ public class GridInputHandler extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if (adRewardPopup != null && adRewardPopup.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
         if (unifiedShopPanel != null && unifiedShopPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
@@ -452,6 +505,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
+        if (infoPanel != null && infoPanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
 
@@ -468,6 +525,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
+
+        if (salvagePanel != null && salvagePanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
 
@@ -511,6 +572,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
 
+        if (adRewardPopup != null && adRewardPopup.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
         if (unifiedShopPanel != null && unifiedShopPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
@@ -520,6 +585,10 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (outfitPanel != null && outfitPanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (infoPanel != null && infoPanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
 
@@ -535,6 +604,10 @@ public class GridInputHandler extends InputAdapter {
             return true;
         }
         if (hiddenTemplePopup != null && hiddenTemplePopup.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+
+        if (salvagePanel != null && salvagePanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
         if (inventoryMenu != null && inventoryMenu.handleTouchUp(screenX, screenY)) {
@@ -587,6 +660,21 @@ public class GridInputHandler extends InputAdapter {
             prestigePanel.open();
             clearSelection();
             if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
+            return true;
+        }
+
+        // Open InfoPanel here (not on touchDown — see touchDown for why).
+        // Deliberately does NOT call clearSelection(), unlike the gold-chip/
+        // prestige-box openers above — the whole point is showing info
+        // about the object the player still has selected, so closing this
+        // panel must leave the description box (and grid highlight) intact.
+        if (infoPanel != null && selectedObjectId != null && !pickingUnitFromGrid
+            && isInfoButtonTap(worldPos.x, worldPos.y)) {
+            GameObject selObj = eventManager.getGRID_OBJECT_MANAGER().getObject(selectedObjectId);
+            if (selObj != null) {
+                infoPanel.open(selObj.getType(), selObj.getLvl());
+                if (soundManager != null) soundManager.play(SoundManager.SfxId.CLICK);
+            }
             return true;
         }
 
@@ -653,10 +741,15 @@ public class GridInputHandler extends InputAdapter {
         if (wasAlreadySelected) {
             // Second tap on same facility — spawn a unit
             if (facilityObj != null && eventManager.isPeriodicFacility(facilityObj.getType())) {
-                // Periodic facility — release a held unit TODO: implement gold usage for instantly spawn a unit when neither are being held
+                // Periodic facility — release a held unit, or if there's
+                // nothing held, offer the AdRewardPopup (Watch Ad or pay
+                // Gold — see AdManager.AdAction.INSTANT_SPAWN) instead of
+                // silently spending Gold.
                 if (!eventManager.releaseHeldUnit(draggedObjectId)) {
                     Gdx.app.log(TAG, "No held units to release (or no space)");
-                    eventManager.getGoldManager().instantPeriodicSpawn(draggedObjectId);
+                    if (adRewardPopup != null) {
+                        adRewardPopup.open(AdManager.AdAction.INSTANT_SPAWN, true, -1, draggedObjectId);
+                    }
                 }
             } else {
                 // Normal facility — spawn a unit (costs resources) // TODO: implement gold when resources are not enough for spawning an unit
