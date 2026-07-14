@@ -14,6 +14,7 @@ import com.jipelski.mergerrealm.util.DailyLoginManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.RaidManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
 import com.jipelski.mergerrealm.util.TextUtil;
 import com.jipelski.mergerrealm.util.TrophyShop;
 import com.jipelski.mergerrealm.util.TrophyShop.ShopEntry;
@@ -78,6 +79,7 @@ public class UnifiedShopPanel {
     private final EventManager eventManager;
     private final Viewport viewport;
     private final UITextureManager uiTex;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
     // ── Touch ──
@@ -119,10 +121,12 @@ public class UnifiedShopPanel {
     // 4 ad-eligible actions.
     private AdRewardPopup adRewardPopup;
 
-    public UnifiedShopPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public UnifiedShopPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                            SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
         this.uiTex = uiTex;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
     }
 
@@ -270,7 +274,8 @@ public class UnifiedShopPanel {
         if (activeTab == TAB_GOLD) {
             GoldManager gm = eventManager.getGoldManager();
             fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
-            fontSmall.draw(batch, "Gold: " + gm.getGold(), getMenuX() + 12f, getMenuTop() - 32f);
+            IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "gold",
+                " " + gm.getGold(), getMenuX() + 12f, getMenuTop() - 32f, 16f);
         } else if (activeTab == TAB_DAILY) {
             DailyLoginManager dlm = eventManager.getDailyLoginManager();
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
@@ -280,8 +285,8 @@ public class UnifiedShopPanel {
             TrophyShop shop = eventManager.getTrophyShop();
             RaidManager rm = eventManager.getRaidManager();
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-            fontSmall.draw(batch, "War Trophies: " + rm.getWarTrophies(),
-                getMenuX() + 12f, getMenuTop() - 32f);
+            IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "trophy",
+                " " + rm.getWarTrophies(), getMenuX() + 12f, getMenuTop() - 32f, 16f);
 
             fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
             String timerLabel = (activeTab == TAB_RARE)
@@ -347,7 +352,9 @@ public class UnifiedShopPanel {
             // Cost
             if (canAfford) fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
             else           fontSmall.setColor(0.6f, 0.3f, 0.3f, 1f);
-            fontSmall.draw(batch, entry.trophyCost + " T", getMenuX() + getMenuWidth() - 150f, y + 20f);
+            IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+                String.valueOf(entry.trophyCost), "trophy",
+                getMenuX() + getMenuWidth() - 150f, y + 20f, 14f);
 
             // Stock
             if (inStock) fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
@@ -379,8 +386,9 @@ public class UnifiedShopPanel {
 
             if (affordable) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
             else             fontSmall.setColor(0.6f, 0.45f, 0.2f, 1f);
-            fontSmall.draw(batch, s.cost + " G",
-                getMenuX() + getMenuWidth() - 130f, y + ROW_HEIGHT_GOLD - 20f);
+            IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+                String.valueOf(s.cost), "gold",
+                getMenuX() + getMenuWidth() - 130f, y + ROW_HEIGHT_GOLD - 20f, 14f);
 
             if (s.actionable) {
                 if (affordable) fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);

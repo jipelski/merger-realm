@@ -1387,14 +1387,21 @@ public class EventManager {
 
     public static final int MAX_REFINE_LEVEL = 9;
     private static final float REFINE_BONUS_PER_LEVEL = 0.15f; // +15% of base stats per refine level
+    // Prince XP per refine, scaling with the resulting level (+1 -> 5 XP,
+    // +9 -> 45 XP) — for scale, dismissing a lvl1 villager gives 1 XP, a
+    // lvl6 villager 75 XP (unit.json), so this sits comfortably inside that
+    // range without trivializing leveling from cheap, frequent low refines.
+    private static final int REFINE_XP_PER_LEVEL = 5;
 
     /** Result of a refineItem() call, for the UI to display. */
     public static class RefineResult {
         public final boolean success;
-        public final Item newItem; // the resulting +N item, or null on failure
-        public RefineResult(boolean success, Item newItem) {
+        public final Item newItem;  // the resulting +N item, or null on failure
+        public final int xpGained;  // Prince XP granted, 0 on failure
+        public RefineResult(boolean success, Item newItem, int xpGained) {
             this.success = success;
             this.newItem = newItem;
+            this.xpGained = xpGained;
         }
     }
 
@@ -1415,7 +1422,7 @@ public class EventManager {
      */
     public RefineResult refineItem(String type, int level, int refineLevel) {
         if (refineLevel >= MAX_REFINE_LEVEL) {
-            return new RefineResult(false, null);
+            return new RefineResult(false, null, 0);
         }
 
         List<Item> candidates = new ArrayList<>();
@@ -1427,12 +1434,25 @@ public class EventManager {
             }
         }
         if (candidates.size() < 2) {
-            return new RefineResult(false, null);
+            return new RefineResult(false, null, 0);
         }
 
-        Item result = GDLInstance.createItem(type, level);
+        // Canonical base stats: items.json for ordinary equipment, but
+        // enchanted set pieces (e.g. "enchanted_dragonscale_sword") have no
+        // items.json entry at all — they're always level 1, defined instead
+        // in enchanted_sets.json — so GDLInstance.createItem would just
+        // return null for them. EnchantedSetManager.createEnchantedItem is
+        // the equivalent canonical-stat source for that family.
+        Item result;
+        if (EnchantedSetManager.isEnchantedItem(type)) {
+            String setName = EnchantedSetManager.getSetName(type);
+            String pieceType = EnchantedSetManager.getPieceType(type);
+            result = enchantedSetManager.createEnchantedItem(setName, pieceType);
+        } else {
+            result = GDLInstance.createItem(type, level);
+        }
         if (result == null) {
-            return new RefineResult(false, null);
+            return new RefineResult(false, null, 0);
         }
 
         int newRefineLevel = refineLevel + 1;
@@ -1445,9 +1465,14 @@ public class EventManager {
         inventory.removeItem(candidates.get(1).getId());
         inventory.addItem(result);
 
+        // Refining grants Prince XP — same reward mechanism dismissToPrince/
+        // ExplorationManager already use, scaled by the resulting level.
+        int xpGained = REFINE_XP_PER_LEVEL * newRefineLevel;
+        BATTLE_FIELD_MANAGER.increaseXP(xpGained);
+
         Gdx.app.log(TAG, "Refined 2x " + type + " Lv" + level + " +" + refineLevel
-            + " -> 1x +" + newRefineLevel);
-        return new RefineResult(true, result);
+            + " -> 1x +" + newRefineLevel + " (+" + xpGained + " Prince XP)");
+        return new RefineResult(true, result, xpGained);
     }
 
     /**

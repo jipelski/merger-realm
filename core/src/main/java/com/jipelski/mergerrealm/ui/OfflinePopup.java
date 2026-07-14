@@ -8,6 +8,11 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
+import com.jipelski.mergerrealm.util.SpriteManager;
+
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * A modal popup that shows offline progress and stays visible
  * until the player presses the OK button.
@@ -48,10 +53,12 @@ public class OfflinePopup {
     private float btnY;
 
     private final UITextureManager uiTex;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
-    public OfflinePopup(UITextureManager uiTex) {
+    public OfflinePopup(UITextureManager uiTex, SpriteManager spriteManager) {
         this.uiTex = uiTex;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
     }
 
@@ -67,9 +74,11 @@ public class OfflinePopup {
         timeSb.append(minutes).append("m");
         timeAwayText = timeSb.toString();
 
-        foodText = foodGained > 0 ? "+" + foodGained + " food" : null;
-        woodText = woodGained > 0 ? "+" + woodGained + " wood" : null;
-        ironText = ironGained > 0 ? "+" + ironGained + " Iron" : null;
+        // Word dropped in favor of an icon (see drawContent) — same "icon
+        // replaces the word" convention as the HUD's CachedLabel change.
+        foodText = foodGained > 0 ? "+" + foodGained : null;
+        woodText = woodGained > 0 ? "+" + woodGained : null;
+        ironText = ironGained > 0 ? "+" + ironGained : null;
 
         // Center popup on screen
         float actualHeight = LayoutConfig.getActualHeight();
@@ -147,25 +156,28 @@ public class OfflinePopup {
 
         if (foodText != null) {
             fontSmall.setColor(0.6f, 0.9f, 0.4f, 1f); // green
-            glyphLayout.setText(fontSmall, foodText);
-            fontSmall.draw(batch, foodText,
-                centerX - glyphLayout.width / 2f, resourceY);
+            List<IconText.Seg> segs = Arrays.asList(IconText.Seg.icon("food"), IconText.Seg.text(foodText));
+            float w = IconText.measure(fontSmall, glyphLayout, segs, 16f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, segs,
+                centerX - w / 2f, resourceY, 16f);
             resourceY -= lineHeight;
             anyGained = true;
         }
         if (woodText != null) {
             fontSmall.setColor(0.6f, 0.7f, 0.9f, 1f); // blue-ish
-            glyphLayout.setText(fontSmall, woodText);
-            fontSmall.draw(batch, woodText,
-                centerX - glyphLayout.width / 2f, resourceY);
+            List<IconText.Seg> segs = Arrays.asList(IconText.Seg.icon("wood"), IconText.Seg.text(woodText));
+            float w = IconText.measure(fontSmall, glyphLayout, segs, 16f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, segs,
+                centerX - w / 2f, resourceY, 16f);
             resourceY -= lineHeight;
             anyGained = true;
         }
         if (ironText != null) {
             fontSmall.setColor(0.9f, 0.6f, 0.4f, 1f); // orange
-            glyphLayout.setText(fontSmall, ironText);
-            fontSmall.draw(batch, ironText,
-                centerX - glyphLayout.width / 2f, resourceY);
+            List<IconText.Seg> segs = Arrays.asList(IconText.Seg.icon("iron"), IconText.Seg.text(ironText));
+            float w = IconText.measure(fontSmall, glyphLayout, segs, 16f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, segs,
+                centerX - w / 2f, resourceY, 16f);
             anyGained = true;
         }
 

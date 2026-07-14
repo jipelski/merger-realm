@@ -991,7 +991,7 @@ public class RaidManager {
         if (!snap.equippedItems.isEmpty() && Math.random() < ZOMBIE_ITEM_RETRIEVE_CHANCE) {
             Item item = snap.equippedItems.get((int) (Math.random() * snap.equippedItems.size()));
             activeRaid.getPendingLootItems().add(item);
-            addLog("Recovered " + item.getName() + " from the fallen!");
+            addLog("Recovered " + item.getDisplayName() + " from the fallen!");
         }
         dpm.remove(snap);
         addLog("The zombified party crumbles to dust.");

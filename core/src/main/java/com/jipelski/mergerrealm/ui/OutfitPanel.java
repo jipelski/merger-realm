@@ -12,7 +12,9 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.OutfitManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -42,15 +44,18 @@ public class OutfitPanel {
     private final EventManager eventManager;
     private final Viewport viewport;
     private final UITextureManager uiTex;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
     // ── Touch ──
     private final Vector2 touchPos = new Vector2();
 
-    public OutfitPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public OutfitPanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                       SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
         this.uiTex = uiTex;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
     }
 
@@ -68,10 +73,11 @@ public class OutfitPanel {
     private float getContentTop() { return getMenuTop() - HEADER_HEIGHT; }
 
     // ── Row state, shared by draw + touch so they can never drift apart ──
-    private String rowActionLabel(OutfitManager om, OutfitManager.OutfitData outfit) {
-        if (om.isEquipped(outfit.id)) return "Unequip";
-        if (om.isOwned(outfit.id)) return "Equip";
-        return outfit.goldCost + " G";
+    private List<IconText.Seg> rowActionSegs(OutfitManager om, OutfitManager.OutfitData outfit) {
+        if (om.isEquipped(outfit.id)) return Arrays.asList(IconText.Seg.text("[Unequip]"));
+        if (om.isOwned(outfit.id)) return Arrays.asList(IconText.Seg.text("[Equip]"));
+        return Arrays.asList(IconText.Seg.text("[" + outfit.goldCost + " "),
+            IconText.Seg.icon("gold"), IconText.Seg.text("]"));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -121,8 +127,8 @@ public class OutfitPanel {
         font.draw(batch, "X", getMenuX() + getMenuWidth() - 28f, getMenuTop() - 12f);
 
         fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
-        fontSmall.draw(batch, "Balance: " + gm.getGold() + " Gold",
-            getMenuX() + 12f, getMenuTop() - 34f);
+        IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+            "Balance: " + gm.getGold(), "gold", getMenuX() + 12f, getMenuTop() - 34f, 16f);
 
         float y = getContentTop() - ROW_HEIGHT;
         for (OutfitManager.OutfitData outfit : outfits) {
@@ -138,15 +144,15 @@ public class OutfitPanel {
             fontSmall.draw(batch, outfit.description, getMenuX() + 16f, y + ROW_HEIGHT - 30f,
                 getMenuWidth() - 150f, com.badlogic.gdx.utils.Align.left, true);
 
-            String actionLabel = rowActionLabel(om, outfit);
+            List<IconText.Seg> actionSegs = rowActionSegs(om, outfit);
             if (equipped) fontSmall.setColor(0.9f, 0.4f, 0.4f, 1f);
             else if (owned) fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
             else if (affordable) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
             else fontSmall.setColor(0.5f, 0.5f, 0.55f, 1f);
 
-            glyphLayout.setText(fontSmall, "[" + actionLabel + "]");
-            fontSmall.draw(batch, "[" + actionLabel + "]",
-                getMenuX() + getMenuWidth() - 16f - glyphLayout.width, y + ROW_HEIGHT - 20f);
+            float actionW = IconText.measure(fontSmall, glyphLayout, actionSegs, 14f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, actionSegs,
+                getMenuX() + getMenuWidth() - 16f - actionW, y + ROW_HEIGHT - 20f, 14f);
 
             y -= (ROW_HEIGHT + ROW_GAP);
         }

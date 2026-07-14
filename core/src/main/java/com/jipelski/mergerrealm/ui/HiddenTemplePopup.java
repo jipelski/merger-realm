@@ -12,6 +12,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.HiddenTempleManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
 
 /**
  * Small modal triggered by tapping an ancient_map in InventoryMenu's
@@ -42,6 +43,7 @@ public class HiddenTemplePopup {
 
     private final EventManager eventManager;
     private final Viewport viewport;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
     private final Vector2 touchPos = new Vector2();
@@ -50,9 +52,11 @@ public class HiddenTemplePopup {
     private String pendingItemId; // the ancient_map awaiting consumption, CONFIRM state
     private HiddenTempleManager.TempleReward result; // non-null once opened — RESULT state
 
-    public HiddenTemplePopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public HiddenTemplePopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                             SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
         // uiTex is accepted for constructor-signature symmetry with the
         // other popups (DailyLoginPopup, OfflinePopup) even though this
@@ -146,8 +150,16 @@ public class HiddenTemplePopup {
                 getButtonY() + BUTTON_HEIGHT / 2f + glyphLayout.height / 2f);
         } else {
             fontSmall.setColor(0.9f, 0.9f, 0.85f, 1f);
+            // Gold icon prefixes the (now word-dropped, see rewardSummary)
+            // wrapped text block — only the icon+first-line pairing is
+            // exact; drawWrapped's own multi-line word-wrap is untouched
+            // rather than taught to treat an icon as an atomic wrap unit,
+            // not worth the complexity for this one reward-summary card.
+            float iconSize = 16f;
+            batch.draw(spriteManager.getTextureByKey("gold"),
+                getMenuX() + 12f, textY - iconSize + 4f, iconSize, iconSize);
             drawWrapped(batch, fontSmall, rewardSummary(result),
-                getMenuX() + 12f, textY, getMenuWidth() - 24f);
+                getMenuX() + 12f + iconSize + 4f, textY, getMenuWidth() - 24f - iconSize - 4f);
 
             font.setColor(Color.WHITE);
             String okLabel = "[ OK ]";
@@ -182,8 +194,9 @@ public class HiddenTemplePopup {
         }
     }
 
+    /** Word dropped after "+N" — the caller draws a gold icon just before this text instead. */
     private String rewardSummary(HiddenTempleManager.TempleReward reward) {
-        StringBuilder sb = new StringBuilder("+").append(reward.gold).append(" Gold");
+        StringBuilder sb = new StringBuilder("+").append(reward.gold);
         if (reward.rewardType != null) {
             sb.append(", ").append(reward.rewardType).append(" Lv").append(reward.rewardLevel);
             if (reward.queued) sb.append(" (Wall Gate)");

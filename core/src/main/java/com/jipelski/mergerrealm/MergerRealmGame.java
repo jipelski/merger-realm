@@ -70,9 +70,11 @@ import com.jipelski.mergerrealm.ui.PrestigePanel;
 import com.jipelski.mergerrealm.ui.OutfitPanel;
 import com.jipelski.mergerrealm.ui.InfoPanel;
 import com.jipelski.mergerrealm.ui.AdRewardPopup;
+import com.jipelski.mergerrealm.ui.IconText;
 import com.jipelski.mergerrealm.util.TutorialManager;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -288,18 +290,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             raidPanel.open();
         }
 
-        unifiedShopPanel = new UnifiedShopPanel(eventManager, viewport, uiTex);
+        unifiedShopPanel = new UnifiedShopPanel(eventManager, viewport, uiTex, spriteManager);
         inputHandler.setUnifiedShopPanel(unifiedShopPanel);
         raidPanel.setUnifiedShopPanel(unifiedShopPanel);
 
-        dailyLoginPopup = new DailyLoginPopup(eventManager, viewport, uiTex);
+        dailyLoginPopup = new DailyLoginPopup(eventManager, viewport, uiTex, spriteManager);
         unifiedShopPanel.setDailyLoginPopup(dailyLoginPopup);
         inputHandler.setDailyLoginPopup(dailyLoginPopup);
 
         // Triggered by tapping an ancient_map in InventoryMenu (see its
         // item-tap handling) rather than an auto-open check like
         // dailyLoginPopup above — see HiddenTemplePopup's class javadoc.
-        hiddenTemplePopup = new HiddenTemplePopup(eventManager, viewport, uiTex);
+        hiddenTemplePopup = new HiddenTemplePopup(eventManager, viewport, uiTex, spriteManager);
         inventoryMenu.setHiddenTemplePopup(hiddenTemplePopup);
         inputHandler.setHiddenTemplePopup(hiddenTemplePopup);
 
@@ -307,7 +309,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         // button on the Equipment tab, same wiring shape as hiddenTemplePopup
         // above (opened from inside a panel, but drawn/touch-routed at the
         // top level since panels don't nest batch/shape calls).
-        salvagePanel = new SalvagePanel(eventManager, viewport, uiTex);
+        salvagePanel = new SalvagePanel(eventManager, viewport, uiTex, spriteManager);
         inventoryMenu.setSalvagePanel(salvagePanel);
         inputHandler.setSalvagePanel(salvagePanel);
 
@@ -321,7 +323,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
 
-        outfitPanel = new OutfitPanel(eventManager, viewport, uiTex);
+        outfitPanel = new OutfitPanel(eventManager, viewport, uiTex, spriteManager);
         inputHandler.setOutfitPanel(outfitPanel);
 
         infoPanel = new InfoPanel(eventManager, spriteManager, viewport, uiTex);
@@ -332,12 +334,12 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         // Gold tab (Fill Resources/Revive Party), ExplorePanel's per-slot
         // Rush button (Speed Exploration), and a periodic facility's 2nd tap
         // (Instant Spawn — the only one of the 4 with no prior button).
-        adRewardPopup = new AdRewardPopup(eventManager, viewport, uiTex);
+        adRewardPopup = new AdRewardPopup(eventManager, viewport, uiTex, spriteManager);
         unifiedShopPanel.setAdRewardPopup(adRewardPopup);
         explorePanel.setAdRewardPopup(adRewardPopup);
         inputHandler.setAdRewardPopup(adRewardPopup);
 
-        offlinePopup = new OfflinePopup(uiTex);
+        offlinePopup = new OfflinePopup(uiTex, spriteManager);
 
         gridStartYShifted = BuildMenu.MENU_HEIGHT + LayoutConfig.GRID_PADDING ;
 
@@ -1069,29 +1071,45 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private void drawHUD() {
         ResourceManager rm = eventManager.getResourceManager();
 
+        // Icon replaces the "Food:"/"Wood:"/etc. word — CachedLabel still
+        // only rebuilds its string when the underlying int changes (pass ""
+        // as the prefix instead of "Food: " — same class, same caching,
+        // just a bare number now that the word isn't needed).
         font.setColor(Color.WHITE);
-        font.draw(batch, foodLabel.get("Food: ", rm.getAmount("food")), 20f, LayoutConfig.getResourcesY());
-        font.draw(batch, woodLabel.get("Wood: ", rm.getAmount("wood")), 170f, LayoutConfig.getResourcesY());
-        font.draw(batch, ironLabel.get("Iron: ", rm.getAmount("iron")), 320f, LayoutConfig.getResourcesY());
+        IconText.iconThenText(batch, font, glyphLayout, spriteManager, "food",
+            foodLabel.get("", rm.getAmount("food")), 20f, LayoutConfig.getResourcesY(), 16f);
+        IconText.iconThenText(batch, font, glyphLayout, spriteManager, "wood",
+            woodLabel.get("", rm.getAmount("wood")), 170f, LayoutConfig.getResourcesY(), 16f);
+        IconText.iconThenText(batch, font, glyphLayout, spriteManager, "iron",
+            ironLabel.get("", rm.getAmount("iron")), 320f, LayoutConfig.getResourcesY(), 16f);
 
+        // Nail/Slate/Ingot/Relic already have real art (Token grid-object
+        // sprites) — reuse it directly, same "<name>_token_1" key InfoPanel
+        // already established for these four.
         fontSmall.setColor(0.7f, 0.8f, 0.7f, 1f);
-        fontSmall.draw(batch, nailLabel.get("Nail: ", rm.getAmount("nail")), 20f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, slateLabel.get("Slate: ", rm.getAmount("slate")), 130f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, ingotLabel.get("Ingot: ", rm.getAmount("ingot")), 240f, LayoutConfig.getResourcesRow2Y());
-        fontSmall.draw(batch, relicLabel.get("Relic: ", rm.getAmount("relic")), 350f, LayoutConfig.getResourcesRow2Y());
+        IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "nail_token_1",
+            nailLabel.get("", rm.getAmount("nail")), 20f, LayoutConfig.getResourcesRow2Y(), 14f);
+        IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "slate_token_1",
+            slateLabel.get("", rm.getAmount("slate")), 130f, LayoutConfig.getResourcesRow2Y(), 14f);
+        IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "ingot_token_1",
+            ingotLabel.get("", rm.getAmount("ingot")), 240f, LayoutConfig.getResourcesRow2Y(), 14f);
+        IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "relic_token_1",
+            relicLabel.get("", rm.getAmount("relic")), 350f, LayoutConfig.getResourcesRow2Y(), 14f);
 
         // Gold chip — right-aligned on the top resource row, tappable to open shop
         int goldAmt = eventManager.getGoldManager().getGold();
-        String goldStr = goldLabel.get("Gold: ", goldAmt);
+        String goldStr = goldLabel.get("", goldAmt);
         fontSmall.setColor(1f, 0.85f, 0.25f, 1f); // gold color
-        glyphLayout.setText(fontSmall, goldStr);
-        goldChipW = glyphLayout.width + 16f;
+        List<IconText.Seg> goldSegs = Arrays.asList(IconText.Seg.icon("gold"), IconText.Seg.text(goldStr));
+        float goldContentW = IconText.measure(fontSmall, glyphLayout, goldSegs, 16f);
+        goldChipW = goldContentW + 20f;
         goldChipH = 20f;
         goldChipX = LayoutConfig.WORLD_WIDTH - goldChipW - 8f;
         goldChipY = LayoutConfig.getResourcesY() - 15f;
         uiTex.drawPanel(batch, uiTex.panelMedium, goldChipX, goldChipY, goldChipW, goldChipH);
         fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
-        fontSmall.draw(batch, goldStr, goldChipX + 8f, goldChipY + goldChipH - 5f);
+        IconText.draw(batch, fontSmall, glyphLayout, spriteManager, goldSegs,
+            goldChipX + 8f, goldChipY + goldChipH - 5f, 16f);
         inputHandler.setGoldChipBounds(goldChipX, goldChipY, goldChipW, goldChipH);
         fontSmall.setColor(Color.WHITE);
     }

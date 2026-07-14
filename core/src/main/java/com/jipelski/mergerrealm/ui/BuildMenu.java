@@ -159,7 +159,7 @@ public class BuildMenu {
             }
 
             item.displayName = TextUtil.capitalize(item.type);
-            item.costString = shortCostString(item);
+            item.costSegs = buildCostSegs(item);
 
             items.add(item);
         }
@@ -268,9 +268,9 @@ public class BuildMenu {
 
                 // Cost
                 fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-                glyphLayout.setText(fontSmall, item.costString);
-                fontSmall.draw(batch, item.costString, centerX - glyphLayout.width / 2f,
-                    iconY - 20f);
+                float costW = IconText.measure(fontSmall, glyphLayout, item.costSegs, 14f);
+                IconText.draw(batch, fontSmall, glyphLayout, spriteManager, item.costSegs,
+                    centerX - costW / 2f, iconY - 20f, 14f);
 
                 // Build button text
                 float btnX = cardX + (CARD_WIDTH - BTN_WIDTH) / 2f;
@@ -417,28 +417,38 @@ public class BuildMenu {
             && rm.getAmount("relic") >= item.buildCost4;
     }
 
-    private String shortCostString(BuildableItem item) {
-        StringBuilder sb = new StringBuilder();
+    /**
+     * buildCost1..4 map to Nail/Slate/Ingot/Relic respectively (see
+     * decreaseTokens/getAmount above, which is the source of truth for that
+     * mapping) — icons reuse the same "<name>_token_1" keys InfoPanel/the
+     * HUD already use for these four, since real art already exists for
+     * them (Token grid-object sprites).
+     */
+    private List<IconText.Seg> buildCostSegs(BuildableItem item) {
+        List<IconText.Seg> segs = new ArrayList<>();
         boolean first = true;
         if (item.buildCost1 > 0) {
-            sb.append(item.buildCost1).append("N");
+            segs.add(IconText.Seg.text(item.buildCost1 + " "));
+            segs.add(IconText.Seg.icon("nail_token_1"));
             first = false;
         }
         if (item.buildCost2 > 0) {
-            if (!first) sb.append(" ");
-            sb.append(item.buildCost2).append("S");
+            segs.add(IconText.Seg.text((first ? "" : "  ") + item.buildCost2 + " "));
+            segs.add(IconText.Seg.icon("slate_token_1"));
             first = false;
         }
         if (item.buildCost3 > 0) {
-            if (!first) sb.append(" ");
-            sb.append(item.buildCost3).append("I");
+            segs.add(IconText.Seg.text((first ? "" : "  ") + item.buildCost3 + " "));
+            segs.add(IconText.Seg.icon("ingot_token_1"));
             first = false;
         }
         if (item.buildCost4 > 0) {
-            if (!first) sb.append(" ");
-            sb.append(item.buildCost4).append("R");
+            segs.add(IconText.Seg.text((first ? "" : "  ") + item.buildCost4 + " "));
+            segs.add(IconText.Seg.icon("relic_token_1"));
+            first = false;
         }
-        return sb.length() > 0 ? sb.toString() : "Free";
+        if (first) segs.add(IconText.Seg.text("Free"));
+        return segs;
     }
 
     private static class BuildableItem {
@@ -453,6 +463,6 @@ public class BuildMenu {
         // and cost are fully determined by type/buildCost*, which are fixed
         // for the lifetime of this item.
         String displayName;
-        String costString;
+        List<IconText.Seg> costSegs;
     }
 }

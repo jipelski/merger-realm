@@ -22,6 +22,7 @@ import com.jipelski.mergerrealm.util.SpriteManager;
 import com.jipelski.mergerrealm.util.TextUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -333,9 +334,11 @@ public class RaidPanel {
         // Trophy count
         RaidManager rm = eventManager.getRaidManager();
         fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-        fontSmall.draw(batch, "Trophies: " + rm.getWarTrophies()
-                + "  |  Boss Tokens: " + rm.getBossTokens(),
-            getMenuX() + 12f, getContentTop() - 8f);
+        List<IconText.Seg> trophyTokenSegs = Arrays.asList(
+            IconText.Seg.icon("trophy"), IconText.Seg.text(" " + rm.getWarTrophies() + "    "),
+            IconText.Seg.icon("boss_token"), IconText.Seg.text(" " + rm.getBossTokens()));
+        IconText.draw(batch, fontSmall, glyphLayout, spriteManager, trophyTokenSegs,
+            getMenuX() + 12f, getContentTop() - 8f, 16f);
 
         // Shop button
         fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
@@ -422,8 +425,8 @@ public class RaidPanel {
                 int tokenCost = tokenCostObj instanceof Number ? ((Number) tokenCostObj).intValue() : 0;
                 fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
                 if (tokenCost > 0) {
-                    fontSmall.draw(batch, "Cost: " + tokenCost + " Boss Tokens",
-                        getMenuX() + 16f, y - 20f);
+                    IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+                        "Cost: " + tokenCost, "boss_token", getMenuX() + 16f, y - 20f, 14f);
                 } else {
                     List<Map<String, Object>> rooms = (List<Map<String, Object>>) node.get("rooms");
                     fontSmall.draw(batch, (rooms != null ? rooms.size() : 0) + " rooms",
@@ -604,8 +607,9 @@ public class RaidPanel {
 
         if (raid.isEndless()) {
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-            fontSmall.draw(batch, "Banked if extracted: +" + raid.getPendingTrophies() + " Trophies",
-                getMenuX() + 12f, getMenuTop() - 26f);
+            IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+                "Banked if extracted: +" + raid.getPendingTrophies(), "trophy",
+                getMenuX() + 12f, getMenuTop() - 26f, 16f);
         }
 
         // Last combat-log line (small, unobtrusive)
@@ -653,13 +657,14 @@ public class RaidPanel {
 
         float y = getContentTop() - 20f;
         fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-        fontSmall.draw(batch, "Banked so far: +" + raid.getPendingTrophies() + " War Trophies",
-            getMenuX() + 12f, y);
+        IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+            "Banked so far: +" + raid.getPendingTrophies(), "trophy", getMenuX() + 12f, y, 16f);
         y -= 20f;
 
         if (raid.getPendingTokens() > 0) {
             fontSmall.setColor(0.9f, 0.6f, 0.2f, 1f);
-            fontSmall.draw(batch, "+" + raid.getPendingTokens() + " Boss Tokens", getMenuX() + 12f, y);
+            IconText.textThenIcon(batch, fontSmall, glyphLayout, spriteManager,
+                "+" + raid.getPendingTokens(), "boss_token", getMenuX() + 12f, y, 16f);
             y -= 20f;
         }
         if (!raid.getPendingLootItems().isEmpty()) {
@@ -717,15 +722,15 @@ public class RaidPanel {
 
         // Trophies
         fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-        fontSmall.draw(batch, "War Trophies: +" + raid.getTrophiesEarned(),
-            getMenuX() + 12f, y);
+        IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "trophy",
+            " +" + raid.getTrophiesEarned(), getMenuX() + 12f, y, 16f);
         y -= 24f;
 
         // Boss tokens
         if (raid.getBossTokens() > 0) {
             fontSmall.setColor(0.9f, 0.6f, 0.2f, 1f);
-            fontSmall.draw(batch, "Boss Tokens: +" + raid.getBossTokens(),
-                getMenuX() + 12f, y);
+            IconText.iconThenText(batch, fontSmall, glyphLayout, spriteManager, "boss_token",
+                " +" + raid.getBossTokens(), getMenuX() + 12f, y, 16f);
             y -= 24f;
         }
 

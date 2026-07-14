@@ -11,6 +11,10 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 
 import com.jipelski.mergerrealm.util.DailyLoginManager;
 import com.jipelski.mergerrealm.util.EventManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 7-day login streak popup — auto-opens on launch (from MergerRealmGame,
@@ -43,16 +47,19 @@ public class DailyLoginPopup {
     private final EventManager eventManager;
     private final Viewport viewport;
     private final UITextureManager uiTex;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
     private final Vector2 touchPos = new Vector2();
 
     private DailyLoginManager.DailyReward lastReward;
 
-    public DailyLoginPopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public DailyLoginPopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                           SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
         this.uiTex = uiTex;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
     }
 
@@ -198,19 +205,23 @@ public class DailyLoginPopup {
         // Last reward result, drawn above the strip if there's room and a claim happened this session
         if (lastReward != null) {
             fontSmall.setColor(0.85f, 0.85f, 0.95f, 1f);
-            String rewardMsg = rewardSummary(lastReward);
-            glyphLayout.setText(fontSmall, rewardMsg);
-            fontSmall.draw(batch, rewardMsg, x + w / 2f - glyphLayout.width / 2f, cellY + cellHeight + 16f);
+            List<IconText.Seg> rewardSegs = rewardSummary(lastReward);
+            float rewardW = IconText.measure(fontSmall, glyphLayout, rewardSegs, 16f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, rewardSegs,
+                x + w / 2f - rewardW / 2f, cellY + cellHeight + 16f, 16f);
         }
     }
 
-    private String rewardSummary(DailyLoginManager.DailyReward reward) {
-        StringBuilder sb = new StringBuilder("+").append(reward.gold).append(" Gold");
+    private List<IconText.Seg> rewardSummary(DailyLoginManager.DailyReward reward) {
+        List<IconText.Seg> segs = new ArrayList<>();
+        segs.add(IconText.Seg.icon("gold"));
+        StringBuilder sb = new StringBuilder(" +").append(reward.gold);
         if (reward.rewardType != null) {
             sb.append(", ").append(reward.rewardType).append(" Lv").append(reward.rewardLevel);
             if (reward.queued) sb.append(" (Wall Gate)");
         }
-        return sb.toString();
+        segs.add(IconText.Seg.text(sb.toString()));
+        return segs;
     }
 
     /** Handles a tap inside the given rect — claims today's reward if the claim button was hit. */

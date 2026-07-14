@@ -302,6 +302,21 @@ public class EnchantedSetManager {
     }
 
     /**
+     * Returns the piece type ("sword"/"shield") for an enchanted item type,
+     * or null. "enchanted_dragonscale_sword" -> "sword". Mirrors
+     * getSetName() (same parse, other half of the split) — added for
+     * EventManager.refineItem(), which needs both halves to look up the
+     * canonical piece via createEnchantedItem(setName, pieceType).
+     */
+    public static String getPieceType(String itemType) {
+        if (!isEnchantedItem(itemType)) return null;
+        String remainder = itemType.substring(ENCHANTED_PREFIX.length());
+        int lastUnderscore = remainder.lastIndexOf('_');
+        if (lastUnderscore < 0) return null;
+        return remainder.substring(lastUnderscore + 1);
+    }
+
+    /**
      * Returns the display name for a set.
      */
     public static String getSetDisplayName(String setName) {

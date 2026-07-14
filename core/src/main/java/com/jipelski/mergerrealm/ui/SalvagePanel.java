@@ -12,6 +12,10 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.util.EventManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * "Salvage" — the equipment sink. Triggered by the [Salvage] header button
@@ -47,6 +51,7 @@ public class SalvagePanel {
 
     private final EventManager eventManager;
     private final Viewport viewport;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
     private final Vector2 touchPos = new Vector2();
 
@@ -56,9 +61,11 @@ public class SalvagePanel {
     private int previewGold = 0;
     private EventManager.SalvageResult lastResult;
 
-    public SalvagePanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public SalvagePanel(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                        SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
         // uiTex accepted for constructor-signature symmetry with sibling
         // popups (HiddenTemplePopup/DailyLoginPopup/OutfitPanel) — plain
@@ -177,19 +184,21 @@ public class SalvagePanel {
             getMenuWidth() - 24f, Align.left, true);
 
         fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
-        String preview = previewCount + " item" + (previewCount == 1 ? "" : "s")
-            + "  ->  " + previewGold + " Gold";
-        glyphLayout.setText(fontSmall, preview);
-        fontSmall.draw(batch, preview,
-            getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f, getPreviewY() - 24f);
+        List<IconText.Seg> previewSegs = Arrays.asList(IconText.Seg.text(
+            previewCount + " item" + (previewCount == 1 ? "" : "s") + "  ->  " + previewGold + " "),
+            IconText.Seg.icon("gold"));
+        float previewW = IconText.measure(fontSmall, glyphLayout, previewSegs, 16f);
+        IconText.draw(batch, fontSmall, glyphLayout, spriteManager, previewSegs,
+            getMenuX() + getMenuWidth() / 2f - previewW / 2f, getPreviewY() - 24f, 16f);
 
         if (lastResult != null) {
             fontSmall.setColor(0.6f, 0.9f, 0.6f, 1f);
-            String resultMsg = "Salvaged " + lastResult.count + " items for "
-                + lastResult.totalGold + " Gold!";
-            glyphLayout.setText(fontSmall, resultMsg);
-            fontSmall.draw(batch, resultMsg,
-                getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f, getPreviewY() - 44f);
+            List<IconText.Seg> resultSegs = Arrays.asList(IconText.Seg.text(
+                "Salvaged " + lastResult.count + " items for " + lastResult.totalGold + " "),
+                IconText.Seg.icon("gold"), IconText.Seg.text("!"));
+            float resultW = IconText.measure(fontSmall, glyphLayout, resultSegs, 16f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, resultSegs,
+                getMenuX() + getMenuWidth() / 2f - resultW / 2f, getPreviewY() - 44f, 16f);
         }
 
         // Confirm button label
@@ -198,11 +207,13 @@ public class SalvagePanel {
         } else {
             font.setColor(0.5f, 0.5f, 0.55f, 1f);
         }
-        String confirmLabel = "[ Salvage " + previewCount + " for " + previewGold + " Gold ]";
-        glyphLayout.setText(font, confirmLabel);
-        font.draw(batch, confirmLabel,
-            getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f,
-            getButtonY() + BUTTON_HEIGHT / 2f + glyphLayout.height / 2f);
+        List<IconText.Seg> confirmSegs = Arrays.asList(
+            IconText.Seg.text("[ Salvage " + previewCount + " for " + previewGold + " "),
+            IconText.Seg.icon("gold"), IconText.Seg.text(" ]"));
+        float confirmW = IconText.measure(font, glyphLayout, confirmSegs, 16f);
+        IconText.draw(batch, font, glyphLayout, spriteManager, confirmSegs,
+            getMenuX() + getMenuWidth() / 2f - confirmW / 2f,
+            getButtonY() + BUTTON_HEIGHT / 2f + glyphLayout.height / 2f, 16f);
 
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);

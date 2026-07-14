@@ -21,6 +21,7 @@ import com.jipelski.mergerrealm.util.GridObjectManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
 import com.jipelski.mergerrealm.util.TextUtil;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -393,7 +394,10 @@ public class ExplorePanel {
                 boolean can = gm.canAfford(GoldManager.COST_SPEED_EXPLORATION);
                 if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
                 else     fontSmall.setColor(0.5f, 0.4f, 0.2f, 1f);
-                fontSmall.draw(batch, "[Rush +10G]", btnX - 110f, btnY + 16f);
+                List<IconText.Seg> rushSegs = Arrays.asList(
+                    IconText.Seg.text("[Rush +10"), IconText.Seg.icon("gold"), IconText.Seg.text("]"));
+                IconText.draw(batch, fontSmall, glyphLayout, spriteManager, rushSegs,
+                    btnX - 110f, btnY + 16f, 14f);
 
                 int remaining = eventManager.getAdManager().getRemaining(AdManager.AdAction.SPEED_EXPLORATION);
                 if (remaining > 0) fontSmall.setColor(0.3f, 0.75f, 0.95f, 1f);
@@ -417,9 +421,11 @@ public class ExplorePanel {
             boolean can = gm.canAfford(GoldManager.COST_EXTRA_EXPLORE_SLOT);
             if (can) fontSmall.setColor(1f, 0.85f, 0.25f, 1f);
             else     fontSmall.setColor(0.5f, 0.4f, 0.2f, 1f);
-            glyphLayout.setText(fontSmall, "[+1 Slot: 40G]");
-            fontSmall.draw(batch, "[+1 Slot: 40G]",
-                getMenuX() + getMenuWidth() / 2f - glyphLayout.width / 2f, getMenuBottom() + 24f);
+            List<IconText.Seg> slotSegs = Arrays.asList(
+                IconText.Seg.text("[+1 Slot: 40"), IconText.Seg.icon("gold"), IconText.Seg.text("]"));
+            float slotW = IconText.measure(fontSmall, glyphLayout, slotSegs, 14f);
+            IconText.draw(batch, fontSmall, glyphLayout, spriteManager, slotSegs,
+                getMenuX() + getMenuWidth() / 2f - slotW / 2f, getMenuBottom() + 24f, 14f);
         }
     }
 

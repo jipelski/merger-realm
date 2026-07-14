@@ -10,6 +10,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 import com.jipelski.mergerrealm.model.Item;
+import com.jipelski.mergerrealm.util.EnchantedSetManager;
 import com.jipelski.mergerrealm.util.EventManager;
 
 import java.util.ArrayList;
@@ -97,7 +98,8 @@ public class RefinePanel {
     // ══════════════════════════════════════════════════════════════
 
     private boolean isRefinableType(String type) {
-        return "sword".equals(type) || "shield".equals(type) || "amulet".equals(type);
+        return "sword".equals(type) || "shield".equals(type) || "amulet".equals(type)
+            || EnchantedSetManager.isEnchantedItem(type);
     }
 
     /** Rebuilds the grouped list from Inventory.getUnequippedItems() — called on open() and after every refine. */
@@ -302,7 +304,8 @@ public class RefinePanel {
                     EventManager.RefineResult result =
                         eventManager.refineItem(g.type, g.level, g.refineLevel);
                     if (result.success) {
-                        lastResultText = "Refined into " + result.newItem.getDisplayName() + "!";
+                        lastResultText = "Refined into " + result.newItem.getDisplayName()
+                            + "! (+" + result.xpGained + " XP)";
                         recomputeGroups();
                     }
                 }

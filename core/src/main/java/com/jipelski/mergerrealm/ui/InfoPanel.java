@@ -19,6 +19,7 @@ import com.jipelski.mergerrealm.data.StorageData;
 import com.jipelski.mergerrealm.data.TokenData;
 import com.jipelski.mergerrealm.data.UnitData;
 import com.jipelski.mergerrealm.model.FacilitySpawnConfiguration;
+import com.jipelski.mergerrealm.ui.IconText.Seg;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GameDataLoader;
 import com.jipelski.mergerrealm.util.GameTypes;
@@ -61,7 +62,6 @@ public class InfoPanel {
     private static final float LINE_HEIGHT = 18f;
     private static final float ROW_GAP = 6f;
     private static final float ICON_SIZE = 16f;
-    private static final float ICON_GAP = 2f;
 
     // ── References ──
     private final EventManager eventManager;
@@ -78,16 +78,6 @@ public class InfoPanel {
     private boolean scrolling = false;
     private float scrollY = 0f;
     private float maxScrollY = 0f;
-
-    /** One rendered token within a line: either a text run or a sprite icon (never both). */
-    private static class Seg {
-        final String text;
-        final String iconKey;
-        private Seg(String text, String iconKey) { this.text = text; this.iconKey = iconKey; }
-        static Seg text(String t) { return new Seg(t, null); }
-        static Seg icon(String key) { return new Seg(null, key); }
-        boolean isIcon() { return iconKey != null; }
-    }
 
     private static class LevelRow {
         final int level;
@@ -419,7 +409,8 @@ public class InfoPanel {
             for (int i = 0; i < row.lines.size(); i++) {
                 float lineY = y - i * LINE_HEIGHT - 4f;
                 if (lineY <= contentBottom || lineY > contentTop) continue;
-                drawSegLine(batch, fontSmall, row.lines.get(i), getMenuX() + 16f, lineY);
+                IconText.draw(batch, fontSmall, glyphLayout, spriteManager,
+                    row.lines.get(i), getMenuX() + 16f, lineY, ICON_SIZE);
             }
             y = blockBottom - ROW_GAP;
         }
@@ -427,28 +418,6 @@ public class InfoPanel {
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
         batch.setColor(Color.WHITE);
-    }
-
-    /**
-     * Draws one line's segments left-to-right: icon segments as fixed-size
-     * sprites, text segments measured via glyphLayout so the next segment's
-     * cursor lands right after it. No wrapping (matches the old single-line
-     * behavior) — rows are wide enough since icons are narrower than the
-     * words they replace.
-     */
-    private void drawSegLine(SpriteBatch batch, BitmapFont font, List<Seg> segs, float x, float y) {
-        float cursor = x;
-        float iconY = y - ICON_SIZE + 2f;
-        for (Seg s : segs) {
-            if (s.isIcon()) {
-                batch.draw(spriteManager.getTextureByKey(s.iconKey), cursor, iconY, ICON_SIZE, ICON_SIZE);
-                cursor += ICON_SIZE + ICON_GAP;
-            } else {
-                glyphLayout.setText(font, s.text);
-                font.draw(batch, s.text, cursor, y);
-                cursor += glyphLayout.width;
-            }
-        }
     }
 
     // ══════════════════════════════════════════════════════════════

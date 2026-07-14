@@ -12,6 +12,10 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.jipelski.mergerrealm.util.AdManager;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
+import com.jipelski.mergerrealm.util.SpriteManager;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Shared "Watch Ad" confirm popup for the 4 gameplay actions that also have
@@ -42,6 +46,7 @@ public class AdRewardPopup {
 
     private final EventManager eventManager;
     private final Viewport viewport;
+    private final SpriteManager spriteManager;
     private final GlyphLayout glyphLayout;
 
     private final Vector2 touchPos = new Vector2();
@@ -53,9 +58,11 @@ public class AdRewardPopup {
     private boolean showGold;                 // whether to also offer the Gold path
     private String resultText;                // non-null once resolved — RESULT state
 
-    public AdRewardPopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex) {
+    public AdRewardPopup(EventManager eventManager, Viewport viewport, UITextureManager uiTex,
+                         SpriteManager spriteManager) {
         this.eventManager = eventManager;
         this.viewport = viewport;
+        this.spriteManager = spriteManager;
         this.glyphLayout = new GlyphLayout();
         // uiTex accepted for constructor-signature symmetry with the other
         // popups (HiddenTemplePopup/DailyLoginPopup/OfflinePopup).
@@ -212,8 +219,10 @@ public class AdRewardPopup {
                 getButtonX(0), getButtonWidth());
 
             if (showGold) {
-                drawCenteredLabel(batch, font, "[ Pay " + costFor(pendingAction) + " Gold ]",
-                    getButtonX(payGoldIndex()), getButtonWidth());
+                List<IconText.Seg> paySegs = Arrays.asList(
+                    IconText.Seg.text("[ Pay " + costFor(pendingAction) + " "),
+                    IconText.Seg.icon("gold"), IconText.Seg.text(" ]"));
+                drawCenteredSegs(batch, font, paySegs, getButtonX(payGoldIndex()), getButtonWidth());
             }
 
             drawCenteredLabel(batch, font, "[ Cancel ]", getButtonX(cancelIndex()), getButtonWidth());
@@ -234,6 +243,22 @@ public class AdRewardPopup {
         font.draw(batch, label,
             boxX + boxW / 2f - glyphLayout.width / 2f,
             getButtonY() + BUTTON_HEIGHT / 2f + glyphLayout.height / 2f);
+    }
+
+    /** Same centering as drawCenteredLabel, but for a mixed text+icon run (e.g. the Pay Gold button). */
+    private void drawCenteredSegs(SpriteBatch batch, BitmapFont font, List<IconText.Seg> segs,
+                                  float boxX, float boxW) {
+        font.setColor(Color.WHITE);
+        float segsW = IconText.measure(font, glyphLayout, segs, 14f);
+        // Height for vertical centering — any text segment's glyphLayout.height
+        // works (single-line labels share the same font line-metric height
+        // regardless of content); every seg list here has at least one.
+        for (IconText.Seg s : segs) {
+            if (!s.isIcon()) { glyphLayout.setText(font, s.text); break; }
+        }
+        IconText.draw(batch, font, glyphLayout, spriteManager, segs,
+            boxX + boxW / 2f - segsW / 2f,
+            getButtonY() + BUTTON_HEIGHT / 2f + glyphLayout.height / 2f, 14f);
     }
 
     /** Minimal manual word-wrap — this card only ever holds a couple short sentences. */
