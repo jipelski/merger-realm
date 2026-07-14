@@ -307,6 +307,22 @@
             {"enemies": ["shadow_lord"], "lootChance": 1.0},
             {"enemies": ["arch_demon"], "lootChance": 1.0}
           ]
+        },
+        {
+          "id": "br_endless", "name": "Endless Gauntlet", "type": "endless", "order": 2,
+          "tokenCost": 1,
+          "enemyPool": [
+            "goblin_grunt", "goblin_archer", "goblin_brute", "goblin_shaman", "goblin_elite",
+            "skeleton", "zombie", "skeleton_warrior", "wraith_minor", "bone_golem",
+            "orc_warrior", "orc_archer", "orc_berserker", "orc_champion", "orc_warlord_guard",
+            "shadow_stalker", "void_wisp", "shadow_knight", "void_colossus",
+            "fire_imp", "hellhound_raid", "infernal_knight", "lava_golem"
+          ],
+          "hpGrowthPerDepth": 0.12,
+          "dmgGrowthPerDepth": 0.08,
+          "maxEnemiesPerRoom": 4,
+          "trophiesPerRoom": 3,
+          "trophiesGrowthPerDepth": 0.5
         }
       ]
     }

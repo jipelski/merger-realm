@@ -66,6 +66,32 @@ public class RaidState {
     public float getTransitionTimer() { return transitionTimer; }
     public void setTransitionTimer(float t) { this.transitionTimer = t; }
 
+    // ── Endless mode (procedural rooms, extract-or-die) ──
+    // currentRoomIndex above IS the depth counter here too — no separate
+    // field needed, same "0-based room currently being fought" meaning
+    // RaidManager.loadRoom already gives it for story nodes.
+    private boolean endless = false;
+    private long seed = 0L;                 // seeds RaidManager.generateEndlessRoom deterministically
+    private boolean awaitingExtractDecision = false; // paused at a checkpoint — see RaidManager.isCheckpointDepth
+    private int pendingTrophies = 0;        // banked only on extractEndless(); forfeited on a wipe
+    private int pendingTokens = 0;
+    private List<Item> pendingLootItems = new ArrayList<>(); // zombie-encounter item retrieval — see Phase 2
+    private String currentZombiePoolId = null; // links the current room to a DeadPartySnapshot, if zombified
+
+    public boolean isEndless() { return endless; }
+    public void setEndless(boolean e) { this.endless = e; }
+    public long getSeed() { return seed; }
+    public void setSeed(long s) { this.seed = s; }
+    public boolean isAwaitingExtractDecision() { return awaitingExtractDecision; }
+    public void setAwaitingExtractDecision(boolean a) { this.awaitingExtractDecision = a; }
+    public int getPendingTrophies() { return pendingTrophies; }
+    public void addPendingTrophies(int t) { this.pendingTrophies += t; }
+    public int getPendingTokens() { return pendingTokens; }
+    public void addPendingTokens(int t) { this.pendingTokens += t; }
+    public List<Item> getPendingLootItems() { return pendingLootItems; }
+    public String getCurrentZombiePoolId() { return currentZombiePoolId; }
+    public void setCurrentZombiePoolId(String id) { this.currentZombiePoolId = id; }
+
     // ── Damage distribution ratios ──
     public static final float[] DAMAGE_DISTRIBUTION = {0.50f, 0.30f, 0.10f, 0.10f};
 

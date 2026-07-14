@@ -2085,6 +2085,10 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             // is killed mid-raid instead of losing the party permanently.
             jsonManager.saveRaidState("raid_active_state", raidMgr.getActiveRaid());
 
+            // Endless Gauntlet's permanently-lost parties — see DeadPartyManager.
+            jsonManager.saveDeadPartyPool("dead_party_pool",
+                eventManager.getDeadPartyManager().getPool());
+
             Map<String, Object> shopSave = new java.util.HashMap<>();
             shopSave.put("stock", eventManager.getTrophyShop().getCurrentStock());
             shopSave.put("lastDailyRefresh", eventManager.getTrophyShop().getLastDailyRefresh());

@@ -108,6 +108,9 @@ public class EventManager {
     private AdManager adManager;
     public AdManager getAdManager() { return adManager; }
 
+    private DeadPartyManager deadPartyManager;
+    public DeadPartyManager getDeadPartyManager() { return deadPartyManager; }
+
     public EventManager(JsonManager jsonManager) {
         this.jsonInstance        = jsonManager;
         this.gridInstance        = new Grid(jsonInstance);
@@ -276,6 +279,10 @@ public class EventManager {
         this.adManager = new AdManager(this);
         adManager.setSaveState(jsonManager.loadArray("ad_watch_state"));
         Gdx.app.log(TAG, "AdManager loaded");
+
+        this.deadPartyManager = new DeadPartyManager(this);
+        deadPartyManager.setPool(jsonManager.loadDeadPartyPool("dead_party_pool"));
+        Gdx.app.log(TAG, "DeadPartyManager loaded — " + deadPartyManager.getPool().size() + " entries");
 
         // Only spawn the default starting objects on a completely fresh grid.
         // If the saved grid already has objects, spawnInitialObjects() does nothing.

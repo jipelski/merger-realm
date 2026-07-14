@@ -37,7 +37,13 @@ import java.util.Map;
  *                    (slot 0/1 = front, 2/3 = back — see
  *                    RaidState.DAMAGE_DISTRIBUTION for why this matters)
  *                    before committing to the raid
- *   COMBAT         — live auto-combat view
+ *   COMBAT         — live auto-combat view. For the endless "Endless
+ *                    Gauntlet" node, this state also covers the checkpoint
+ *                    push-on/extract decision (RaidState.
+ *                    isAwaitingExtractDecision) — a content swap within
+ *                    COMBAT rather than its own top-level state, since it's
+ *                    just another thing COMBAT can be showing, same as it
+ *                    already auto-transitions itself to RESULTS.
  *   RESULTS        — raid complete/failed summary
  */
 public class RaidPanel {
@@ -395,14 +401,19 @@ public class RaidPanel {
                 if ("boss".equals(type)) label = "★ " + name + " ★";
                 else if ("side".equals(type)) label = "⊕ " + name;
                 else if ("challenge".equals(type)) label = "⚔ " + name;
+                else if ("endless".equals(type)) label = "☠ " + name;
                 font.draw(batch, label, getMenuX() + 16f, y);
 
-                // Star rating
-                fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-                StringBuilder starStr = new StringBuilder();
-                for (int s = 0; s < 3; s++) starStr.append(s < stars ? "★" : "☆");
-                fontSmall.draw(batch, starStr.toString(),
-                    getMenuX() + getMenuWidth() - 50f, y);
+                // Star rating — meaningless for endless (completeNode(), which
+                // writes completionMap, is never reached by the extract path;
+                // endless is a repeatable score chase, not a 3-star clear).
+                if (!"endless".equals(type)) {
+                    fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+                    StringBuilder starStr = new StringBuilder();
+                    for (int s = 0; s < 3; s++) starStr.append(s < stars ? "★" : "☆");
+                    fontSmall.draw(batch, starStr.toString(),
+                        getMenuX() + getMenuWidth() - 50f, y);
+                }
 
                 // Rooms count, or Boss Token entry cost for challenge nodes
                 // (shown instead so a tap on Start doesn't silently fail
@@ -464,9 +475,14 @@ public class RaidPanel {
         }
         fontSmall.draw(batch, partyText.toString(), 12f, top - 34f);
 
-        // Instructions + Start button
-        fontSmall.setColor(0.5f, 0.5f, 0.6f, 1f);
-        fontSmall.draw(batch, "Tap units to add (slots 0-1 = front, 2-3 = back)",
+        // Instructions + Start button — endless carries a loud permadeath
+        // warning right here, in the same line's slot (SELECT_HEADER_HEIGHT
+        // is only 90px tall, so there's no spare room for a second line).
+        boolean endless = eventManager.getRaidManager().isEndlessNode(selectedChapterId, selectedNodeId);
+        fontSmall.setColor(endless ? new Color(0.95f, 0.25f, 0.25f, 1f) : new Color(0.5f, 0.5f, 0.6f, 1f));
+        fontSmall.draw(batch, endless
+                ? "⚠ ENDLESS — a wipe permanently kills your whole party! Tap units to add."
+                : "Tap units to add (slots 0-1 = front, 2-3 = back)",
             12f, top - 54f);
 
         if (partySlotFilling > 0) {
@@ -516,7 +532,11 @@ public class RaidPanel {
             drawArrangeSlotLabel(batch, fontSmall, slot);
         }
 
-        String confirmLabel = "[ Confirm & Start Raid ]";
+        // Last chance before commitment — the confirm button itself carries
+        // the permadeath warning for endless, mirroring the FORM_PARTY banner.
+        String confirmLabel = eventManager.getRaidManager().isEndlessNode(selectedChapterId, selectedNodeId)
+            ? "[ Confirm & Start — PERMADEATH ]"
+            : "[ Confirm & Start Raid ]";
         fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
         glyphLayout.setText(fontSmall, confirmLabel);
         fontSmall.draw(batch, confirmLabel,
@@ -570,10 +590,23 @@ public class RaidPanel {
             return;
         }
 
+        // Checkpoint reached — swap the whole COMBAT view for the
+        // push-on/extract decision instead of the normal arena/buttons.
+        if (raid.isEndless() && raid.isAwaitingExtractDecision()) {
+            drawExtractDecision(batch, font, fontSmall, raid);
+            return;
+        }
+
         // Header
         font.setColor(Color.WHITE);
-        font.draw(batch, "Room " + (raid.getCurrentRoomIndex() + 1),
+        font.draw(batch, (raid.isEndless() ? "Depth " : "Room ") + (raid.getCurrentRoomIndex() + 1),
             getMenuX() + 12f, getMenuTop() - 10f);
+
+        if (raid.isEndless()) {
+            fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+            fontSmall.draw(batch, "Banked if extracted: +" + raid.getPendingTrophies() + " Trophies",
+                getMenuX() + 12f, getMenuTop() - 26f);
+        }
 
         // Last combat-log line (small, unobtrusive)
         java.util.List<String> log = rm.getCombatLog();
@@ -606,6 +639,46 @@ public class RaidPanel {
 
         fontSmall.setColor(0.7f, 0.3f, 0.3f, 1f);
         fontSmall.draw(batch, "[Abandon]", btnX, btnY + 24f);
+
+        font.setColor(Color.WHITE);
+        fontSmall.setColor(Color.WHITE);
+    }
+
+    // ── EXTRACT DECISION (endless checkpoint) ──
+
+    private void drawExtractDecision(SpriteBatch batch, BitmapFont font, BitmapFont fontSmall, RaidState raid) {
+        font.setColor(0.9f, 0.75f, 0.2f, 1f);
+        font.draw(batch, "Checkpoint — Depth " + (raid.getCurrentRoomIndex() + 1),
+            getMenuX() + 12f, getMenuTop() - 10f);
+
+        float y = getContentTop() - 20f;
+        fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
+        fontSmall.draw(batch, "Banked so far: +" + raid.getPendingTrophies() + " War Trophies",
+            getMenuX() + 12f, y);
+        y -= 20f;
+
+        if (raid.getPendingTokens() > 0) {
+            fontSmall.setColor(0.9f, 0.6f, 0.2f, 1f);
+            fontSmall.draw(batch, "+" + raid.getPendingTokens() + " Boss Tokens", getMenuX() + 12f, y);
+            y -= 20f;
+        }
+        if (!raid.getPendingLootItems().isEmpty()) {
+            fontSmall.setColor(0.6f, 0.3f, 0.9f, 1f);
+            fontSmall.draw(batch, raid.getPendingLootItems().size() + " item(s) recovered",
+                getMenuX() + 12f, y);
+            y -= 20f;
+        }
+
+        y -= 16f;
+        fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
+        fontSmall.draw(batch,
+            "Push on for more, but a wipe loses everything above AND your party — permanently.",
+            getMenuX() + 12f, y, getMenuWidth() - 24f, com.badlogic.gdx.utils.Align.left, true);
+
+        fontSmall.setColor(0.3f, 0.9f, 0.3f, 1f);
+        fontSmall.draw(batch, "[ Push On ]", getMenuX() + 24f, getMenuBottom() + 40f);
+        fontSmall.setColor(0.9f, 0.7f, 0.2f, 1f);
+        fontSmall.draw(batch, "[ Extract ]", getMenuX() + getMenuWidth() - 120f, getMenuBottom() + 40f);
 
         font.setColor(Color.WHITE);
         fontSmall.setColor(Color.WHITE);
@@ -661,6 +734,18 @@ public class RaidPanel {
             fontSmall.setColor(0.6f, 0.3f, 0.9f, 1f);
             fontSmall.draw(batch, "Enchanted Drop: " + TextUtil.capitalize(raid.getEnchantedDrop())
                 + " Set!", getMenuX() + 12f, y);
+            y -= 24f;
+        }
+
+        // Endless — items recovered from a zombified encounter, if any.
+        // Gated on isCompleted() (i.e. actually extracted): pendingLootItems
+        // isn't cleared on a wipe, but those items were never granted to
+        // Inventory in that case (endEndlessWithPermanentDeath forfeits them),
+        // so showing this on a DEFEAT screen would be flat-out wrong.
+        if (raid.isCompleted() && raid.isEndless() && !raid.getPendingLootItems().isEmpty()) {
+            fontSmall.setColor(0.6f, 0.3f, 0.9f, 1f);
+            fontSmall.draw(batch, "Recovered: " + raid.getPendingLootItems().size() + " item(s)",
+                getMenuX() + 12f, y);
             y -= 24f;
         }
 
@@ -800,6 +885,10 @@ public class RaidPanel {
         RaidState raid = rm.getActiveRaid();
         if (raid == null) return true;
 
+        if (raid.isEndless() && raid.isAwaitingExtractDecision()) {
+            return handleExtractDecisionTouch(rm);
+        }
+
         // ── Fury button ──
         if (arena.isFuryButtonHit(touchPos.x, touchPos.y)) {
             rm.tapFury();
@@ -855,6 +944,24 @@ public class RaidPanel {
             }
         }
 
+        return true;
+    }
+
+    /**
+     * Left half of the button row = Push On, right half = Extract — same
+     * "loose footer band" convention as handleResultsTouch's unconditional
+     * Continue tap, just split in two instead of one.
+     */
+    private boolean handleExtractDecisionTouch(RaidManager rm) {
+        float btnY = getMenuBottom() + 40f;
+        boolean inRow = touchPos.y >= btnY - 16f && touchPos.y <= btnY + 20f;
+        if (inRow) {
+            if (touchPos.x <= getMenuX() + getMenuWidth() / 2f) {
+                rm.continueEndless();
+            } else {
+                rm.extractEndless();
+            }
+        }
         return true;
     }
 

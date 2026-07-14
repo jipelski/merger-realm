@@ -1,6 +1,7 @@
 package com.jipelski.mergerrealm.util;
 
 import com.badlogic.gdx.Gdx;
+import com.jipelski.mergerrealm.model.DeadPartySnapshot;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.RaidState;
@@ -254,14 +255,16 @@ public class RaidManager {
                 String mainKey = findMainNodeAtOrder(chapterId, order);
                 return mainKey != null && completionMap.containsKey(chapterId + ":" + mainKey);
             }
-            if ("challenge".equals(type)) {
-                // Challenge nodes (e.g. Boss Rush) have no main/side order
-                // prerequisite — chapter-level unlock (Prince level) already
-                // gates reachability via isChapterUnlocked, checked
-                // separately by the caller. Without this branch a challenge
-                // node falls into the main-node fallthrough below and is
-                // permanently locked (order 1 looks for a main node at
-                // order 0, which never exists).
+            if ("challenge".equals(type) || "endless".equals(type)) {
+                // Challenge nodes (e.g. Boss Rush) and the endless node have
+                // no main/side order prerequisite — chapter-level unlock
+                // (Prince level) already gates reachability via
+                // isChapterUnlocked, checked separately by the caller.
+                // Without this branch a node here falls into the main-node
+                // fallthrough below and is permanently locked (order 1 looks
+                // for a main node at order 0, which never exists — and
+                // endless's order 2 likewise finds no main node at order 1
+                // in this chapter).
                 return true;
             }
             // Main nodes at order N require main at order N-1 cleared
@@ -324,10 +327,18 @@ public class RaidManager {
         }
 
         currentNode = node;
-        currentRooms = (List<Map<String, Object>>) node.get("rooms");
-        if (currentRooms == null || currentRooms.isEmpty()) {
-            Gdx.app.log(TAG, "Node has no rooms");
-            return false;
+        boolean isEndless = "endless".equals(node.get("type"));
+        if (isEndless) {
+            // Procedural — no static "rooms" list; generateEndlessRoom builds
+            // each room on demand instead. currentRooms stays null, exactly
+            // like resumeFromSave() already leaves it for this node type.
+            currentRooms = null;
+        } else {
+            currentRooms = (List<Map<String, Object>>) node.get("rooms");
+            if (currentRooms == null || currentRooms.isEmpty()) {
+                Gdx.app.log(TAG, "Node has no rooms");
+                return false;
+            }
         }
 
         // Challenge nodes (e.g. Boss Rush) charge Boss Tokens on entry —
@@ -351,6 +362,10 @@ public class RaidManager {
         activeRaid.setChapterId(chapterId);
         activeRaid.setNodeId(nodeId);
         activeRaid.setCurrentRoomIndex(0);
+        activeRaid.setEndless(isEndless);
+        if (isEndless) {
+            activeRaid.setSeed(new java.util.Random().nextLong());
+        }
 
         furyOscTimer = 0f;
         activeRaid.setFuryPhase(RaidState.FuryPhase.CHARGING);
@@ -418,7 +433,11 @@ public class RaidManager {
         }
 
         // Load first room enemies
-        loadRoom(0);
+        if (isEndless) {
+            loadEndlessRoom(0);
+        } else {
+            loadRoom(0);
+        }
 
         combatLog.clear();
         addLog("Raid started: " + node.get("name"));
@@ -444,6 +463,11 @@ public class RaidManager {
             addLog("Party wiped! Raid failed.");
             return;
         }
+
+        // Endless checkpoint pause — frozen until the player picks Push On
+        // (continueEndless) or Extract (extractEndless); RaidPanel swaps its
+        // COMBAT-state content for the extract-decision view while this is set.
+        if (activeRaid.isAwaitingExtractDecision()) return;
 
         // ── Fury phase updates ──
         switch (activeRaid.getFuryPhase()) {
@@ -471,15 +495,32 @@ public class RaidManager {
             activeRaid.setTransitionTimer(activeRaid.getTransitionTimer() - delta);
             if (activeRaid.getTransitionTimer() <= 0f) {
                 activeRaid.setInTransition(false);
-                int nextRoom = activeRaid.getCurrentRoomIndex() + 1;
-                if (nextRoom >= currentRooms.size()) {
-                    completeNode();
+                if (activeRaid.isEndless()) {
+                    int clearedRooms = activeRaid.getCurrentRoomIndex() + 1;
+                    accumulateEndlessReward(clearedRooms);
+                    if (isCheckpointDepth(clearedRooms)) {
+                        activeRaid.setAwaitingExtractDecision(true);
+                        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+                        ev.kind = "checkpoint";
+                        activeRaid.pushEvent(ev);
+                    } else {
+                        loadEndlessRoom(clearedRooms);
+                        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+                        ev.kind = "room_start";
+                        ev.actorIdx = clearedRooms;
+                        activeRaid.pushEvent(ev);
+                    }
                 } else {
-                    loadRoom(nextRoom);
-                    RaidState.CombatEvent ev = new RaidState.CombatEvent();
-                    ev.kind = "room_start";
-                    ev.actorIdx = nextRoom;
-                    activeRaid.pushEvent(ev);
+                    int nextRoom = activeRaid.getCurrentRoomIndex() + 1;
+                    if (nextRoom >= currentRooms.size()) {
+                        completeNode();
+                    } else {
+                        loadRoom(nextRoom);
+                        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+                        ev.kind = "room_start";
+                        ev.actorIdx = nextRoom;
+                        activeRaid.pushEvent(ev);
+                    }
                 }
             }
             return; // no combat during transition
@@ -487,6 +528,9 @@ public class RaidManager {
 
         // Room cleared → begin transition
         if (activeRaid.isRoomCleared()) {
+            if (activeRaid.isEndless() && activeRaid.getCurrentZombiePoolId() != null) {
+                resolveZombieDefeat();
+            }
             activeRaid.setInTransition(true);
             activeRaid.setTransitionTimer(TRANSITION_DURATION);
             RaidState.CombatEvent ev = new RaidState.CombatEvent();
@@ -796,6 +840,267 @@ public class RaidManager {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // ENDLESS MODE (procedural rooms, extract-or-die — Boss Rush's
+    // "Endless Gauntlet" node)
+    // ══════════════════════════════════════════════════════════════
+
+    /** True if the given node is the procedural endless type (no static rooms). */
+    public boolean isEndlessNode(String chapterId, String nodeId) {
+        for (Map<String, Object> node : getNodes(chapterId)) {
+            if (nodeId.equals(node.get("id"))) {
+                return "endless".equals(node.get("type"));
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checkpoint schedule: 5, 15, 30, 50, 75, 105, ... — gaps widen by 5
+     * each time (per the locked-in design: "every 5, then widening"). Purely
+     * a function of the room count, not stored data, so resume/replay never
+     * need their own copy.
+     */
+    private boolean isCheckpointDepth(int clearedRooms) {
+        int cp = 0, gap = 5;
+        while (cp < clearedRooms) {
+            cp += gap;
+            gap += 5;
+        }
+        return cp == clearedRooms;
+    }
+
+    /**
+     * Adds this room's reward to the pending (bank-on-extract) totals.
+     * Trophies scale with depth per the node's own tunables; a bonus Boss
+     * Token is added on every checkpoint reached (still forfeited like
+     * everything else if the player pushes on and later wipes) — a small
+     * partial-refund on the entry cost for players who go deep, without
+     * undermining Boss Tokens' role as the mode's primary sink.
+     */
+    private void accumulateEndlessReward(int clearedRooms) {
+        if (currentNode == null) return;
+        int perRoom = toInt(currentNode, "trophiesPerRoom");
+        double growth = toDouble(currentNode, "trophiesGrowthPerDepth");
+        int trophies = perRoom + (int) Math.round(growth * clearedRooms);
+        activeRaid.addPendingTrophies(trophies);
+        if (isCheckpointDepth(clearedRooms)) {
+            activeRaid.addPendingTokens(1);
+        }
+    }
+
+    /** Loads room #clearedRooms (0-based) — the procedural analogue of loadRoom(). */
+    private void loadEndlessRoom(int clearedRooms) {
+        List<RaidEnemy> enemies = generateEndlessRoom(clearedRooms, activeRaid.getSeed());
+        activeRaid.setCurrentRoomIndex(clearedRooms);
+        activeRaid.setActiveEnemies(enemies);
+        addLog("Depth " + (clearedRooms + 1) + " — " + enemies.size() + " enemies");
+    }
+
+    /**
+     * Builds room #roomIndex's enemies deterministically from (seed,
+     * roomIndex) — the same inputs always produce the same room, which is
+     * what lets resumeFromSave() reconstruct the in-progress room with no
+     * extra persisted state beyond seed/currentRoomIndex (both plain
+     * RaidState fields, already Gson-persisted).
+     *
+     * With a rising, depth-capped chance (and only once the dead-party pool
+     * is non-empty), the room is a "zombified" replay of a previously wiped
+     * party instead of a fresh enemyPool draw — see buildZombieEnemies().
+     */
+    @SuppressWarnings("unchecked")
+    private List<RaidEnemy> generateEndlessRoom(int roomIndex, long seed) {
+        java.util.Random rng = new java.util.Random(seed + roomIndex * 7919L);
+
+        DeadPartyManager dpm = eventManager.getDeadPartyManager();
+        List<DeadPartySnapshot> deadPool = dpm.getPool();
+        double zombieChance = Math.min(0.5, 0.05 + roomIndex * 0.01);
+        if (!deadPool.isEmpty() && rng.nextDouble() < zombieChance) {
+            DeadPartySnapshot snap = deadPool.get(rng.nextInt(deadPool.size()));
+            activeRaid.setCurrentZombiePoolId(snap.snapshotId);
+            return buildZombieEnemies(snap);
+        }
+        activeRaid.setCurrentZombiePoolId(null);
+
+        List<RaidEnemy> enemies = new ArrayList<>();
+        if (currentNode == null) return enemies;
+        List<String> pool = (List<String>) currentNode.get("enemyPool");
+        if (pool == null || pool.isEmpty()) return enemies;
+
+        double hpGrowth = toDouble(currentNode, "hpGrowthPerDepth");
+        double dmgGrowth = toDouble(currentNode, "dmgGrowthPerDepth");
+        int maxEnemies = Math.max(1, toInt(currentNode, "maxEnemiesPerRoom"));
+        int count = Math.min(maxEnemies, 1 + roomIndex / 5);
+
+        float scaleHp = (float) (1.0 + hpGrowth * roomIndex);
+        float scaleDmg = (float) (1.0 + dmgGrowth * roomIndex);
+
+        for (int i = 0; i < count; i++) {
+            String key = pool.get(rng.nextInt(pool.size()));
+            Map<String, Object> eData = getEnemyData(key);
+            if (eData == null) continue;
+
+            String name = (String) eData.get("name");
+            int hp = Math.round(toInt(eData, "hp") * scaleHp);
+            int dmg = Math.round(toInt(eData, "damage") * scaleDmg);
+            float speed = toFloat(eData, "attackSpeed");
+            String sprite = (String) eData.get("sprite");
+            enemies.add(new RaidEnemy(key, name, sprite, hp, dmg,
+                speed * ENEMY_SPEED_MULT, false));
+        }
+        return enemies;
+    }
+
+    // "Zombified" buff over the living unit's own stats at time of death.
+    private static final float ZOMBIE_HP_MULT = 1.25f;
+
+    /**
+     * Builds a room from a dead party's frozen stats — reuses RaidEnemy's
+     * fully generic (type, name, sprite, hp, damage, speed) shape, same as
+     * every other enemy. Sprite reuses the unit's own sprite key unchanged
+     * (no dedicated zombie art yet — the same magenta-fallback safety net
+     * that covers any other missing sprite covers this).
+     */
+    private List<RaidEnemy> buildZombieEnemies(DeadPartySnapshot snap) {
+        List<RaidEnemy> enemies = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            if (snap.unitTypes[i] == null) continue;
+            String name = "Zombified " + TextUtil.capitalize(snap.unitTypes[i]);
+            int hp = Math.round(snap.unitHp[i] * ZOMBIE_HP_MULT);
+            enemies.add(new RaidEnemy(snap.unitTypes[i], name, snap.unitSprites[i],
+                hp, snap.unitDamage[i], RaidState.DEFAULT_ATTACK_SPEED * ENEMY_SPEED_MULT, false));
+        }
+        return enemies;
+    }
+
+    private static final double ZOMBIE_ITEM_RETRIEVE_CHANCE = 0.35;
+
+    /**
+     * Called once, right when a zombified room is cleared (see update()'s
+     * "Room cleared" branch, which only fires once per room thanks to the
+     * isInTransition() guard above it). On success, moves one of the dead
+     * party's held items into this run's pending loot (banked on extract,
+     * forfeited on a later wipe, same as every other endless reward) — the
+     * snapshot is removed from the pool regardless of whether an item drops.
+     */
+    private void resolveZombieDefeat() {
+        DeadPartyManager dpm = eventManager.getDeadPartyManager();
+        DeadPartySnapshot snap = dpm.findById(activeRaid.getCurrentZombiePoolId());
+        activeRaid.setCurrentZombiePoolId(null);
+        if (snap == null) return;
+
+        if (!snap.equippedItems.isEmpty() && Math.random() < ZOMBIE_ITEM_RETRIEVE_CHANCE) {
+            Item item = snap.equippedItems.get((int) (Math.random() * snap.equippedItems.size()));
+            activeRaid.getPendingLootItems().add(item);
+            addLog("Recovered " + item.getName() + " from the fallen!");
+        }
+        dpm.remove(snap);
+        addLog("The zombified party crumbles to dust.");
+    }
+
+    /**
+     * Player chose to push past a checkpoint instead of extracting. Resumes
+     * combat at the next depth.
+     */
+    public boolean continueEndless() {
+        if (!isRaidActive() || !activeRaid.isEndless() || !activeRaid.isAwaitingExtractDecision()) {
+            return false;
+        }
+        activeRaid.setAwaitingExtractDecision(false);
+        int clearedRooms = activeRaid.getCurrentRoomIndex() + 1;
+        loadEndlessRoom(clearedRooms);
+        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+        ev.kind = "room_start";
+        ev.actorIdx = clearedRooms;
+        activeRaid.pushEvent(ev);
+        return true;
+    }
+
+    /**
+     * Player chose to bank everything accrued so far and end the run as a
+     * win. Commits pending trophies/tokens/items into the real currencies —
+     * this deliberately bypasses completeNode() entirely: no star rating, no
+     * completionMap entry, no first-clear Gold (endless is a repeatable
+     * score chase, not a 3-star story clear).
+     */
+    public boolean extractEndless() {
+        if (!isRaidActive() || !activeRaid.isEndless() || !activeRaid.isAwaitingExtractDecision()) {
+            return false;
+        }
+        activeRaid.setAwaitingExtractDecision(false);
+
+        int trophies = activeRaid.getPendingTrophies();
+        int tokens = activeRaid.getPendingTokens();
+        warTrophies += trophies;
+        bossTokens += tokens;
+        activeRaid.addTrophies(trophies);
+        activeRaid.setBossTokens(tokens);
+
+        Inventory inv = eventManager.getInventory();
+        for (Item item : activeRaid.getPendingLootItems()) {
+            inv.addItem(item);
+        }
+
+        activeRaid.setCompleted(true);
+        addLog("Extracted at depth " + (activeRaid.getCurrentRoomIndex() + 1)
+            + " — +" + trophies + " War Trophies"
+            + (tokens > 0 ? ", +" + tokens + " Boss Tokens" : "")
+            + (!activeRaid.getPendingLootItems().isEmpty()
+                ? ", " + activeRaid.getPendingLootItems().size() + " item(s) recovered" : ""));
+
+        Gdx.app.log(TAG, "Endless extract at depth " + (activeRaid.getCurrentRoomIndex() + 1)
+            + " — +" + trophies + " trophies, +" + tokens + " tokens");
+        return true;
+    }
+
+    /**
+     * A genuine endless wipe: the party is lost for good. Snapshots each
+     * unit's frozen stats and pulls its equipped item out of Inventory
+     * entirely (not just unequipped — the gear travels into the pool with
+     * the unit, retrievable later only by beating its zombified form) into a
+     * DeadPartySnapshot, and purges RuneSystem's per-unit rune state
+     * (onUnitPermanentlyLost) exactly like the other 3 true permanent-loss
+     * sites (merge/combat-death/dismiss) — this is a 4th. All pending
+     * (un-banked) rewards are simply discarded; nothing here applies them.
+     */
+    private void endEndlessWithPermanentDeath() {
+        String[] unitIds = activeRaid.getPartyUnitIds();
+        String[] types = activeRaid.getPartyTypes();
+
+        DeadPartySnapshot snap = new DeadPartySnapshot();
+        snap.snapshotId = java.util.UUID.randomUUID().toString();
+        snap.depthReached = activeRaid.getCurrentRoomIndex() + 1;
+        snap.diedAtMs = System.currentTimeMillis();
+
+        Inventory inv = eventManager.getInventory();
+        RuneSystem runes = eventManager.getRuneSystem();
+        boolean anyUnit = false;
+
+        for (int i = 0; i < 4; i++) {
+            if (unitIds[i] == null) continue;
+            anyUnit = true;
+            snap.unitTypes[i] = types[i];
+            snap.unitLevels[i] = activeRaid.getPartyLevels()[i];
+            snap.unitHp[i] = activeRaid.getPartyMaxHp()[i];
+            snap.unitDamage[i] = activeRaid.getPartyDamage()[i];
+            snap.unitSprites[i] = activeRaid.getPartySprites()[i];
+
+            Item eq = inv.getEquippedItem(unitIds[i]);
+            if (eq != null) {
+                snap.equippedItems.add(eq);
+                inv.removeItem(eq.getId());
+            }
+
+            runes.onUnitPermanentlyLost(unitIds[i]);
+            addLog(TextUtil.capitalize(types[i]) + " is lost forever...");
+        }
+
+        if (anyUnit) {
+            eventManager.getDeadPartyManager().addSnapshot(snap);
+            addLog("The fallen party will return as the undead...");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // MANUAL ACTIONS (potion, phoenix feather)
     // ══════════════════════════════════════════════════════════════
 
@@ -846,6 +1151,18 @@ public class RaidManager {
      */
     public void endRaid() {
         if (activeRaid == null) return;
+
+        // Endless + a genuine full wipe (not a voluntary abandon while units
+        // are still alive) — the party is lost for good instead of returned.
+        // See endEndlessWithPermanentDeath()'s javadoc for what survives.
+        if (activeRaid.isEndless() && activeRaid.isFailed() && activeRaid.isPartyWiped()) {
+            endEndlessWithPermanentDeath();
+            activeRaid = null;
+            currentNode = null;
+            currentRooms = null;
+            Gdx.app.log(TAG, "Endless raid ended — party permanently lost");
+            return;
+        }
 
         String[] unitIds = activeRaid.getPartyUnitIds();
         String[] types = activeRaid.getPartyTypes();

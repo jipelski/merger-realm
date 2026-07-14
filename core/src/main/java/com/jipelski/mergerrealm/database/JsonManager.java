@@ -5,6 +5,7 @@ import com.badlogic.gdx.files.FileHandle;
 
 import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.model.Chest;
+import com.jipelski.mergerrealm.model.DeadPartySnapshot;
 import com.jipelski.mergerrealm.model.ExplorationSlot;
 import com.jipelski.mergerrealm.model.Facility;
 import com.jipelski.mergerrealm.model.FacilitySpawnConfiguration;
@@ -321,6 +322,22 @@ public class JsonManager {
         String json = readJson(filename);
         if (json == null) return null;
         return gson.fromJson(json, new TypeToken<List<ExplorationSlot>>() {}.getType());
+    }
+
+    /**
+     * Saves the dead-party pool (Endless Gauntlet's permanently-lost parties
+     * — see DeadPartyManager). Plain Gson list; DeadPartySnapshot and the
+     * Items it holds are already ordinary serializable POJOs, same as
+     * inventory_items.
+     */
+    public void saveDeadPartyPool(String filename, List<DeadPartySnapshot> pool) {
+        writeJson(filename, pool);
+    }
+
+    public List<DeadPartySnapshot> loadDeadPartyPool(String filename) {
+        String json = readJson(filename);
+        if (json == null) return null;
+        return gson.fromJson(json, new TypeToken<List<DeadPartySnapshot>>() {}.getType());
     }
 
     /**
