@@ -22,6 +22,7 @@ import com.jipelski.mergerrealm.ui.OfflinePopup;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
 import com.jipelski.mergerrealm.ui.SalvagePanel;
+import com.jipelski.mergerrealm.ui.RefinePanel;
 import com.jipelski.mergerrealm.ui.InventoryMenu;
 import com.jipelski.mergerrealm.ui.TutorialOverlay;
 import com.jipelski.mergerrealm.ui.PrestigePanel;
@@ -87,6 +88,7 @@ public class GridInputHandler extends InputAdapter {
     private DailyLoginPopup dailyLoginPopup;
     private HiddenTemplePopup hiddenTemplePopup;
     private SalvagePanel salvagePanel;
+    private RefinePanel refinePanel;
 
     private InventoryMenu inventoryMenu;
     private float invBtnX, invBtnY, invBtnW, invBtnH;
@@ -129,6 +131,10 @@ public class GridInputHandler extends InputAdapter {
 
     public void setSalvagePanel(SalvagePanel panel) {
         this.salvagePanel = panel;
+    }
+
+    public void setRefinePanel(RefinePanel panel) {
+        this.refinePanel = panel;
     }
 
     public void setHiddenTemplePopup(HiddenTemplePopup popup) {
@@ -328,6 +334,9 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (salvagePanel != null && salvagePanel.handleTouchDown(screenX, screenY)) {
+            return true;
+        }
+        if (refinePanel != null && refinePanel.handleTouchDown(screenX, screenY)) {
             return true;
         }
 
@@ -531,6 +540,9 @@ public class GridInputHandler extends InputAdapter {
         if (salvagePanel != null && salvagePanel.handleTouchDragged(screenX, screenY)) {
             return true;
         }
+        if (refinePanel != null && refinePanel.handleTouchDragged(screenX, screenY)) {
+            return true;
+        }
 
         if (inventoryMenu != null && inventoryMenu.handleTouchDragged(screenX, screenY)) {
             return true;
@@ -608,6 +620,9 @@ public class GridInputHandler extends InputAdapter {
         }
 
         if (salvagePanel != null && salvagePanel.handleTouchUp(screenX, screenY)) {
+            return true;
+        }
+        if (refinePanel != null && refinePanel.handleTouchUp(screenX, screenY)) {
             return true;
         }
         if (inventoryMenu != null && inventoryMenu.handleTouchUp(screenX, screenY)) {

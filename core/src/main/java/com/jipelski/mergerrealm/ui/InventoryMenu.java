@@ -102,6 +102,13 @@ public class InventoryMenu {
     // ── Selected item (for SELECTING_UNIT mode) ──
     private Item selectedItem = null;
 
+    // ── Stale-cache detection — filteredItems is a cached filter over
+    // Inventory.getItems(), but RefinePanel/SalvagePanel/HiddenTemplePopup
+    // mutate Inventory directly while this menu stays open (BROWSING)
+    // underneath them, with no callback back into it. Checked once per frame
+    // in drawBackground() — see checkInventoryStale(). ──
+    private int lastSeenInventoryVersion = -1;
+
     // ── References ──
     private final EventManager eventManager;
     private final SpriteManager spriteManager;
@@ -114,6 +121,9 @@ public class InventoryMenu {
 
     private SalvagePanel salvagePanel;
     public void setSalvagePanel(SalvagePanel panel) { this.salvagePanel = panel; }
+
+    private RefinePanel refinePanel;
+    public void setRefinePanel(RefinePanel panel) { this.refinePanel = panel; }
 
     // ── Touch state ──
     private final Vector2 touchPos = new Vector2();
@@ -153,6 +163,7 @@ public class InventoryMenu {
         scrollY = 0f;
         showingPreview = false;
         refreshFilteredItems();
+        lastSeenInventoryVersion = eventManager.getInventory().getVersion();
     }
 
     public void close() {
@@ -441,9 +452,28 @@ public class InventoryMenu {
      */
     public void drawBackground(ShapeRenderer sr) {
         if (state == State.BROWSING) {
+            checkInventoryStale();
             drawBrowsingBackground(sr);
         } else if (state == State.SELECTING_UNIT) {
             drawSelectingBackground(sr);
+        }
+    }
+
+    /**
+     * Detects "Inventory changed since I last filtered it" via a cheap int
+     * compare, and only re-filters when it actually has — see the
+     * lastSeenInventoryVersion field javadoc for why this exists.
+     * Called once per frame (from drawBackground, guaranteed to run before
+     * both the ShapeRenderer and SpriteBatch passes read filteredItems) while
+     * BROWSING, so a panel like Refine/Salvage/Hidden Temple that mutates
+     * Inventory while this menu sits open underneath it self-heals the very
+     * next frame — no callback wiring needed per panel.
+     */
+    private void checkInventoryStale() {
+        int v = eventManager.getInventory().getVersion();
+        if (v != lastSeenInventoryVersion) {
+            lastSeenInventoryVersion = v;
+            refreshFilteredItems();
         }
     }
 
@@ -538,6 +568,17 @@ public class InventoryMenu {
             fontSmall.draw(batch, salvageLabel,
                 getMenuX() + getMenuWidth() - 44f - glyphLayout.width,
                 getMenuTop() - 10f);
+
+            // Refine button — sits left of Salvage with a fixed gap; see
+            // handleTouchUp's dedicated [-240f,-144f] hit-zone (Salvage's own
+            // zone is [-140f,-44f], so the two never overlap).
+            fontSmall.setColor(0.7f, 0.5f, 0.9f, 1f);
+            String refineLabel = "[Refine]";
+            glyphLayout.setText(fontSmall, refineLabel);
+            fontSmall.draw(batch, refineLabel,
+                getMenuX() + getMenuWidth() - 148f - glyphLayout.width,
+                getMenuTop() - 10f);
+
             fontSmall.setColor(Color.WHITE);
         }
 
@@ -626,6 +667,13 @@ public class InventoryMenu {
                 fontSmall.setColor(0.4f, 0.7f, 1f, 1f);
                 fontSmall.draw(batch, "E", ix + ITEM_SIZE - 14f, iy + ITEM_SIZE - 4f);
             }
+
+            // "+N" badge if refined — opposite corner from "E" so both can
+            // show at once on an equipped, refined item.
+            if (item.getRefineLevel() > 0) {
+                fontSmall.setColor(0.7f, 0.5f, 0.9f, 1f);
+                fontSmall.draw(batch, "+" + item.getRefineLevel(), ix + 2f, iy + ITEM_SIZE - 4f);
+            }
         }
     }
 
@@ -660,7 +708,7 @@ public class InventoryMenu {
 
             // Item info
             fontSmall.setColor(0.85f, 0.8f, 0.5f, 1f);
-            StringBuilder info = new StringBuilder(" — ").append(item.getName());
+            StringBuilder info = new StringBuilder(" — ").append(item.getDisplayName());
             if (item.getBonusDamage() > 0) info.append(" (+").append(item.getBonusDamage()).append("DMG)");
             if (item.getBonusHp() > 0) info.append(" (+").append(item.getBonusHp()).append("HP)");
             fontSmall.draw(batch, info.toString(), getMenuX() + 105f, rowY);
@@ -683,7 +731,7 @@ public class InventoryMenu {
 
         // Name
         font.setColor(1f, 0.9f, 0.4f, 1f);
-        font.draw(batch, item.getName(), cardX + 12f, cardY + cardH - 12f);
+        font.draw(batch, item.getDisplayName(), cardX + 12f, cardY + cardH - 12f);
 
         // Description
         fontSmall.setColor(0.7f, 0.7f, 0.8f, 1f);
@@ -766,7 +814,7 @@ public class InventoryMenu {
             // Item name
             font.setColor(1f, 0.9f, 0.4f, 1f);
             String title = (selectedItem.isConsumable() ? "Use: " : "Equip: ")
-                + selectedItem.getName();
+                + selectedItem.getDisplayName();
             font.draw(batch, title, 80f, top - 14f);
 
             // Stats
@@ -1031,6 +1079,16 @@ public class InventoryMenu {
             return true;
         }
 
+        // ── Refine button (Equipment tab only) ── same shape as Salvage's
+        // check above, own non-overlapping hit-zone to its left.
+        if (activeTab == TAB_EQUIPMENT && refinePanel != null
+            && touchPos.x >= getMenuX() + getMenuWidth() - 240f
+            && touchPos.x <= getMenuX() + getMenuWidth() - 144f
+            && touchPos.y > getMenuTop() - HEADER_HEIGHT) {
+            refinePanel.open();
+            return true;
+        }
+
         // ── Close button ──
         if (touchPos.x > getMenuX() + getMenuWidth() - 40f
             && touchPos.y > getMenuTop() - HEADER_HEIGHT) {
@@ -1077,7 +1135,7 @@ public class InventoryMenu {
             }
             selectedItem = tapped;
             state = State.SELECTING_UNIT;
-            Gdx.app.log(TAG, "Selected: " + selectedItem.getName() + " — pick a unit");
+            Gdx.app.log(TAG, "Selected: " + selectedItem.getDisplayName() + " — pick a unit");
             return true;
         }
 

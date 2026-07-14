@@ -41,6 +41,7 @@ import com.jipelski.mergerrealm.ui.UnifiedShopPanel;
 import com.jipelski.mergerrealm.ui.DailyLoginPopup;
 import com.jipelski.mergerrealm.ui.HiddenTemplePopup;
 import com.jipelski.mergerrealm.ui.SalvagePanel;
+import com.jipelski.mergerrealm.ui.RefinePanel;
 import com.jipelski.mergerrealm.ui.WallGate;
 import com.jipelski.mergerrealm.util.BattleFieldManager;
 import com.jipelski.mergerrealm.util.EventManager;
@@ -147,6 +148,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private DailyLoginPopup dailyLoginPopup;
     private HiddenTemplePopup hiddenTemplePopup;
     private SalvagePanel salvagePanel;
+    private RefinePanel refinePanel;
     private PrestigePanel prestigePanel;
     private OutfitPanel outfitPanel;
     private InfoPanel infoPanel;
@@ -308,6 +310,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         salvagePanel = new SalvagePanel(eventManager, viewport, uiTex);
         inventoryMenu.setSalvagePanel(salvagePanel);
         inputHandler.setSalvagePanel(salvagePanel);
+
+        // Duplicate-equipment sink alongside Salvage — opened from
+        // InventoryMenu's [Refine] header button, same wiring shape as
+        // salvagePanel above.
+        refinePanel = new RefinePanel(eventManager, viewport, uiTex);
+        inventoryMenu.setRefinePanel(refinePanel);
+        inputHandler.setRefinePanel(refinePanel);
 
         prestigePanel = new PrestigePanel(eventManager, viewport, uiTex);
         inputHandler.setPrestigePanel(prestigePanel);
@@ -542,7 +551,7 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             && !raidPanel.isVisible() && !unifiedShopPanel.isVisible()
             && !prestigePanel.isVisible() && !outfitPanel.isVisible()
             && !infoPanel.isVisible() && !salvagePanel.isVisible()
-            && !dailyLoginPopup.isVisible()) {
+            && !refinePanel.isVisible() && !dailyLoginPopup.isVisible()) {
             inputHandler.update(delta);
             eventManager.updatePeriodicFacilities(delta);
             inventoryMenu.update(delta);
@@ -753,6 +762,13 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
             salvagePanel.drawBackground(shapeRenderer);
             batch.begin();
             salvagePanel.drawContent(batch, font, fontSmall);
+            batch.end();
+        }
+
+        if (refinePanel.isVisible()) {
+            refinePanel.drawBackground(shapeRenderer);
+            batch.begin();
+            refinePanel.drawContent(batch, font, fontSmall);
             batch.end();
         }
 

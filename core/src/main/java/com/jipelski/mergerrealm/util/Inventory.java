@@ -29,6 +29,14 @@ public class Inventory {
     // Maps unitId → itemId for currently equipped items
     private Map<String, String> equipped;
 
+    // Bumped by every mutator below — lets a UI that caches a filtered/derived
+    // view of the inventory (InventoryMenu.filteredItems) detect "something
+    // changed since I last looked" without needing every mutating panel
+    // (RefinePanel/SalvagePanel/HiddenTemplePopup/...) to remember to call
+    // back into it. Not persisted — only meaningful within one running session.
+    private int version = 0;
+    public int getVersion() { return version; }
+
     public Inventory() {
         this.items = new ArrayList<>();
         this.equipped = new HashMap<>();
@@ -47,6 +55,7 @@ public class Inventory {
      */
     public void addItem(Item item) {
         items.add(item);
+        version++;
         Gdx.app.log(TAG, "Added item: " + item.getName() + " (" + item.getId() + ")");
     }
 
@@ -61,6 +70,7 @@ public class Inventory {
         for (int i = 0; i < items.size(); i++) {
             if (items.get(i).getId().equals(itemId)) {
                 Item removed = items.remove(i);
+                version++;
                 Gdx.app.log(TAG, "Removed item: " + removed.getName());
                 return true;
             }
@@ -152,6 +162,7 @@ public class Inventory {
 
         // Equip new item
         equipped.put(unitId, itemId);
+        version++;
         Gdx.app.log(TAG, "Equipped " + item.getName() + " on unit " + unitId);
 
         return previousItemId;
@@ -164,6 +175,7 @@ public class Inventory {
     public String unequip(String unitId) {
         String itemId = equipped.remove(unitId);
         if (itemId != null) {
+            version++;
             Gdx.app.log(TAG, "Unequipped item " + itemId + " from unit " + unitId);
         }
         return itemId;
@@ -241,6 +253,7 @@ public class Inventory {
     public void retainOnly(java.util.Set<String> idsToKeep) {
         int before = items.size();
         items.removeIf(item -> !idsToKeep.contains(item.getId()));
+        version++;
         Gdx.app.log(TAG, "retainOnly: kept " + items.size() + "/" + before + " items");
     }
 
@@ -251,5 +264,6 @@ public class Inventory {
      */
     public void clearAllEquipped() {
         equipped.clear();
+        version++;
     }
 }

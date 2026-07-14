@@ -1381,6 +1381,75 @@ public class EventManager {
         return new SalvageResult(count, totalGold);
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // REFINE (multiple-copies duplicate sink — see ui/RefinePanel.java)
+    // ══════════════════════════════════════════════════════════════
+
+    public static final int MAX_REFINE_LEVEL = 9;
+    private static final float REFINE_BONUS_PER_LEVEL = 0.15f; // +15% of base stats per refine level
+
+    /** Result of a refineItem() call, for the UI to display. */
+    public static class RefineResult {
+        public final boolean success;
+        public final Item newItem; // the resulting +N item, or null on failure
+        public RefineResult(boolean success, Item newItem) {
+            this.success = success;
+            this.newItem = newItem;
+        }
+    }
+
+    /**
+     * Refines two unequipped copies of the same (type, level, refineLevel)
+     * into one copy at refineLevel+1, with boosted bonusDamage/bonusHp.
+     * Sourced exclusively from Inventory.getUnequippedItems() — same
+     * equipped-item exclusion as salvageEquipment, for the same reason
+     * (Inventory.removeItem() doesn't reconcile a wearer's max_hp/damage).
+     * To refine a currently-equipped item, unequip it first, refine, then
+     * re-equip the result.
+     *
+     * The new item's stats are always recomputed from its canonical
+     * base-tier values (GameDataLoader.createItem), not scaled off either
+     * consumed copy's own stored stats — a single source of truth that
+     * can't drift even if two "identical" copies were ever created
+     * slightly differently.
+     */
+    public RefineResult refineItem(String type, int level, int refineLevel) {
+        if (refineLevel >= MAX_REFINE_LEVEL) {
+            return new RefineResult(false, null);
+        }
+
+        List<Item> candidates = new ArrayList<>();
+        for (Item item : inventory.getUnequippedItems()) {
+            if (type.equals(item.getType()) && item.getLevel() == level
+                && item.getRefineLevel() == refineLevel) {
+                candidates.add(item);
+                if (candidates.size() == 2) break;
+            }
+        }
+        if (candidates.size() < 2) {
+            return new RefineResult(false, null);
+        }
+
+        Item result = GDLInstance.createItem(type, level);
+        if (result == null) {
+            return new RefineResult(false, null);
+        }
+
+        int newRefineLevel = refineLevel + 1;
+        float mult = 1f + REFINE_BONUS_PER_LEVEL * newRefineLevel;
+        result.setRefineLevel(newRefineLevel);
+        result.setBonusDamage(Math.round(result.getBonusDamage() * mult));
+        result.setBonusHp(Math.round(result.getBonusHp() * mult));
+
+        inventory.removeItem(candidates.get(0).getId());
+        inventory.removeItem(candidates.get(1).getId());
+        inventory.addItem(result);
+
+        Gdx.app.log(TAG, "Refined 2x " + type + " Lv" + level + " +" + refineLevel
+            + " -> 1x +" + newRefineLevel);
+        return new RefineResult(true, result);
+    }
+
     /**
      * Uses a potion on a unit to heal it to full HP.
      * The potion is consumed (removed from inventory).

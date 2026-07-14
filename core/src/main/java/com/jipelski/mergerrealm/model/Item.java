@@ -20,10 +20,11 @@ public class Item {
     private int level;            // 1-5
     private String name;          // display name e.g. "Iron Sword"
     private String description;
-    private int bonusDamage;      // flat +damage when equipped
-    private int bonusHp;          // flat +HP when equipped
+    private int bonusDamage;      // flat +damage when equipped — already includes any refine bonus
+    private int bonusHp;          // flat +HP when equipped — already includes any refine bonus
     private boolean consumable;   // true for potions and feathers (destroyed on use)
     private String spritePath;    // sprite for inventory display
+    private int refineLevel = 0;  // 0-9 — see EventManager.refineItem(); 0 = base, unrefined
 
     public Item() {}
 
@@ -51,6 +52,12 @@ public class Item {
     public int getBonusHp() { return bonusHp; }
     public boolean isConsumable() { return consumable; }
     public String getSpritePath() { return spritePath; }
+    public int getRefineLevel() { return refineLevel; }
+
+    /** e.g. "Iron Sword" at refineLevel 0, "Iron Sword +3" at refineLevel 3. */
+    public String getDisplayName() {
+        return refineLevel > 0 ? name + " +" + refineLevel : name;
+    }
 
     // Setters
 
@@ -63,10 +70,11 @@ public class Item {
     public void setBonusHp(int bonusHp) { this.bonusHp = bonusHp; }
     public void setConsumable(boolean consumable) { this.consumable = consumable; }
     public void setSpritePath(String spritePath) { this.spritePath = spritePath; }
+    public void setRefineLevel(int refineLevel) { this.refineLevel = refineLevel; }
 
     @Override
     public String toString() {
-        return name + " (Lv." + level + ") +" + bonusDamage + "DMG +" + bonusHp + "HP"
+        return getDisplayName() + " (Lv." + level + ") +" + bonusDamage + "DMG +" + bonusHp + "HP"
             + (consumable ? " [consumable]" : "");
     }
 }
