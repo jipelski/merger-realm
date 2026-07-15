@@ -2,14 +2,14 @@
   "goblin_grunt":       {"name":"Goblin Grunt",       "hp":60,   "damage":12,  "attackSpeed":2.0, "sprite":"goblin_grunt_1"},
   "goblin_archer":      {"name":"Goblin Archer",      "hp":40,   "damage":18,  "attackSpeed":1.5, "sprite":"goblin_archer_1"},
   "goblin_brute":       {"name":"Goblin Brute",       "hp":120,  "damage":20,  "attackSpeed":2.5, "sprite":"goblin_brute_1"},
-  "goblin_shaman":      {"name":"Goblin Shaman",      "hp":80,   "damage":25,  "attackSpeed":2.0, "sprite":"goblin_shaman_1"},
+  "goblin_shaman":      {"name":"Goblin Shaman",      "hp":80,   "damage":25,  "attackSpeed":2.0, "sprite":"goblin_shaman_1", "onHitEffect":"slow"},
   "goblin_elite":       {"name":"Goblin Elite",       "hp":150,  "damage":28,  "attackSpeed":2.0, "sprite":"goblin_elite_1"},
   "goblin_king":        {"name":"Goblin King",        "hp":500,  "damage":40,  "attackSpeed":1.8, "boss":true, "sprite":"goblin_king_1"},
 
   "skeleton":           {"name":"Skeleton",           "hp":120,  "damage":22,  "attackSpeed":2.0, "sprite":"skeleton_1"},
   "zombie":             {"name":"Zombie",             "hp":180,  "damage":18,  "attackSpeed":3.0, "sprite":"zombie_1"},
   "skeleton_warrior":   {"name":"Skeleton Warrior",   "hp":250,  "damage":35,  "attackSpeed":2.0, "sprite":"skeleton_warrior_1"},
-  "wraith_minor":       {"name":"Wraith",             "hp":200,  "damage":40,  "attackSpeed":1.5, "sprite":"wraith_minor_1"},
+  "wraith_minor":       {"name":"Wraith",             "hp":200,  "damage":40,  "attackSpeed":1.5, "sprite":"wraith_minor_1", "onHitEffect":"vulnerable"},
   "bone_golem":         {"name":"Bone Golem",         "hp":400,  "damage":45,  "attackSpeed":2.5, "sprite":"bone_golem_1"},
   "lich":               {"name":"The Lich",           "hp":1200, "damage":70,  "attackSpeed":1.8, "boss":true, "sprite":"lich_1"},
 
@@ -21,7 +21,7 @@
   "orc_warchief":       {"name":"Warchief",           "hp":2500, "damage":120, "attackSpeed":1.5, "boss":true, "sprite":"orc_warchief_1"},
 
   "shadow_stalker":     {"name":"Shadow Stalker",     "hp":500,  "damage":80,  "attackSpeed":1.5, "sprite":"shadow_stalker_1"},
-  "void_wisp":          {"name":"Void Wisp",          "hp":300,  "damage":100, "attackSpeed":1.2, "sprite":"void_wisp_1"},
+  "void_wisp":          {"name":"Void Wisp",          "hp":300,  "damage":100, "attackSpeed":1.2, "sprite":"void_wisp_1", "onHitEffect":"stun"},
   "shadow_knight":      {"name":"Shadow Knight",      "hp":800,  "damage":110, "attackSpeed":2.0, "sprite":"shadow_knight_1"},
   "void_colossus":      {"name":"Void Colossus",      "hp":1200, "damage":130, "attackSpeed":2.5, "sprite":"void_colossus_1"},
   "shadow_lord":        {"name":"Shadow Lord",        "hp":4000, "damage":200, "attackSpeed":1.5, "boss":true, "sprite":"shadow_lord_1"},

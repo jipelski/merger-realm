@@ -1,11 +1,12 @@
 package com.jipelski.mergerrealm.util;
 
 import com.badlogic.gdx.Gdx;
+import com.jipelski.mergerrealm.data.UnitData;
+import com.jipelski.mergerrealm.model.Combatant;
 import com.jipelski.mergerrealm.model.DeadPartySnapshot;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.RaidState;
-import com.jipelski.mergerrealm.model.RaidState.RaidEnemy;
 import com.jipelski.mergerrealm.model.Unit;
 
 import com.jipelski.mergerrealm.util.EnchantedSetManager;
@@ -75,7 +76,18 @@ public class RaidManager {
 
     private EnchantedSetManager.ActiveSetBonuses setBonuses;
 
-    private float setHealTimer = 0f;
+    // ── Status effects (Raid V3) ──
+    // Lazily constructed — EventManager builds RaidManager before
+    // StatusEffectManager exists yet, so this can't be wired at construction
+    // time the way `eventManager` itself is; the catalog never changes after
+    // load, so caching the engine after first use is safe.
+    private StatusEffectEngine effectEngine;
+    private StatusEffectEngine effects() {
+        if (effectEngine == null) {
+            effectEngine = new StatusEffectEngine(eventManager.getStatusEffectManager());
+        }
+        return effectEngine;
+    }
 
     // ── Pacing ──
     public static final float ENEMY_SPEED_MULT = 1.5f;      // slower enemy attacks
@@ -178,39 +190,76 @@ public class RaidManager {
      * off-grid mid-raid, so this recomputes identically to what was active
      * at raid start) around the persisted RaidState.
      *
-     * combatLog / furyOscTimer / setHealTimer are intentionally NOT restored
-     * — they're cosmetic/animation timing, not gameplay state that could be
-     * lost. Worst case: the recent-log panel starts empty and a Holy
-     * Radiance heal tick is delayed by up to one interval after resuming.
+     * combatLog / furyOscTimer are intentionally NOT restored — they're
+     * cosmetic/animation timing, not gameplay state that could be lost.
+     * Worst case: the recent-log panel starts empty. Status effects (dot/hot
+     * ticks, auras, stacks) DO survive — they live on each Combatant, which
+     * IS part of the persisted RaidState; aura instances specifically get
+     * torn down and rebuilt fresh by the very next update() tick regardless
+     * (recomputeAuras() always clears+reapplies them), so a resume can't
+     * leave a stale aura around even transiently.
      *
      * No-op if there's no saved raid, or the raid was already resolved
      * (RaidPanel's own isCompleted()/isFailed() auto-transition to RESULTS
      * handles that case using only fields already on RaidState).
+     *
+     * Raid V3 format-break guard: a save written before the Combatant[]
+     * party model (the old parallel-array/RaidEnemy schema) has no "party"
+     * key this class's Gson mapping recognizes, so it deserializes as an
+     * all-null party instead of throwing — silently, not a parse error.
+     * Resuming into that would instantly "wipe" the party (0 occupied slots)
+     * AND fail to return the mid-raid units to the grid on endRaid() (they
+     * were already pulled off it under the old save, and nothing in the new
+     * RaidState references them). Validated below and discarded cleanly if
+     * detected, rather than resuming into a broken combat session — see the
+     * try/catch too, as a second line of defense against any other
+     * unforeseen deserialization mismatch.
      */
     @SuppressWarnings("unchecked")
     public void resumeFromSave(RaidState restored) {
         if (restored == null) return;
 
-        activeRaid = restored;
-
-        String chapterId = activeRaid.getChapterId();
-        String nodeId = activeRaid.getNodeId();
-        for (Map<String, Object> node : getNodes(chapterId)) {
-            if (nodeId.equals(node.get("id"))) {
-                currentNode = node;
-                currentRooms = (List<Map<String, Object>>) node.get("rooms");
-                break;
+        try {
+            // A well-formed, not-yet-resolved raid always has ≥1 occupied
+            // party slot (startRaid requires it; nothing clears a slot
+            // before the raid ends) — zero occupied slots here is the
+            // reliable "this is pre-V3 data" signal described above.
+            boolean anyOccupied = false;
+            for (int i = 0; i < 4; i++) {
+                if (restored.isSlotOccupied(i)) { anyOccupied = true; break; }
             }
+            if (!anyOccupied && !restored.isCompleted() && !restored.isFailed()) {
+                Gdx.app.error(TAG, "resumeFromSave: discarding incompatible/legacy "
+                    + "raid_active_state (empty party — pre-Raid-V3 save format)");
+                return;
+            }
+
+            activeRaid = restored;
+
+            String chapterId = activeRaid.getChapterId();
+            String nodeId = activeRaid.getNodeId();
+            for (Map<String, Object> node : getNodes(chapterId)) {
+                if (nodeId.equals(node.get("id"))) {
+                    currentNode = node;
+                    currentRooms = (List<Map<String, Object>>) node.get("rooms");
+                    break;
+                }
+            }
+
+            setBonuses = eventManager.getEnchantedSetManager()
+                .checkSetBonuses(activeRaid.getPartyUnitIdsArray());
+
+            combatLog.clear();
+            addLog("Raid resumed");
+
+            Gdx.app.log(TAG, "Resumed active raid: " + chapterId + "/" + nodeId
+                + " room " + (activeRaid.getCurrentRoomIndex() + 1));
+        } catch (Exception e) {
+            Gdx.app.error(TAG, "resumeFromSave: failed to restore raid_active_state, discarding", e);
+            activeRaid = null;
+            currentNode = null;
+            currentRooms = null;
         }
-
-        setBonuses = eventManager.getEnchantedSetManager()
-            .checkSetBonuses(activeRaid.getPartyUnitIds());
-
-        combatLog.clear();
-        addLog("Raid resumed");
-
-        Gdx.app.log(TAG, "Resumed active raid: " + chapterId + "/" + nodeId
-            + " room " + (activeRaid.getCurrentRoomIndex() + 1));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -379,9 +428,6 @@ public class RaidManager {
         activeRaid.setFuryMeter(0f);
         activeRaid.setInTransition(false);
 
-        // Reset Heal Timer
-        setHealTimer = 0f;
-
         // Set up party — remove units from grid
         GridObjectManager gom = eventManager.getGRID_OBJECT_MANAGER();
         for (int i = 0; i < 4; i++) {
@@ -395,6 +441,23 @@ public class RaidManager {
 
             activeRaid.setPartyMember(i, unitIds[i], unit.getType(), unit.getLvl(),
                 effectiveHp, unit.getHp(), effectiveDmg, unit.getSprite());
+
+            // Cache the unit's onHitEffect (Raid V3) on the Combatant so
+            // unitAttack() doesn't re-resolve GameDataLoader on every hit,
+            // and grant its selfEffect once — permanent for this raid
+            // (shadowbow's double-damage, ironclad's reflect, eternal
+            // phoenix's revive, storm_griffin's shield — see UnitData's
+            // onHitEffect/selfEffect javadoc).
+            Combatant member = activeRaid.getMember(i);
+            UnitData ud = (UnitData) eventManager.getGameDataLoader()
+                .getGameData(unit.getType(), unit.getLvl());
+            if (ud != null) {
+                member.onHitEffect = ud.getOnHitEffect();
+                String selfEffect = ud.getSelfEffect();
+                if (selfEffect != null && !"none".equals(selfEffect)) {
+                    effects().applyEffect(member, selfEffect, member.id, false);
+                }
+            }
 
             // Remove from grid (but DON'T unequip items)
             eventManager.removeUnitForRaid(unitIds[i]);
@@ -413,13 +476,11 @@ public class RaidManager {
         // Apply party HP bonus from Dragonscale at raid start:
         if (setBonuses.partyHpBonus > 0) {
             for (int i = 0; i < 4; i++) {
-                if (activeRaid.isSlotOccupied(i)) {
-                    int boosted = Math.round(activeRaid.getPartyMaxHp()[i]
-                        * (1f + setBonuses.partyHpBonus));
-                    activeRaid.getPartyMaxHp()[i] = boosted;
-                    activeRaid.getPartyCurrentHp()[i] = Math.min(
-                        activeRaid.getPartyCurrentHp()[i], boosted);
-                }
+                Combatant c = activeRaid.getMember(i);
+                if (c == null) continue;
+                int boosted = Math.round(c.maxHp * (1f + setBonuses.partyHpBonus));
+                c.maxHp = boosted;
+                c.hp = Math.min(c.hp, boosted);
             }
         }
 
@@ -430,12 +491,11 @@ public class RaidManager {
         float outfitHpMultiplier = eventManager.getOutfitManager().getRaidHpMultiplier();
         if (outfitHpMultiplier != 1f) {
             for (int i = 0; i < 4; i++) {
-                if (activeRaid.isSlotOccupied(i)) {
-                    int boosted = Math.round(activeRaid.getPartyMaxHp()[i] * outfitHpMultiplier);
-                    activeRaid.getPartyMaxHp()[i] = boosted;
-                    activeRaid.getPartyCurrentHp()[i] = Math.min(
-                        activeRaid.getPartyCurrentHp()[i], boosted);
-                }
+                Combatant c = activeRaid.getMember(i);
+                if (c == null) continue;
+                int boosted = Math.round(c.maxHp * outfitHpMultiplier);
+                c.maxHp = boosted;
+                c.hp = Math.min(c.hp, boosted);
             }
         }
 
@@ -546,73 +606,214 @@ public class RaidManager {
             return;
         }
 
+        // ── Status effects: rebuild party-wide auras (legendary auraEffect +
+        //    enchanted-set bonuses, both gated on their holder still being
+        //    alive), then tick every dot/hot and expire anything whose
+        //    duration ran out. Runs on the same frames combat runs on — no
+        //    ticking during transitions/checkpoint pause, matching the old
+        //    Holy Radiance heal's behavior exactly. ──
+        recomputeAuras();
+        tickAllEffects(delta);
+        if (activeRaid.isPartyWiped()) {
+            activeRaid.setFailed(true);
+            addLog("Party wiped! Raid failed.");
+            return;
+        }
+
         // ── Unit attacks ──
         for (int i = 0; i < 4; i++) {
             if (!activeRaid.isSlotAlive(i)) continue;
-            float[] timers = activeRaid.getPartyAttackTimer();
-            float[] speeds = activeRaid.getPartyAttackSpeed();
-            timers[i] += delta;
-            if (timers[i] >= speeds[i]) {
-                timers[i] -= speeds[i];
+            Combatant c = activeRaid.getMember(i);
+            if (effects().isStunned(c)) continue; // stun freezes the attack timer entirely
+            float interval = c.baseAttackSpeed * effects().getAttackIntervalMultiplier(c);
+            c.attackTimer += delta;
+            if (c.attackTimer >= interval) {
+                c.attackTimer -= interval;
                 unitAttack(i);
             }
         }
 
         // ── Enemy attacks ──
         for (int e = 0; e < activeRaid.getActiveEnemies().size(); e++) {
-            RaidEnemy enemy = activeRaid.getActiveEnemies().get(e);
+            Combatant enemy = activeRaid.getActiveEnemies().get(e);
             if (!enemy.isAlive()) continue;
+            if (effects().isStunned(enemy)) continue;
+            float interval = enemy.baseAttackSpeed * effects().getAttackIntervalMultiplier(enemy);
             enemy.attackTimer += delta;
-            if (enemy.attackTimer >= enemy.attackSpeed) {
-                enemy.attackTimer -= enemy.attackSpeed;
+            if (enemy.attackTimer >= interval) {
+                enemy.attackTimer -= interval;
                 enemyAttack(e, enemy);
-            }
-        }
-
-        // ── Set + trait periodic heals (keep your existing Holy Radiance /
-        //    high_priest logic here, but emit "heal" events for the numbers) ──
-        if (setBonuses != null && setBonuses.partyHealPercent > 0
-            && setBonuses.healIntervalSeconds > 0) {
-            setHealTimer += delta;
-            if (setHealTimer >= setBonuses.healIntervalSeconds) {
-                setHealTimer -= setBonuses.healIntervalSeconds;
-                // Heal all alive party members
-                int[] hp = activeRaid.getPartyCurrentHp();
-                int[] maxHp = activeRaid.getPartyMaxHp();
-                for (int i = 0; i < 4; i++) {
-                    if (activeRaid.isSlotAlive(i)) {
-                        int heal = Math.round(maxHp[i] * setBonuses.partyHealPercent);
-                        hp[i] = Math.min(maxHp[i], hp[i] + heal);
-                    }
-                }
-                addLog("Holy Radiance heals the party!");
             }
         }
     }
 
+    /**
+     * Tears down and rebuilds every aura-tagged status effect from scratch
+     * each frame — the Raid V3 replacement for the old hardcoded
+     * royal_knight/Shadowsteel/Holy Radiance/Infernal checks scattered
+     * across unitAttack/enemyAttack. Cheap (≤4 party + a handful of enemies,
+     * once/frame) and keeps "buff stops the instant its source dies"
+     * correct with zero extra death-event bookkeeping.
+     */
+    private void recomputeAuras() {
+        for (int i = 0; i < 4; i++) {
+            Combatant c = activeRaid.getMember(i);
+            if (c != null) effects().clearAuras(c);
+        }
+
+        // Legendary auras — any alive unit with UnitData.auraEffect set
+        // grants it to the whole party (royal_knight/high_priest/archangel).
+        for (int i = 0; i < 4; i++) {
+            Combatant holder = activeRaid.getMember(i);
+            if (holder == null || !holder.isAlive()) continue;
+            UnitData ud = (UnitData) eventManager.getGameDataLoader()
+                .getGameData(holder.type, holder.level);
+            if (ud == null) continue;
+            String auraId = ud.getAuraEffect();
+            if (auraId == null || "none".equals(auraId)) continue;
+            applyAuraToParty(auraId, holder.id, null, null);
+        }
+
+        // Enchanted-set auras — numbers come from EnchantedSetManager.
+        // ActiveSetBonuses (already data-driven from enchanted_sets.json),
+        // routed through the same generic effect ids via magnitudeOverride
+        // rather than duplicating the numbers into status_effects.json.
+        // Gated on the specific piece-holder slot still being alive — the
+        // original code applied these unconditionally regardless of holder
+        // death; this is a deliberate behavior refinement (a buff-provider
+        // dying should stop providing the buff).
+        if (setBonuses == null) return;
+
+        if (setBonuses.dragonscale && setBonuses.partyDamageBonus > 0
+            && isHolderAlive(setBonuses.dragonscaleHolder)) {
+            applyAuraToParty("empower", "set_dragonscale", setBonuses.partyDamageBonus, null);
+        }
+        if (setBonuses.shadowsteel && isHolderAlive(setBonuses.shadowsteelHolder)) {
+            if (setBonuses.partyDamageReduction > 0) {
+                applyAuraToParty("fortify", "set_shadowsteel", -setBonuses.partyDamageReduction, null);
+            }
+            float holderBonus = setBonuses.holderDamageBonus[setBonuses.shadowsteelHolder];
+            if (holderBonus > 0) {
+                effects().applyEffect(activeRaid.getMember(setBonuses.shadowsteelHolder),
+                    "empower", "set_shadowsteel", true, holderBonus, null);
+            }
+        }
+        if (setBonuses.holyRadiance && setBonuses.partyHealPercent > 0
+            && isHolderAlive(setBonuses.holyRadianceHolder)) {
+            Float interval = setBonuses.healIntervalSeconds > 0 ? setBonuses.healIntervalSeconds : null;
+            applyAuraToParty("holy_radiance", "set_holy_radiance", setBonuses.partyHealPercent, interval);
+        }
+        if (setBonuses.infernal && isHolderAlive(setBonuses.infernalHolder)) {
+            if (setBonuses.reflectPercent > 0) {
+                applyAuraToParty("infernal_reflect", "set_infernal", setBonuses.reflectPercent, null);
+            }
+            float holderBonus = setBonuses.holderDamageBonus[setBonuses.infernalHolder];
+            if (holderBonus > 0) {
+                effects().applyEffect(activeRaid.getMember(setBonuses.infernalHolder),
+                    "empower", "set_infernal", true, holderBonus, null);
+            }
+        }
+    }
+
+    private boolean isHolderAlive(int slot) {
+        return slot >= 0 && slot < 4 && activeRaid.isSlotAlive(slot);
+    }
+
+    private void applyAuraToParty(String effectId, String sourceId,
+                                  Float magnitudeOverride, Float tickIntervalOverride) {
+        for (int i = 0; i < 4; i++) {
+            if (!activeRaid.isSlotAlive(i)) continue;
+            effects().applyEffect(activeRaid.getMember(i), effectId, sourceId, true,
+                magnitudeOverride, tickIntervalOverride);
+        }
+    }
+
+    /** Ticks every alive combatant's dot/hot/expiry, handling dot-caused deaths (incl. a revive save). */
+    private void tickAllEffects(float delta) {
+        StatusEffectEngine.EffectEventSink sink = new StatusEffectEngine.EffectEventSink() {
+            @Override public void onDamage(Combatant target, int amount, String effectId) {
+                pushStatusEvent(target, amount, effectId, false);
+            }
+            @Override public void onHeal(Combatant target, int amount, String effectId) {
+                pushStatusEvent(target, amount, effectId, true);
+            }
+        };
+
+        for (int i = 0; i < 4; i++) {
+            Combatant c = activeRaid.getMember(i);
+            if (c == null || !c.isAlive()) continue;
+            effects().tick(c, delta, sink);
+            if (c.hp <= 0 && !c.dead) {
+                if (effects().tryConsumeRevive(c)) {
+                    addLog("A lingering blessing revives " + TextUtil.capitalize(c.type) + "!");
+                } else {
+                    c.dead = true;
+                    activeRaid.setDeathCount(activeRaid.getDeathCount() + 1);
+                    addLog(TextUtil.capitalize(c.type) + " succumbs to a status effect!");
+                }
+            }
+        }
+        for (Combatant e : activeRaid.getActiveEnemies()) {
+            if (!e.isAlive()) continue;
+            effects().tick(e, delta, sink);
+        }
+    }
+
+    /** Pushes a status-tick CombatEvent for the renderer — heal ticks reuse the existing "heal" kind. */
+    private void pushStatusEvent(Combatant target, int amount, String effectId, boolean heal) {
+        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+        ev.kind = heal ? "heal" : "status_tick";
+        ev.effectId = effectId;
+        ev.damage = amount;
+        int idx = indexOfPartyMember(target);
+        if (idx >= 0) {
+            ev.targetIsParty = true;
+            ev.targetIdx = idx;
+        } else {
+            ev.targetIsParty = false;
+            ev.targetIdx = activeRaid.getActiveEnemies().indexOf(target);
+        }
+        activeRaid.pushEvent(ev);
+    }
+
+    private int indexOfPartyMember(Combatant c) {
+        for (int i = 0; i < 4; i++) {
+            if (activeRaid.getMember(i) == c) return i;
+        }
+        return -1;
+    }
+
+    /** Applies an onHit status effect and emits the presentation event — shared by unitAttack/enemyAttack. */
+    private void applyOnHitEffect(Combatant target, String effectId, String sourceId,
+                                  boolean targetIsParty, int targetIdx) {
+        effects().applyEffect(target, effectId, sourceId, false);
+        RaidState.CombatEvent ev = new RaidState.CombatEvent();
+        ev.kind = "status_apply";
+        ev.effectId = effectId;
+        ev.targetIsParty = targetIsParty;
+        ev.targetIdx = targetIdx;
+        activeRaid.pushEvent(ev);
+    }
+
     private void unitAttack(int slot) {
         // Find first alive enemy + its index
-        RaidEnemy target = null;
+        Combatant target = null;
         int targetIdx = -1;
-        java.util.List<RaidEnemy> enemies = activeRaid.getActiveEnemies();
+        java.util.List<Combatant> enemies = activeRaid.getActiveEnemies();
         for (int i = 0; i < enemies.size(); i++) {
             if (enemies.get(i).isAlive()) { target = enemies.get(i); targetIdx = i; break; }
         }
         if (target == null) return;
 
-        int dmg = activeRaid.getPartyDamage()[slot];
+        Combatant attacker = activeRaid.getMember(slot);
+        int dmg = attacker.baseDamage;
 
-        // Legendary trait: shadowbow double attack
-        String unitType = activeRaid.getPartyTypes()[slot];
-        if ("shadowbow".equals(unitType)) dmg *= 2;
-
-        // Enchanted set bonuses (keep your existing code)
-        if (setBonuses != null) {
-            if (setBonuses.partyDamageBonus > 0)
-                dmg = Math.round(dmg * (1f + setBonuses.partyDamageBonus));
-            if (setBonuses.holderDamageBonus[slot] > 0)
-                dmg = Math.round(dmg * (1f + setBonuses.holderDamageBonus[slot]));
-        }
+        // Status-effect damage_dealt chain — replaces the old hardcoded
+        // shadowbow ×2 / Dragonscale partyDamageBonus / Shadowsteel+Infernal
+        // holderDamageBonus checks. All three are now auras/self-effects
+        // recomputeAuras()/startRaid() applied to this Combatant, so one
+        // multiplier read covers whichever of them are currently active.
+        dmg = Math.round(dmg * effects().getDamageDealtMultiplier(attacker));
 
         // Prince Outfit damage bonus — live, read fresh every attack (unlike
         // the HP bonus above, this joins the existing chain of per-attack
@@ -641,33 +842,24 @@ public class RaidManager {
         ev.damage = dmg;         ev.crit = crit;
         activeRaid.pushEvent(ev);
 
+        // Status effect on hit (Raid V3) — e.g. venom_drake's poison.
+        if (attacker.onHitEffect != null && !"none".equals(attacker.onHitEffect)) {
+            applyOnHitEffect(target, attacker.onHitEffect, attacker.id, false, targetIdx);
+        }
+
         if (target.hp <= 0) {
-            addLog(TextUtil.capitalize(activeRaid.getPartyTypes()[slot])
+            addLog(TextUtil.capitalize(attacker.type)
                 + " defeated " + target.name + (crit ? " with a CRIT!" : "!"));
         }
     }
 
-    private void enemyAttack(int enemyIdx, RaidEnemy enemy) {
-        int totalDmg = enemy.damage;
+    private void enemyAttack(int enemyIdx, Combatant enemy) {
+        // Status-effect damage_dealt chain on the enemy side too — symmetric
+        // with the player side, though nothing currently grants an enemy a
+        // damage_dealt modifier (no content wires one yet; the read is free).
+        int totalDmg = Math.round(enemy.baseDamage * effects().getDamageDealtMultiplier(enemy));
 
-        // Legendary trait: royal_knight damage reduction
-        for (int i = 0; i < 4; i++) {
-            if (activeRaid.isSlotAlive(i)
-                && "royal_knight".equals(activeRaid.getPartyTypes()[i])) {
-                totalDmg = (int)(totalDmg * 0.8f);
-                break;
-            }
-        }
-
-        // Enchanted set: Shadowsteel party damage reduction
-        if (setBonuses != null && setBonuses.partyDamageReduction > 0) {
-            totalDmg = Math.round(totalDmg * (1f - setBonuses.partyDamageReduction));
-        }
-
-        // Distribute across alive slots (keep your redistribution logic)
-        int[] hp = activeRaid.getPartyCurrentHp();
-        boolean[] dead = activeRaid.getPartyDead();
-
+        // Distribute across alive slots
         float totalShare = 0f;
         float[] shares = new float[4];
         for (int i = 0; i < 4; i++) {
@@ -683,51 +875,60 @@ public class RaidManager {
 
         for (int i = 0; i < 4; i++) {
             if (!activeRaid.isSlotAlive(i)) continue;
-            int dmg = Math.round(totalDmg * shares[i]);
+            Combatant c = activeRaid.getMember(i);
+
+            // Status-effect damage_taken chain — replaces the old hardcoded
+            // royal_knight totalDmg×0.8 / Shadowsteel partyDamageReduction
+            // checks (both were pre-distribution reductions; folding them
+            // into a per-slot multiplier is mathematically identical since
+            // multiplication distributes over the share split).
+            int dmg = Math.round(totalDmg * shares[i] * effects().getDamageTakenMultiplier(c));
             if (dmg <= 0) continue;
 
-            // Ironclad reflect (keep your existing trait code)
-            if ("ironclad".equals(activeRaid.getPartyTypes()[i])) {
-                enemy.hp -= (int)(dmg * 0.10f);
-            }
-            // Infernal set reflect
-            if (setBonuses != null && setBonuses.reflectPercent > 0) {
-                enemy.hp -= Math.round(dmg * setBonuses.reflectPercent);
+            // Reflect — sums ironclad_reflect (self) + infernal_reflect
+            // (party aura), replacing the old two hardcoded checks. Based on
+            // the pre-shield dmg, same as the original semantics.
+            float reflectPct = effects().getReflectPercent(c);
+            if (reflectPct > 0) {
+                enemy.hp -= Math.round(dmg * reflectPct);
                 if (enemy.hp < 0) enemy.hp = 0;
             }
 
-            hp[i] -= dmg;
+            int remainder = effects().absorbWithShield(c, dmg);
+            c.hp -= remainder;
 
-            // Fury charges from damage taken
+            // Fury charges from damage taken (even if fully absorbed by a shield)
             gainFury(FURY_GAIN_PER_TAKEN);
 
-            // Emit presentation event (one per damaged slot)
+            // Emit presentation event (one per damaged slot) — damage shown
+            // is what actually hit HP; a full shield-block naturally renders
+            // as "-0" and is suppressed by the renderer's existing `damage > 0` guard.
             RaidState.CombatEvent ev = new RaidState.CombatEvent();
             ev.kind = "attack";
             ev.actorIsParty = false;  ev.actorIdx = enemyIdx;
             ev.targetIsParty = true;  ev.targetIdx = i;
-            ev.damage = dmg;
+            ev.damage = remainder;
             activeRaid.pushEvent(ev);
 
-            if (hp[i] <= 0) {
-                hp[i] = 0;
-                dead[i] = true;
-                activeRaid.setDeathCount(activeRaid.getDeathCount() + 1);
-                addLog(TextUtil.capitalize(activeRaid.getPartyTypes()[i]) + " has fallen!");
+            // Status effect on hit (Raid V3) — e.g. goblin_shaman's slow.
+            if (enemy.onHitEffect != null && !"none".equals(enemy.onHitEffect)) {
+                applyOnHitEffect(c, enemy.onHitEffect, enemy.id, true, i);
+            }
 
-                // eternal_phoenix auto-revive (keep your existing code)
-                if ("eternal_phoenix".equals(activeRaid.getPartyTypes()[i])) {
-                    dead[i] = false;
-                    hp[i] = activeRaid.getPartyMaxHp()[i] / 2;
-                    activeRaid.setDeathCount(activeRaid.getDeathCount() - 1);
-                    addLog("Eternal Phoenix rises from the ashes!");
-                    activeRaid.getPartyTypes()[i] = "phoenix_revived";
+            if (c.hp <= 0) {
+                c.hp = 0;
+                // Data-driven replacement for the old eternal_phoenix
+                // partyTypes[i]="phoenix_revived" one-shot hack — see
+                // StatusEffectEngine.tryConsumeRevive's javadoc.
+                if (effects().tryConsumeRevive(c)) {
+                    addLog("A lingering blessing revives " + TextUtil.capitalize(c.type) + "!");
+                } else {
+                    c.dead = true;
+                    activeRaid.setDeathCount(activeRaid.getDeathCount() + 1);
+                    addLog(TextUtil.capitalize(c.type) + " has fallen!");
                 }
             }
         }
-
-        // high_priest passive heal (keep existing; optionally emit "heal" events)
-
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -740,7 +941,7 @@ public class RaidManager {
 
         Map<String, Object> room = currentRooms.get(roomIndex);
         List<String> enemyKeys = (List<String>) room.get("enemies");
-        List<RaidEnemy> enemies = new ArrayList<>();
+        List<Combatant> enemies = new ArrayList<>();
 
         for (String key : enemyKeys) {
             Map<String, Object> eData = getEnemyData(key);
@@ -753,8 +954,8 @@ public class RaidManager {
             boolean boss = Boolean.TRUE.equals(eData.get("boss"));
 
             String sprite = (String) eData.get("sprite");
-            enemies.add(new RaidEnemy(key, name, sprite, hp, dmg,
-                speed * ENEMY_SPEED_MULT, boss));
+            String onHitEffect = (String) eData.get("onHitEffect"); // optional — most enemies have none
+            enemies.add(makeEnemy(key, name, sprite, hp, dmg, speed * ENEMY_SPEED_MULT, boss, onHitEffect));
         }
 
         activeRaid.setCurrentRoomIndex(roomIndex);
@@ -769,6 +970,31 @@ public class RaidManager {
         Object data = enemyData.get(key);
         if (data instanceof Map) return (Map<String, Object>) data;
         return null;
+    }
+
+    /** Builds an enemy-side Combatant — the Raid V3 replacement for `new RaidEnemy(...)`. */
+    private Combatant makeEnemy(String type, String name, String sprite,
+                                int hp, int damage, float attackSpeed, boolean boss) {
+        return makeEnemy(type, name, sprite, hp, damage, attackSpeed, boss, null);
+    }
+
+    private Combatant makeEnemy(String type, String name, String sprite,
+                                int hp, int damage, float attackSpeed, boolean boss,
+                                String onHitEffect) {
+        Combatant c = new Combatant();
+        c.id = type;
+        c.type = type;
+        c.name = name;
+        c.sprite = sprite;
+        c.party = false;
+        c.hp = hp;
+        c.maxHp = hp;
+        c.baseDamage = damage;
+        c.baseAttackSpeed = attackSpeed;
+        c.attackTimer = 0f;
+        c.boss = boss;
+        c.onHitEffect = onHitEffect;
+        return c;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -897,7 +1123,7 @@ public class RaidManager {
 
     /** Loads room #clearedRooms (0-based) — the procedural analogue of loadRoom(). */
     private void loadEndlessRoom(int clearedRooms) {
-        List<RaidEnemy> enemies = generateEndlessRoom(clearedRooms, activeRaid.getSeed());
+        List<Combatant> enemies = generateEndlessRoom(clearedRooms, activeRaid.getSeed());
         activeRaid.setCurrentRoomIndex(clearedRooms);
         activeRaid.setActiveEnemies(enemies);
         addLog("Depth " + (clearedRooms + 1) + " — " + enemies.size() + " enemies");
@@ -915,7 +1141,7 @@ public class RaidManager {
      * party instead of a fresh enemyPool draw — see buildZombieEnemies().
      */
     @SuppressWarnings("unchecked")
-    private List<RaidEnemy> generateEndlessRoom(int roomIndex, long seed) {
+    private List<Combatant> generateEndlessRoom(int roomIndex, long seed) {
         java.util.Random rng = new java.util.Random(seed + roomIndex * 7919L);
 
         DeadPartyManager dpm = eventManager.getDeadPartyManager();
@@ -928,7 +1154,7 @@ public class RaidManager {
         }
         activeRaid.setCurrentZombiePoolId(null);
 
-        List<RaidEnemy> enemies = new ArrayList<>();
+        List<Combatant> enemies = new ArrayList<>();
         if (currentNode == null) return enemies;
         List<String> pool = (List<String>) currentNode.get("enemyPool");
         if (pool == null || pool.isEmpty()) return enemies;
@@ -951,8 +1177,8 @@ public class RaidManager {
             int dmg = Math.round(toInt(eData, "damage") * scaleDmg);
             float speed = toFloat(eData, "attackSpeed");
             String sprite = (String) eData.get("sprite");
-            enemies.add(new RaidEnemy(key, name, sprite, hp, dmg,
-                speed * ENEMY_SPEED_MULT, false));
+            String onHitEffect = (String) eData.get("onHitEffect");
+            enemies.add(makeEnemy(key, name, sprite, hp, dmg, speed * ENEMY_SPEED_MULT, false, onHitEffect));
         }
         return enemies;
     }
@@ -961,19 +1187,19 @@ public class RaidManager {
     private static final float ZOMBIE_HP_MULT = 1.25f;
 
     /**
-     * Builds a room from a dead party's frozen stats — reuses RaidEnemy's
+     * Builds a room from a dead party's frozen stats — reuses Combatant's
      * fully generic (type, name, sprite, hp, damage, speed) shape, same as
      * every other enemy. Sprite reuses the unit's own sprite key unchanged
      * (no dedicated zombie art yet — the same magenta-fallback safety net
      * that covers any other missing sprite covers this).
      */
-    private List<RaidEnemy> buildZombieEnemies(DeadPartySnapshot snap) {
-        List<RaidEnemy> enemies = new ArrayList<>();
+    private List<Combatant> buildZombieEnemies(DeadPartySnapshot snap) {
+        List<Combatant> enemies = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             if (snap.unitTypes[i] == null) continue;
             String name = "Zombified " + TextUtil.capitalize(snap.unitTypes[i]);
             int hp = Math.round(snap.unitHp[i] * ZOMBIE_HP_MULT);
-            enemies.add(new RaidEnemy(snap.unitTypes[i], name, snap.unitSprites[i],
+            enemies.add(makeEnemy(snap.unitTypes[i], name, snap.unitSprites[i],
                 hp, snap.unitDamage[i], RaidState.DEFAULT_ATTACK_SPEED * ENEMY_SPEED_MULT, false));
         }
         return enemies;
@@ -1070,9 +1296,6 @@ public class RaidManager {
      * (un-banked) rewards are simply discarded; nothing here applies them.
      */
     private void endEndlessWithPermanentDeath() {
-        String[] unitIds = activeRaid.getPartyUnitIds();
-        String[] types = activeRaid.getPartyTypes();
-
         DeadPartySnapshot snap = new DeadPartySnapshot();
         snap.snapshotId = java.util.UUID.randomUUID().toString();
         snap.depthReached = activeRaid.getCurrentRoomIndex() + 1;
@@ -1083,22 +1306,23 @@ public class RaidManager {
         boolean anyUnit = false;
 
         for (int i = 0; i < 4; i++) {
-            if (unitIds[i] == null) continue;
+            Combatant c = activeRaid.getMember(i);
+            if (c == null) continue;
             anyUnit = true;
-            snap.unitTypes[i] = types[i];
-            snap.unitLevels[i] = activeRaid.getPartyLevels()[i];
-            snap.unitHp[i] = activeRaid.getPartyMaxHp()[i];
-            snap.unitDamage[i] = activeRaid.getPartyDamage()[i];
-            snap.unitSprites[i] = activeRaid.getPartySprites()[i];
+            snap.unitTypes[i] = c.type;
+            snap.unitLevels[i] = c.level;
+            snap.unitHp[i] = c.maxHp;
+            snap.unitDamage[i] = c.baseDamage;
+            snap.unitSprites[i] = c.sprite;
 
-            Item eq = inv.getEquippedItem(unitIds[i]);
+            Item eq = inv.getEquippedItem(c.id);
             if (eq != null) {
                 snap.equippedItems.add(eq);
                 inv.removeItem(eq.getId());
             }
 
-            runes.onUnitPermanentlyLost(unitIds[i]);
-            addLog(TextUtil.capitalize(types[i]) + " is lost forever...");
+            runes.onUnitPermanentlyLost(c.id);
+            addLog(TextUtil.capitalize(c.type) + " is lost forever...");
         }
 
         if (anyUnit) {
@@ -1128,7 +1352,7 @@ public class RaidManager {
         Inventory inv = eventManager.getInventory();
         Item potion = inv.useConsumable(potionId);
         addLog("Used " + (potion != null ? potion.getName() : "potion") + " on "
-            + TextUtil.capitalize(activeRaid.getPartyTypes()[slot]));
+            + TextUtil.capitalize(activeRaid.getMember(slot).type));
         return true;
     }
 
@@ -1144,7 +1368,7 @@ public class RaidManager {
         Inventory inv = eventManager.getInventory();
         Item feather = inv.useConsumable(featherId);
         addLog("Phoenix Feather revives "
-            + TextUtil.capitalize(activeRaid.getPartyTypes()[slot]) + "!");
+            + TextUtil.capitalize(activeRaid.getMember(slot).type) + "!");
         return true;
     }
 
@@ -1171,24 +1395,19 @@ public class RaidManager {
             return;
         }
 
-        String[] unitIds = activeRaid.getPartyUnitIds();
-        String[] types = activeRaid.getPartyTypes();
-        int[] levels = activeRaid.getPartyLevels();
-        int[] currentHp = activeRaid.getPartyCurrentHp();
-        boolean[] dead = activeRaid.getPartyDead();
-
         for (int i = 0; i < 4; i++) {
-            if (unitIds[i] == null) continue;
+            Combatant c = activeRaid.getMember(i);
+            if (c == null) continue;
 
-            if (dead[i]) {
+            if (c.dead) {
                 // Dead unit — check if it should be lost permanently
                 // (Non-max units lv3-6 are lost; max-level survives at 1HP)
                 // For simplicity, return all with 1 HP
-                eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], 1);
-                addLog(TextUtil.capitalize(types[i]) + " returned barely alive");
+                eventManager.respawnUnitWithId(c.id, c.type, c.level, 1);
+                addLog(TextUtil.capitalize(c.type) + " returned barely alive");
             } else {
                 // Alive — return with current HP
-                eventManager.respawnUnitWithId(unitIds[i], types[i], levels[i], currentHp[i]);
+                eventManager.respawnUnitWithId(c.id, c.type, c.level, c.hp);
             }
         }
 

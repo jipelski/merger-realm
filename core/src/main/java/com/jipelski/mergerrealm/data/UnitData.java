@@ -15,6 +15,18 @@ public class UnitData extends GenData {
     // everything else — base units don't have these fields in unit.json at all.
     protected String secondary_resource;
     protected int    secondary_gen_rate;
+    // Raid V3 status-effect wiring (legendary traits). "none" for everything
+    // else — same optional-field convention as secondary_resource above,
+    // since plain unit.json entries don't have these keys at all either.
+    // onHitEffect: applied to the enemy/ally a unit successfully hits.
+    // selfEffect: applied to the unit itself once at raid formation (permanent
+    //   for the raid — e.g. shadowbow's double-damage, ironclad's reflect).
+    // auraEffect: applied to every alive party member each frame while this
+    //   unit is alive (RaidManager.recomputeAuras) — e.g. royal_knight's
+    //   damage reduction, high_priest's heal, archangel's immunity.
+    protected String onHitEffect;
+    protected String selfEffect;
+    protected String auraEffect;
 
     // NULL CONSTRUCTOR
     public UnitData() {
@@ -28,6 +40,9 @@ public class UnitData extends GenData {
         this.nemesis_rate       = 0;
         this.secondary_resource = null;
         this.secondary_gen_rate = 0;
+        this.onHitEffect        = "none";
+        this.selfEffect         = "none";
+        this.auraEffect         = "none";
     }
 
     // CONSTRUCTOR
@@ -65,6 +80,9 @@ public class UnitData extends GenData {
     public int    getNemesis_Rate()      { return nemesis_rate;       }
     public String getSecondaryResource() { return secondary_resource; }
     public int    getSecondaryGenRate()  { return secondary_gen_rate; }
+    public String getOnHitEffect()       { return onHitEffect;        }
+    public String getSelfEffect()        { return selfEffect;         }
+    public String getAuraEffect()        { return auraEffect;         }
 
     // SETTERS
     public void setResource(String resource)        { this.resource     = resource;     }
@@ -80,6 +98,9 @@ public class UnitData extends GenData {
     public void setSecondaryGenRate(int secondary_gen_rate) {
         this.secondary_gen_rate = secondary_gen_rate;
     }
+    public void setOnHitEffect(String onHitEffect) { this.onHitEffect = onHitEffect; }
+    public void setSelfEffect(String selfEffect)   { this.selfEffect  = selfEffect;  }
+    public void setAuraEffect(String auraEffect)   { this.auraEffect  = auraEffect;  }
 
 
     @Override

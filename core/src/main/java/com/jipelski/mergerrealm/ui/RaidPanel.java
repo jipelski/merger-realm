@@ -9,10 +9,10 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
+import com.jipelski.mergerrealm.model.Combatant;
 import com.jipelski.mergerrealm.model.GameObject;
 import com.jipelski.mergerrealm.model.Item;
 import com.jipelski.mergerrealm.model.RaidState;
-import com.jipelski.mergerrealm.model.RaidState.RaidEnemy;
 import com.jipelski.mergerrealm.model.Unit;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GridObjectManager;
@@ -962,8 +962,8 @@ public class RaidPanel {
                     eventManager.getInventory().getItemsByType("potion");
                 if (!potions.isEmpty()) {
                     for (int i = 0; i < 4; i++) {
-                        if (raid.isSlotAlive(i)
-                            && raid.getPartyCurrentHp()[i] < raid.getPartyMaxHp()[i]) {
+                        Combatant c = raid.getMember(i);
+                        if (raid.isSlotAlive(i) && c.hp < c.maxHp) {
                             rm.usePotion(i, potions.get(0).getId());
                             break;
                         }
@@ -977,7 +977,7 @@ public class RaidPanel {
                     eventManager.getInventory().getItemsByType("phoenix_feather");
                 if (!feathers.isEmpty()) {
                     for (int i = 0; i < 4; i++) {
-                        if (raid.isSlotOccupied(i) && raid.getPartyDead()[i]) {
+                        if (raid.isSlotOccupied(i) && raid.getMember(i).dead) {
                             rm.usePhoenixFeather(i, feathers.get(0).getId());
                             break;
                         }

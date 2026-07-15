@@ -357,15 +357,13 @@ public class GoldManager {
         if (rm == null || !rm.isRaidActive()) return 0;
 
         com.jipelski.mergerrealm.model.RaidState raid = rm.getActiveRaid();
-        boolean[] dead = raid.getPartyDead();
-        int[] hp = raid.getPartyCurrentHp();
-        int[] maxHp = raid.getPartyMaxHp();
 
         int revived = 0;
         for (int i = 0; i < 4; i++) {
-            if (raid.isSlotOccupied(i) && dead[i]) {
-                dead[i] = false;
-                hp[i] = maxHp[i] / 2;
+            com.jipelski.mergerrealm.model.Combatant c = raid.getMember(i);
+            if (c != null && c.dead) {
+                c.dead = false;
+                c.hp = c.maxHp / 2;
                 raid.setDeathCount(Math.max(0, raid.getDeathCount() - 1));
                 revived++;
             }

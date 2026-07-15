@@ -10,16 +10,20 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
+import com.jipelski.mergerrealm.model.ActiveStatusEffect;
+import com.jipelski.mergerrealm.model.Combatant;
 import com.jipelski.mergerrealm.model.RaidState;
 import com.jipelski.mergerrealm.model.RaidState.CombatEvent;
-import com.jipelski.mergerrealm.model.RaidState.RaidEnemy;
 import com.jipelski.mergerrealm.util.EventManager;
 import com.jipelski.mergerrealm.util.GoldManager;
 import com.jipelski.mergerrealm.util.RaidManager;
 import com.jipelski.mergerrealm.util.SpriteManager;
+import com.jipelski.mergerrealm.util.StatusEffectManager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Visual combat arena for raids — Fallout Shelter style.
@@ -81,6 +85,27 @@ public class RaidArenaRenderer {
     private static final Color TEXT_PARTY_HIT = new Color(1f, 0.35f, 0.35f, 1f);
     private static final Color TEXT_ENEMY_HIT = new Color(1f, 1f, 1f, 1f);
     private static final Color TEXT_HEAL      = new Color(0.35f, 1f, 0.45f, 1f);
+    private static final Color SHIELD_COLOR   = new Color(0.55f, 0.8f, 0.95f, 1f);
+
+    // ── Status-effect pip/text colors — lazily populated from
+    // StatusEffectManager's catalog (data-driven, can't be static final like
+    // the palette above) and cached forever after first use so repeated
+    // floating texts/pips of the same effect share one Color instance
+    // instead of allocating a fresh one per event/frame. Never mutated after
+    // creation — same "shared instance, alpha applied via setColor(...)"
+    // rule the rest of this palette follows.
+    private final Map<String, Color> effectColorCache = new HashMap<>();
+
+    private Color colorForEffect(String effectId) {
+        Color cached = effectColorCache.get(effectId);
+        if (cached != null) return cached;
+        StatusEffectManager.StatusEffectData def = eventManager.getStatusEffectManager().getEffect(effectId);
+        Color c = (def != null && def.color != null && def.color.length >= 3)
+            ? new Color(def.color[0], def.color[1], def.color[2], 1f)
+            : new Color(1f, 1f, 1f, 1f);
+        effectColorCache.put(effectId, c);
+        return c;
+    }
 
     // ── Floating damage numbers ──
     private static class FloatingText {
@@ -184,7 +209,7 @@ public class RaidArenaRenderer {
                 if (partyAttackAnim[i] >= 1f) partyAttackAnim[i] = -1f;
             }
             if (partyHitFlash[i] > 0f) partyHitFlash[i] -= delta;
-            if (raid.isSlotOccupied(i) && raid.getPartyDead()[i]
+            if (raid.isSlotOccupied(i) && raid.getMember(i).dead
                 && partyDeathFade[i] > 0.35f) {
                 partyDeathFade[i] = Math.max(0.35f,
                     partyDeathFade[i] - delta / DEATH_FADE_DURATION);
@@ -192,7 +217,7 @@ public class RaidArenaRenderer {
         }
 
         // Advance enemy animations
-        List<RaidEnemy> enemies = raid.getActiveEnemies();
+        List<Combatant> enemies = raid.getActiveEnemies();
         for (int i = 0; i < enemies.size() && i < enemyAttackAnim.length; i++) {
             if (enemyAttackAnim[i] >= 0f) {
                 enemyAttackAnim[i] += delta / ATTACK_ANIM_DURATION;
@@ -268,6 +293,25 @@ public class RaidArenaRenderer {
             case "fury": {
                 bannerText = "FURY x" + String.format("%.1f", ev.damage / 10f) + "!";
                 bannerTimer = 1.0f;
+                break;
+            }
+            case "status_apply": {
+                StatusEffectManager.StatusEffectData def =
+                    eventManager.getStatusEffectManager().getEffect(ev.effectId);
+                String label = def != null ? def.name : ev.effectId;
+                float[] pos = ev.targetIsParty
+                    ? getPartyPos(ev.targetIdx)
+                    : getEnemyPos(ev.targetIdx, raid.getActiveEnemies().size());
+                spawnFloatingText(pos[0], pos[1] + SPRITE_SIZE * 0.9f,
+                    label, colorForEffect(ev.effectId), false);
+                break;
+            }
+            case "status_tick": {
+                float[] pos = ev.targetIsParty
+                    ? getPartyPos(ev.targetIdx)
+                    : getEnemyPos(ev.targetIdx, raid.getActiveEnemies().size());
+                spawnFloatingText(pos[0], pos[1] + SPRITE_SIZE * 0.7f,
+                    "-" + ev.damage, colorForEffect(ev.effectId), false);
                 break;
             }
         }
@@ -346,22 +390,25 @@ public class RaidArenaRenderer {
         sr.setColor(0.10f, 0.10f, 0.15f, 1f);
         sr.rect(16f, 16f, worldW() - 32f, CONTROL_BAR_H);
 
-        // ── HP bars: enemies ──
-        List<RaidEnemy> enemies = raid.getActiveEnemies();
+        // ── HP bars + effect pips: enemies ──
+        List<Combatant> enemies = raid.getActiveEnemies();
         for (int i = 0; i < enemies.size(); i++) {
-            RaidEnemy e = enemies.get(i);
+            Combatant e = enemies.get(i);
             if (!e.isAlive() && (i >= enemyDeathFade.length || enemyDeathFade[i] <= 0f)) continue;
             float[] pos = getEnemyPos(i, enemies.size());
-            drawHpBar(sr, pos[0], pos[1] - SPRITE_SIZE / 2f - 10f,
-                e.hp, e.maxHp, e.boss);
+            float barY = pos[1] - SPRITE_SIZE / 2f - 10f;
+            drawHpBar(sr, pos[0], barY, e.hp, e.maxHp, e.boss, e.shield);
+            drawEffectPips(sr, e, pos[0], barY - 6f);
         }
 
-        // ── HP bars: party ──
+        // ── HP bars + effect pips: party ──
         for (int i = 0; i < 4; i++) {
             if (!raid.isSlotOccupied(i)) continue;
+            Combatant c = raid.getMember(i);
             float[] pos = getPartyPos(i);
-            drawHpBar(sr, pos[0], pos[1] - SPRITE_SIZE / 2f - 10f,
-                raid.getPartyCurrentHp()[i], raid.getPartyMaxHp()[i], false);
+            float barY = pos[1] - SPRITE_SIZE / 2f - 10f;
+            drawHpBar(sr, pos[0], barY, c.hp, c.maxHp, false, c.shield);
+            drawEffectPips(sr, c, pos[0], barY - 6f);
         }
 
         // ── Fury bar ──
@@ -372,7 +419,7 @@ public class RaidArenaRenderer {
     }
 
     private void drawHpBar(ShapeRenderer sr, float centerX, float y,
-                           int hp, int maxHp, boolean boss) {
+                           int hp, int maxHp, boolean boss, int shield) {
         float w = boss ? HP_BAR_W * 1.5f : HP_BAR_W;
         float x = centerX - w / 2f;
         float ratio = maxHp > 0 ? Math.max(0f, (float) hp / maxHp) : 0f;
@@ -383,6 +430,41 @@ public class RaidArenaRenderer {
         // Fill: green → red
         sr.setColor(1f - ratio, ratio, 0.12f, 1f);
         sr.rect(x, y, w * ratio, HP_BAR_H);
+
+        // Shield overlay — thin strip above the HP fill, width = shield/maxHp
+        // (capped at the bar's own width, same convention as the HP ratio).
+        if (shield > 0 && maxHp > 0) {
+            float shieldRatio = Math.min(1f, (float) shield / maxHp);
+            sr.setColor(SHIELD_COLOR.r, SHIELD_COLOR.g, SHIELD_COLOR.b, 0.9f);
+            sr.rect(x, y + HP_BAR_H + 1f, w * shieldRatio, 2f);
+        }
+    }
+
+    // ── Effect pips (small colored squares below the HP bar) ──
+    private static final float PIP_SIZE = 4f;
+    private static final float PIP_GAP = 6f;
+    private static final int MAX_PIPS = 6;
+
+    private void drawEffectPips(ShapeRenderer sr, Combatant c, float centerX, float y) {
+        int n = Math.min(MAX_PIPS, c.effects.size());
+        boolean hasShield = c.shield > 0;
+        int total = n + (hasShield ? 1 : 0);
+        if (total == 0) return;
+
+        float startX = centerX - (total - 1) * PIP_GAP / 2f;
+        int slot = 0;
+        if (hasShield) {
+            sr.setColor(SHIELD_COLOR.r, SHIELD_COLOR.g, SHIELD_COLOR.b, 1f);
+            sr.rect(startX + slot * PIP_GAP - PIP_SIZE / 2f, y - PIP_SIZE / 2f, PIP_SIZE, PIP_SIZE);
+            slot++;
+        }
+        for (int i = 0; i < n; i++) {
+            ActiveStatusEffect inst = c.effects.get(i);
+            Color col = colorForEffect(inst.effectId);
+            sr.setColor(col.r, col.g, col.b, 1f);
+            sr.rect(startX + slot * PIP_GAP - PIP_SIZE / 2f, y - PIP_SIZE / 2f, PIP_SIZE, PIP_SIZE);
+            slot++;
+        }
     }
 
     private void drawFuryBar(ShapeRenderer sr, RaidState raid) {
@@ -472,11 +554,11 @@ public class RaidArenaRenderer {
         RaidState raid = rm.getActiveRaid();
         if (raid == null) return;
 
-        List<RaidEnemy> enemies = raid.getActiveEnemies();
+        List<Combatant> enemies = raid.getActiveEnemies();
 
         // ── Enemy sprites ──
         for (int i = 0; i < enemies.size(); i++) {
-            RaidEnemy e = enemies.get(i);
+            Combatant e = enemies.get(i);
             float fade = (i < enemyDeathFade.length) ? enemyDeathFade[i] : 1f;
             if (!e.isAlive() && fade <= 0f) continue;
 
@@ -516,6 +598,7 @@ public class RaidArenaRenderer {
         // ── Party sprites ──
         for (int i = 0; i < 4; i++) {
             if (!raid.isSlotOccupied(i)) continue;
+            Combatant c = raid.getMember(i);
             float fade = partyDeathFade[i];
             float[] pos = getPartyPos(i);
 
@@ -525,16 +608,16 @@ public class RaidArenaRenderer {
             }
 
             if (partyHitFlash[i] > 0f) batch.setColor(1f, 0.35f, 0.35f, fade);
-            else if (raid.getPartyDead()[i]) batch.setColor(0.5f, 0.5f, 0.5f, fade);
+            else if (c.dead) batch.setColor(0.5f, 0.5f, 0.5f, fade);
             else batch.setColor(1f, 1f, 1f, fade);
 
             // sprite is already a full "type_level" key (Unit.getSprite() ==
             // UnitData.sprite_path, e.g. "archer_6") — same double-suffix bug
             // as the enemy sprite lookup below if run through getTexture(type, level).
-            String sprite = raid.getPartySprites()[i];
+            String sprite = c.sprite;
             Texture tex = sprite != null
                 ? spriteManager.getTextureByKey(sprite)
-                : spriteManager.getTexture(raid.getPartyTypes()[i], raid.getPartyLevels()[i]);
+                : spriteManager.getTexture(c.type, c.level);
             float[] scale = computeAttackScale(partyAttackAnim[i], partyHitFlash[i], HIT_FLASH_DURATION);
             batch.draw(tex, pos[0] - SPRITE_SIZE / 2f, pos[1] - SPRITE_SIZE / 2f + lungeY,
                 SPRITE_SIZE / 2f, SPRITE_SIZE / 2f, SPRITE_SIZE, SPRITE_SIZE,

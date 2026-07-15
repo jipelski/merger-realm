@@ -81,7 +81,7 @@ public class GameDataLoader {
                         ? str(info, "secondary_resource") : "none";
                     int secondaryGenRate = info.containsKey("secondary_gen_rate")
                         ? toInt(info, "secondary_gen_rate") : 0;
-                    levelMap.put(level, new UnitData(
+                    UnitData unitData = new UnitData(
                             str(info, "sprite_path"),
                             str(info, "description"),
                             toInt(info, "maxLVL"),
@@ -93,7 +93,20 @@ public class GameDataLoader {
                             str(info, "nemesis"),
                             toInt(info, "nemesis_rate"),
                             secondaryResource,
-                            secondaryGenRate));
+                            secondaryGenRate);
+                    // Raid V3 status-effect wiring — optional, only some
+                    // legendary_units.json entries have these keys. Same
+                    // containsKey guard as secondary_resource/gen_rate above.
+                    if (info.containsKey("onHitEffect")) {
+                        unitData.setOnHitEffect(str(info, "onHitEffect"));
+                    }
+                    if (info.containsKey("selfEffect")) {
+                        unitData.setSelfEffect(str(info, "selfEffect"));
+                    }
+                    if (info.containsKey("auraEffect")) {
+                        unitData.setAuraEffect(str(info, "auraEffect"));
+                    }
+                    levelMap.put(level, unitData);
                 } catch (Exception e) {
                     Gdx.app.error(TAG, "loadUnit: parse error for " + unitType, e);
                 }

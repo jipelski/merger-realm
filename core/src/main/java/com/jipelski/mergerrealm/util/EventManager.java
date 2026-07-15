@@ -105,6 +105,9 @@ public class EventManager {
     private OutfitManager outfitManager;
     public OutfitManager getOutfitManager() { return outfitManager; }
 
+    private StatusEffectManager statusEffectManager;
+    public StatusEffectManager getStatusEffectManager() { return statusEffectManager; }
+
     private AdManager adManager;
     public AdManager getAdManager() { return adManager; }
 
@@ -293,6 +296,12 @@ public class EventManager {
         outfitManager.setEquippedOutfitIdFromSet(savedEquippedOutfit);
 
         Gdx.app.log(TAG, "OutfitManager loaded — equipped: " + outfitManager.getEquippedOutfitId());
+
+        // Catalog only (no owned/equipped state to load) — RaidManager reads
+        // it directly when resolving ActiveStatusEffect instances by id.
+        this.statusEffectManager = new StatusEffectManager(jsonManager);
+        Gdx.app.log(TAG, "StatusEffectManager loaded — "
+            + statusEffectManager.getAllEffects().size() + " effects");
 
         this.adManager = new AdManager(this);
         adManager.setSaveState(jsonManager.loadArray("ad_watch_state"));
