@@ -71,14 +71,17 @@ public class BattleFieldManager {
         int[] progressionArr = jsonManager.loadArray("progression");
         if (progressionArr == null || progressionArr.length < 3) {
             Gdx.app.log(TAG, "progression data missing or corrupt — defaulting to level 1");
-            this.level       = 1;
-            this.current_xp  = 0;
-            this.xp_required = 100;
+            this.level      = 1;
+            this.current_xp = 0;
         } else {
-            this.level       = progressionArr[0];
-            this.current_xp  = progressionArr[1];
-            this.xp_required = progressionArr[2];
+            this.level      = progressionArr[0];
+            this.current_xp = progressionArr[1];
         }
+        // Always derive the requirement from the level rather than trusting the
+        // saved value — heals any save whose xp_required was corrupted (e.g. an
+        // old overflow to Integer.MAX_VALUE). increaseXP/resetForPrestige keep it
+        // correct during play, and the next save writes the healed value back.
+        this.xp_required = PrinceLevelConfig.getXpRequired(this.level);
     }
 
     private void initialiseLockedStatus(JsonManager jsonManager) {

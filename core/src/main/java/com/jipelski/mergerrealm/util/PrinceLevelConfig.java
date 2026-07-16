@@ -66,6 +66,12 @@ public class PrinceLevelConfig {
     private static final int BASE_XP = 50;
     private static final float XP_SCALE = 1.5f;
 
+    // Ceiling so getXpRequired never saturates the (int) cast to Integer.MAX_VALUE.
+    // current_xp is a 32-bit int, so the requirement must stay comfortably below
+    // 2^31-1 to remain reachable; 1e9 leaves headroom against current_xp += xp
+    // overflow. Tunable — lower it if past-35 levels should be more farmable.
+    private static final long MAX_XP_REQUIRED = 1_000_000_000L;
+
     // ── Prestige gate — single source of truth per this class's own doc above ──
     public static final int MAX_LEVEL_FOR_PRESTIGE = 35;
 
@@ -137,10 +143,15 @@ public class PrinceLevelConfig {
     }
 
     /**
-     * Returns the XP required to reach the given level.
+     * Returns the XP required to reach the given level. Clamped to
+     * MAX_XP_REQUIRED before the narrowing (int) cast — without the clamp,
+     * this exponential formula silently saturates to Integer.MAX_VALUE once
+     * level reaches ~45, permanently freezing progression (the requirement
+     * can never be met again).
      */
     public static int getXpRequired(int level) {
-        return (int)(BASE_XP * Math.pow(XP_SCALE, level - 1));
+        double req = BASE_XP * Math.pow(XP_SCALE, level - 1);
+        return (int) Math.min(req, MAX_XP_REQUIRED);
     }
 
     /**

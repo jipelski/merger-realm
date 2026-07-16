@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +47,23 @@ class PrinceLevelConfigTest {
         assertEquals(50, PrinceLevelConfig.getXpRequired(1));
         assertEquals(75, PrinceLevelConfig.getXpRequired(2));
         assertEquals(112, PrinceLevelConfig.getXpRequired(3)); // 112.5 truncated, not rounded
+    }
+
+    @Test
+    void xpRequired_highLevelsClampInsteadOfOverflowingToMaxInt() {
+        // 50 * 1.5^(level-1) crosses 2^31-1 around level 45 — without a clamp,
+        // the narrowing (int) cast on Math.pow's double result silently
+        // saturates to Integer.MAX_VALUE there, permanently freezing
+        // progression (this was the actual reported bug: current_xp can never
+        // reach a max-int requirement again). Assert every value stays finite
+        // and reachable instead.
+        assertNotEquals(Integer.MAX_VALUE, PrinceLevelConfig.getXpRequired(45));
+        assertNotEquals(Integer.MAX_VALUE, PrinceLevelConfig.getXpRequired(60));
+        assertNotEquals(Integer.MAX_VALUE, PrinceLevelConfig.getXpRequired(100));
+
+        assertTrue(PrinceLevelConfig.getXpRequired(45) <= 1_000_000_000);
+        assertTrue(PrinceLevelConfig.getXpRequired(60) <= 1_000_000_000);
+        assertTrue(PrinceLevelConfig.getXpRequired(100) <= 1_000_000_000);
     }
 
     @Test
