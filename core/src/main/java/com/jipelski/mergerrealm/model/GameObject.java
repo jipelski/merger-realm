@@ -21,6 +21,15 @@ public class GameObject {
     // to 0 (no pulse) on save/load, which is imperceptible.
     private transient long pulseStartMs = 0L;
 
+    // Wall-clock timestamp of the last swap-slide trigger, plus the cell it
+    // is sliding IN FROM — the displaced side of a board swap glides from
+    // its old cell into this object's current (already-updated) cell
+    // instead of teleporting. Same transient/cosmetic category as
+    // pulseStartMs above: resets to 0 (no slide) on save/load, imperceptible.
+    private transient long slideStartMs = 0L;
+    private transient int  slideFromX = 0;
+    private transient int  slideFromY = 0;
+
     // NULL CONSTRUCTOR
     public GameObject() {
         this.type        = null;
@@ -84,6 +93,21 @@ public class GameObject {
     }
 
     public long getPulseStartMs() { return pulseStartMs; }
+
+    /**
+     * Marks "now" as the start of a slide animating IN from cell
+     * (fromX,fromY) to this object's current (already-updated) cell.
+     * Transient/cosmetic — see triggerPulse() above.
+     */
+    public void triggerSlide(int fromX, int fromY) {
+        this.slideStartMs = com.badlogic.gdx.utils.TimeUtils.millis();
+        this.slideFromX = fromX;
+        this.slideFromY = fromY;
+    }
+
+    public long getSlideStartMs() { return slideStartMs; }
+    public int  getSlideFromX()   { return slideFromX;   }
+    public int  getSlideFromY()   { return slideFromY;   }
 
 
     @Override

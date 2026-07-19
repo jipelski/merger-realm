@@ -960,6 +960,21 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
                 String objectId = cell.getOccupant();
                 GameObject obj = gom.getObject(objectId);
+
+                // Swap slide: while active, draw at an interpolated position
+                // between the object's old cell and its current (destination)
+                // cell instead of snapping straight there. The HP bar below
+                // reuses drawX/drawY, so it travels with the sprite for free.
+                if (obj != null) {
+                    float slideP = slideProgress(obj);
+                    if (slideP < 1f) {
+                        float fromX = gridStartX + obj.getSlideFromX() * (cellSize + LayoutConfig.CELL_GAP);
+                        float fromY = baseY + (rows - 1 - obj.getSlideFromY()) * (cellSize + LayoutConfig.CELL_GAP);
+                        drawX = fromX + (drawX - fromX) * slideP;
+                        drawY = fromY + (drawY - fromY) * slideP;
+                    }
+                }
+
                 Texture tex = (obj != null)
                     ? spriteManager.getTextureForObject(obj.getType(), obj.getLvl())
                     : spriteManager.getDefaultTile();
@@ -1009,6 +1024,26 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     // periodic facility production) ──
     private static final long PULSE_DURATION_MS = 260L;
     private static final float PULSE_AMOUNT = 0.20f;       // peak scale-up
+
+    // ── Swap slide (GameObject.triggerSlide() — the displaced side of a
+    // board swap gliding from its old cell into the dragged object's old
+    // cell instead of teleporting) ──
+    private static final long SLIDE_DURATION_MS = 180L;    // snappy; tunable feel knob
+
+    /**
+     * Eased 0..1 slide progress for obj's active swap-slide, or 1f (done /
+     * no active slide) so the common no-slide path skips the position
+     * offset entirely.
+     */
+    private float slideProgress(GameObject obj) {
+        long start = obj.getSlideStartMs();
+        if (start == 0L) return 1f;
+        long elapsed = TimeUtils.millis() - start;
+        if (elapsed < 0L || elapsed >= SLIDE_DURATION_MS) return 1f;
+        float t = elapsed / (float) SLIDE_DURATION_MS;
+        float inv = 1f - t;
+        return 1f - inv * inv * inv; // cubic ease-out (fast start, gentle settle)
+    }
 
     /**
      * Draws a grid-cell sprite, applying a subtle idle bob + squash-stretch
