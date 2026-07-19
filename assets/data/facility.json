@@ -24,7 +24,7 @@
     {"level":4,"sprite_path":"barracks_4","description":"Best training grounds in the hold (Max level)","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":225,"time_cost":0}
   ],
   "archeryrange": [
-    {"level":1,"sprite_path":"archeryrange_1","description":"A few targets set up","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":5,"build_cost4":0,"tap_cost1":0,"tap_cost2":0,"tap_cost3":0,"time_cost":0},
+    {"level":1,"sprite_path":"archeryrange_1","description":"A few targets set up","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":5,"build_cost4":0,"tap_cost1":150,"tap_cost2":150,"tap_cost3":0,"time_cost":0},
     {"level":2,"sprite_path":"archeryrange_2","description":"Moving targets now","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":130,"tap_cost2":130,"tap_cost3":0,"time_cost":0},
     {"level":3,"sprite_path":"archeryrange_3","description":"Wind training added","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":110,"tap_cost2":110,"tap_cost3":0,"time_cost":0},
     {"level":4,"sprite_path":"archeryrange_4","description":"Elite marksmanship academy (Max level)","maxLVL":4,"build_cost1":0,"build_cost2":0,"build_cost3":0,"build_cost4":0,"tap_cost1":90,"tap_cost2":90,"tap_cost3":0,"time_cost":0}
