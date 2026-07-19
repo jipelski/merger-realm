@@ -13,6 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,25 +51,6 @@ public class ExplorationManager {
     // Slot unlock levels
     private static final int[] SLOT_UNLOCK_LEVELS = {1, 5, 10, 15, 20, 25, 30};
 
-    /**
-     * Rare drop rates per zone. Each entry is checked independently
-     * after EVERY exploration event (not just item finds).
-     *
-     * Format: RARE_DROPS[zoneIndex][dropIndex] = probability (0.0 to 1.0)
-     *
-     * Zone indices:  0=forest, 1=mountain, 2=mines, 3=ruins, 4=wastes
-     * Drop indices:  0=phoenix_feather, 1=amulet_of_ascension,
-     *                2=rune_fragment, 3=ancient_map, 4=resource_pouch
-     */
-    private static final double[][] RARE_DROP_RATES = {
-        //              feather  ascension  fragment  map     pouch
-        /* forest   */ { 0.000,   0.000,     0.005,   0.000,  0.008 },
-        /* mountain */ { 0.000,   0.000,     0.010,   0.000,  0.010 },
-        /* mines    */ { 0.000,   0.000,     0.020,   0.005,  0.012 },
-        /* ruins    */ { 0.005,   0.000,     0.030,   0.010,  0.016 },
-        /* wastes   */ { 0.020,   0.005,     0.050,   0.020,  0.020 },
-    };
-
     private static final String[] ZONE_INDEX_MAP = {
         "forest", "mountain", "mines", "ruins", "wastes"
     };
@@ -85,33 +67,122 @@ public class ExplorationManager {
         "food_pouch", "wood_pouch", "iron_pouch"
     };
 
-    // Flavor text for rare drops
-    private static final String[][] RARE_DROP_TEXTS = {
-        // Phoenix Feather
-        {
-            "A glowing feather drifts down from the sky!",
-            "Embers swirl into the shape of a feather!",
-            "A Phoenix Feather materializes in a flash of flame!"
-        },
-        // Amulet of Ascension
-        {
-            "The air crackles with ancient power — an Amulet of Ascension!",
-            "A golden amulet pulses with transcendent energy!",
-            "Hidden in the ruins of a forgotten altar — the Amulet of Ascension!"
-        },
-        // Rune Fragment
-        {
-            "A rune fragment glimmers among the debris!",
-            "Ancient energy crystallizes into a fragment!",
-            "A shard of runic power catches the light!"
-        },
-        // Ancient Map
-        {
-            "A weathered scroll reveals a hidden path — an Ancient Map!",
-            "Carved into the wall — directions to a forgotten temple!",
-            "An Ancient Map crumbles free from a sealed chest!"
+    /**
+     * How to actually grant a RareDrop once its odds roll succeeds. RareDrop
+     * instances are static (built once at class-load, before any
+     * ExplorationManager exists), so the manager instance is passed in
+     * rather than captured.
+     */
+    @FunctionalInterface
+    private interface RareDropDeliverer {
+        void deliver(ExplorationManager mgr, ExplorationSlot slot, long eventTimeMs, RareDrop drop);
+    }
+
+    /**
+     * One entry per rare find: its odds per zone (index 0=forest..4=wastes,
+     * checked independently after EVERY exploration event, not just item
+     * finds), its rotated flavor text, and how to grant it. Consolidates
+     * what used to be three parallel structures (a rates matrix, a texts
+     * matrix, and an if-chain in checkRareDrops) plus a gold-nugget special
+     * case that lived entirely outside them — adding a new rare drop is now
+     * a single entry in RARE_DROPS below.
+     */
+    private static final class RareDrop {
+        final double[] zoneRates;
+        final String[] flavorTexts;
+        final RareDropDeliverer deliverer;
+
+        RareDrop(double[] zoneRates, String[] flavorTexts, RareDropDeliverer deliverer) {
+            this.zoneRates = zoneRates;
+            this.flavorTexts = flavorTexts;
+            this.deliverer = deliverer;
         }
-    };
+
+        String randomText() {
+            if (flavorTexts == null || flavorTexts.length == 0) return "";
+            return flavorTexts[(int) (Math.random() * flavorTexts.length)];
+        }
+    }
+
+    private static ExplorationLoot mintItemLoot(String itemType) {
+        String id = itemType + "_" + System.currentTimeMillis()
+            + "_" + (int) (Math.random() * 10000);
+        return ExplorationLoot.item(itemType, 1, id);
+    }
+
+    private static final List<RareDrop> RARE_DROPS = Arrays.asList(
+        // Phoenix Feather
+        new RareDrop(
+            new double[]{ 0.000, 0.000, 0.000, 0.005, 0.020 },
+            new String[]{
+                "A glowing feather drifts down from the sky!",
+                "Embers swirl into the shape of a feather!",
+                "A Phoenix Feather materializes in a flash of flame!"
+            },
+            (mgr, slot, eventTimeMs, drop) -> {
+                slot.addLoot(mintItemLoot("phoenix_feather"));
+                slot.addEvent(eventTimeMs, drop.randomText(), "loot");
+            }),
+        // Amulet of Ascension
+        new RareDrop(
+            new double[]{ 0.000, 0.000, 0.000, 0.000, 0.005 },
+            new String[]{
+                "The air crackles with ancient power — an Amulet of Ascension!",
+                "A golden amulet pulses with transcendent energy!",
+                "Hidden in the ruins of a forgotten altar — the Amulet of Ascension!"
+            },
+            (mgr, slot, eventTimeMs, drop) -> {
+                slot.addLoot(mintItemLoot("amulet_of_ascension"));
+                slot.addEvent(eventTimeMs, drop.randomText(), "loot");
+            }),
+        // Rune Fragment (random type)
+        new RareDrop(
+            new double[]{ 0.005, 0.010, 0.020, 0.030, 0.050 },
+            new String[]{
+                "A rune fragment glimmers among the debris!",
+                "Ancient energy crystallizes into a fragment!",
+                "A shard of runic power catches the light!"
+            },
+            (mgr, slot, eventTimeMs, drop) -> {
+                String fragmentType = RUNE_FRAGMENT_TYPES[
+                    (int) (Math.random() * RUNE_FRAGMENT_TYPES.length)];
+                slot.addLoot(mintItemLoot(fragmentType));
+                // Include which type in the log
+                String typeName = fragmentType.replace("rune_fragment_", "");
+                slot.addEvent(eventTimeMs,
+                    drop.randomText() + " (" + TextUtil.capitalize(typeName) + ")", "loot");
+            }),
+        // Ancient Map
+        new RareDrop(
+            new double[]{ 0.000, 0.000, 0.005, 0.010, 0.020 },
+            new String[]{
+                "A weathered scroll reveals a hidden path — an Ancient Map!",
+                "Carved into the wall — directions to a forgotten temple!",
+                "An Ancient Map crumbles free from a sealed chest!"
+            },
+            (mgr, slot, eventTimeMs, drop) -> {
+                slot.addLoot(mintItemLoot("ancient_map"));
+                slot.addEvent(eventTimeMs, drop.randomText(), "loot");
+            }),
+        // Gold nugget — previously special-cased entirely outside the rate
+        // table (ruins-only 1% / wastes-only 2%); now just another entry.
+        new RareDrop(
+            new double[]{ 0.000, 0.000, 0.000, 0.010, 0.020 },
+            new String[]{ "A gold nugget glints in the rubble!" },
+            (mgr, slot, eventTimeMs, drop) -> {
+                mgr.eventManager.getGoldManager().onExplorationGoldFind();
+                slot.addEvent(eventTimeMs, drop.randomText(), "loot");
+            }),
+        // Resource Pouch
+        new RareDrop(
+            new double[]{ 0.008, 0.010, 0.012, 0.016, 0.020 },
+            new String[]{ "You recovered a bulging supply pouch!" },
+            (mgr, slot, eventTimeMs, drop) -> {
+                String pouchType = POUCH_TYPES[(int) (Math.random() * POUCH_TYPES.length)];
+                slot.addLoot(ExplorationLoot.gridObject(pouchType, 1));
+                slot.addEvent(eventTimeMs, drop.randomText(), "loot");
+            })
+    );
 
     public ExplorationManager(EventManager eventManager) {
         this.eventManager = eventManager;
@@ -660,71 +731,20 @@ public class ExplorationManager {
      * Rare drops are added to the slot's loot and logged as special events.
      */
     private void checkRareDrops(ExplorationSlot slot, long eventTimeMs) {
-        String zone = slot.getZone();
-        int zoneIndex = getZoneIndex(zone);
+        int zoneIndex = getZoneIndex(slot.getZone());
         if (zoneIndex < 0) return;
 
-        double[] rates = RARE_DROP_RATES[zoneIndex];
         // Prince Outfit find-odds bonus — each rate is an independent
         // Math.random() < rate check (not a weighted pick), so the
         // multiplier applies per-rate and must be clamped individually to
         // avoid ever exceeding a guaranteed 100% chance.
         double findMultiplier = eventManager.getOutfitManager().getExplorationFindMultiplier();
 
-        // ── Phoenix Feather ──
-        if (rates[0] > 0 && Math.random() < Math.min(1.0, rates[0] * findMultiplier)) {
-            String id = "phoenix_feather_" + System.currentTimeMillis()
-                + "_" + (int)(Math.random() * 10000);
-            slot.addLoot(ExplorationLoot.item("phoenix_feather", 1, id));
-            slot.addEvent(eventTimeMs, getRandomRareText(0), "loot");
-        }
-
-        // ── Amulet of Ascension ──
-        if (rates[1] > 0 && Math.random() < Math.min(1.0, rates[1] * findMultiplier)) {
-            String id = "amulet_of_ascension_" + System.currentTimeMillis()
-                + "_" + (int)(Math.random() * 10000);
-            slot.addLoot(ExplorationLoot.item("amulet_of_ascension", 1, id));
-            slot.addEvent(eventTimeMs, getRandomRareText(1), "loot");
-        }
-
-        // ── Rune Fragment (random type) ──
-        if (rates[2] > 0 && Math.random() < Math.min(1.0, rates[2] * findMultiplier)) {
-            String fragmentType = RUNE_FRAGMENT_TYPES[
-                (int)(Math.random() * RUNE_FRAGMENT_TYPES.length)];
-            String id = fragmentType + "_" + System.currentTimeMillis()
-                + "_" + (int)(Math.random() * 10000);
-            slot.addLoot(ExplorationLoot.item(fragmentType, 1, id));
-
-            // Include which type in the log
-            String typeName = fragmentType.replace("rune_fragment_", "");
-            slot.addEvent(eventTimeMs,
-                getRandomRareText(2) + " (" + TextUtil.capitalize(typeName) + ")", "loot");
-        }
-
-        // ── Ancient Map ──
-        if (rates[3] > 0 && Math.random() < Math.min(1.0, rates[3] * findMultiplier)) {
-            String id = "ancient_map_" + System.currentTimeMillis()
-                + "_" + (int)(Math.random() * 10000);
-            slot.addLoot(ExplorationLoot.item("ancient_map", 1, id));
-            slot.addEvent(eventTimeMs, getRandomRareText(3), "loot");
-        }
-
-        // ── Gold nugget rare find ──
-        // Only in ruins (1%) and wastes (2%)
-        double goldDropRate = 0;
-        if ("ruins".equals(zone)) goldDropRate = 0.01;
-        else if ("wastes".equals(zone)) goldDropRate = 0.02;
-
-        if (goldDropRate > 0 && Math.random() < Math.min(1.0, goldDropRate * findMultiplier)) {
-            eventManager.getGoldManager().onExplorationGoldFind();
-            slot.addEvent(eventTimeMs, "A gold nugget glints in the rubble!", "loot");
-        }
-
-        // ── Resource Pouch rare find ──
-        if (rates[4] > 0 && Math.random() < Math.min(1.0, rates[4] * findMultiplier)) {
-            String pouchType = POUCH_TYPES[(int)(Math.random() * POUCH_TYPES.length)];
-            slot.addLoot(ExplorationLoot.gridObject(pouchType, 1));
-            slot.addEvent(eventTimeMs, "You recovered a bulging supply pouch!", "loot");
+        for (RareDrop drop : RARE_DROPS) {
+            double rate = drop.zoneRates[zoneIndex];
+            if (rate > 0 && Math.random() < Math.min(1.0, rate * findMultiplier)) {
+                drop.deliverer.deliver(this, slot, eventTimeMs, drop);
+            }
         }
     }
 
@@ -733,11 +753,6 @@ public class ExplorationManager {
             if (ZONE_INDEX_MAP[i].equals(zone)) return i;
         }
         return -1;
-    }
-
-    private String getRandomRareText(int dropIndex) {
-        String[] texts = RARE_DROP_TEXTS[dropIndex];
-        return texts[(int)(Math.random() * texts.length)];
     }
 
 

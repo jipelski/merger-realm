@@ -167,7 +167,8 @@ public class GameDataLoader {
                             toInt(info, "storage_size"),
                             toInt(info, "build_cost1"),
                             toInt(info, "build_cost2"),
-                            toInt(info, "build_cost3")));
+                            toInt(info, "build_cost3"),
+                            toInt(info, "build_cost4")));
                 } catch (Exception e) {
                     Gdx.app.error(TAG, "loadStorage: parse error for " + type, e);
                 }

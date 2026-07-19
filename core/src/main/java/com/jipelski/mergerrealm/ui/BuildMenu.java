@@ -155,7 +155,7 @@ public class BuildMenu {
                 item.buildCost1 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost1());
                 item.buildCost2 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost2());
                 item.buildCost3 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost3());
-                item.buildCost4 = 0;
+                item.buildCost4 = prestigeManager.getDiscountedBuildCost(sd.getBuild_cost4());
             }
 
             item.displayName = TextUtil.capitalize(item.type);

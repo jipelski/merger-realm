@@ -7,6 +7,25 @@ buildscript {
 }
 apply plugin: 'com.android.application'
 
+// Release signing (Play App Signing — this is the upload key, not the app
+// signing key Google holds). keystore.properties is git-ignored (see
+// .gitignore) and never committed; a machine without it (fresh checkout,
+// CI, or just running debug) still builds fine — the release buildType
+// simply has no signingConfig applied until the file exists.
+// To generate an upload keystore:
+//   keytool -genkeypair -v -keystore upload-keystore.jks -alias upload \
+//     -keyalg RSA -keysize 2048 -validity 10000
+// Then create keystore.properties at the project root:
+//   storeFile=../upload-keystore.jks
+//   storePassword=...
+//   keyAlias=upload
+//   keyPassword=...
+def keystorePropsFile = rootProject.file("keystore.properties")
+def hasKeystore = keystorePropsFile.exists()
+def keystoreProps = new Properties()
+if (hasKeystore) {
+  keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
 
 android {
   namespace = "com.jipelski.mergerrealm"
@@ -42,10 +61,23 @@ android {
     targetCompatibility "8"
     coreLibraryDesugaringEnabled = true
   }
+  signingConfigs {
+    if (hasKeystore) {
+      release {
+        storeFile rootProject.file(keystoreProps['storeFile'])
+        storePassword keystoreProps['storePassword']
+        keyAlias keystoreProps['keyAlias']
+        keyPassword keystoreProps['keyPassword']
+      }
+    }
+  }
   buildTypes {
     release {
       minifyEnabled true
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+      if (hasKeystore) {
+        signingConfig signingConfigs.release
+      }
     }
   }
 }

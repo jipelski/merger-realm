@@ -31,6 +31,11 @@ hs_err_pid*
 local.properties
 com_crashlytics_export_strings.xml
 
+## Release signing (secrets — never commit):
+keystore.properties
+*.jks
+*.keystore
+
 ## Robovm:
 /ios/robovm-build/
 

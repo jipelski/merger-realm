@@ -204,7 +204,8 @@ public class InfoPanel {
             addResourceSeg(line, sd.getStorage_type());
             line.add(Seg.text(" capacity"));
             List<Seg> buildSegs = new ArrayList<>();
-            boolean hasBuild = appendCostSegs(buildSegs, sd.getBuild_cost1(), sd.getBuild_cost2(), sd.getBuild_cost3());
+            boolean hasBuild = appendCostSegs(buildSegs, sd.getBuild_cost1(), sd.getBuild_cost2(),
+                sd.getBuild_cost3(), sd.getBuild_cost4());
             if (hasBuild) {
                 line.add(Seg.text("  |  Build "));
                 line.addAll(buildSegs);

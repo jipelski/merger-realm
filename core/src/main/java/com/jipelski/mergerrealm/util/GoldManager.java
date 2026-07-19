@@ -48,6 +48,7 @@ public class GoldManager {
     public static final int EARN_PRINCE_MILESTONE = 20;
     public static final int EARN_FIRST_3STAR = 10;
     public static final int EARN_DISMISS_LEGENDARY = 10;
+    public static final int EARN_DISMISS_CHEST = 1;
     public static final int EARN_EXPLORE_FIND_MIN = 1;
     public static final int EARN_EXPLORE_FIND_MAX = 3;
 
@@ -178,6 +179,15 @@ public class GoldManager {
      */
     public void onDismissLegendary() {
         addGold(EARN_DISMISS_LEGENDARY, "dismiss_legendary");
+    }
+
+    /**
+     * Awards a small consolation Gold amount for dismissing an unopened
+     * chest to the Prince (dismissing skips the token(s) a tap would
+     * otherwise have yielded).
+     */
+    public void onDismissChest() {
+        addGold(EARN_DISMISS_CHEST, "dismiss_chest");
     }
 
     /** Gold value of salvaging one unequipped sword/shield/amulet at the given level. */

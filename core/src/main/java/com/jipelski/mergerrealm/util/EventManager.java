@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 
 import com.jipelski.mergerrealm.data.ChestData;
 import com.jipelski.mergerrealm.data.FacilityData;
+import com.jipelski.mergerrealm.data.GenData;
 import com.jipelski.mergerrealm.data.MonsterData;
 import com.jipelski.mergerrealm.data.PrinceData;
 import com.jipelski.mergerrealm.data.ResourcePouchData;
@@ -402,6 +403,7 @@ public class EventManager {
      * items (sword+potion), which must only ever happen once, on a true
      * fresh install.
      */
+    // TODO: change function so it takes a set of units to spawn after prestige so continuity of saved units is kept
     private void spawnStarterBoard() {
         // Prince always starts at position 0,0
         spawnObject("prince", 1, 0, 0);
@@ -444,7 +446,7 @@ public class EventManager {
         // tracking the same way merge/combat-death/dismiss already do
         // (onUnitPermanentlyLost) — otherwise appliedRunes would leak an
         // orphaned entry per wiped unit forever (the exact memory-pressure
-        // bug that method was introduced to fix).
+        // bug that method was introduced to fix). TODO: add xp for deleted runes
         for (String id : GRID_OBJECT_MANAGER.getObjectMap().keySet()) {
             runeSystem.onUnitPermanentlyLost(id);
         }
@@ -565,7 +567,16 @@ public class EventManager {
         int[] XoY = gridInstance.getClosestEmptyCell(x, y);
         if (XoY == null) {
             Gdx.app.log(TAG, "spawnObject: grid full, cannot spawn " + type + " lvl " + level);
-            // TODO: add to reward queue when full
+            // Queue as a Wall Gate reward instead of dropping it — except the
+            // Prince (singleton, never legitimately spawned into a full grid)
+            // and monsters (a nemesis invader belongs on the board, not as a
+            // claimable gate reward). WallGate.claimNextReward only re-calls
+            // spawnObject once a cell is free, so this can't re-enter this
+            // branch and loop.
+            if (!"prince".equals(type) && !GameTypes.isMonster(type)) {
+                BATTLE_FIELD_MANAGER.addToQueue(new GenData(type, "Overflow", level));
+                Gdx.app.log(TAG, "spawnObject: grid full — queued " + type + " to Wall Gate");
+            }
             return;
         }
 
@@ -1086,25 +1097,44 @@ public class EventManager {
             case "monastery": case "griffinnest": case "dragonslair": {
                 FacilityData facilityData = (FacilityData) GDLInstance.getGameData(type, object.getLvl());
                 if (facilityData != null) {
-                    // Return half the build cost (rounded down) as a refund
+                    // Return half the build cost (rounded down) as a refund.
+                    // Build cost is paid in tokens (nail/slate/ingot/relic —
+                    // see BuildMenu.decreaseTokens), not resources, so the
+                    // refund must be too.
                     int refund1 = facilityData.getBuildCost1() / 2;
                     int refund2 = facilityData.getBuildCost2() / 2;
                     int refund3 = facilityData.getBuildCost3() / 2;
-                    resourceManager.addAmount("food", refund1);
-                    resourceManager.addAmount("wood", refund2);
-                    resourceManager.addAmount("iron", refund3);
+                    int refund4 = facilityData.getBuildCost4() / 2;
+                    resourceManager.increaseTokens(refund1, refund2, refund3, refund4);
                     Gdx.app.log(TAG, "Prince reclaimed " + type + " lvl " + object.getLvl()
-                        + " — refunded [" + refund1 + "," + refund2 + "," + refund3 + "]");
+                        + " — refunded [nail:" + refund1 + ",slate:" + refund2
+                        + ",ingot:" + refund3 + ",relic:" + refund4 + "]");
                 }
                 removeObject(objectId);
                 break;
             }
 
-            // ── Storage: torn down, pool size reduced ──
+            // ── Storage: torn down, pool size reduced, partial materials returned ──
             case "silo": case "timberyard": case "ironvault": {
+                StorageData storageData = (StorageData) GDLInstance.getGameData(type, object.getLvl());
+                if (storageData != null) {
+                    // Return half the build cost (rounded down) as a refund —
+                    // mirrors the facility refund above. Only lvl-1 storage has
+                    // non-zero build costs (higher tiers are reached by merging,
+                    // not building), so the refund is proportional to what was
+                    // actually spent. Build cost is paid in tokens (nail/slate/
+                    // ingot/relic), not resources, so the refund must be too.
+                    int refund1 = storageData.getBuild_cost1() / 2;
+                    int refund2 = storageData.getBuild_cost2() / 2;
+                    int refund3 = storageData.getBuild_cost3() / 2;
+                    int refund4 = storageData.getBuild_cost4() / 2;
+                    resourceManager.increaseTokens(refund1, refund2, refund3, refund4);
+                    Gdx.app.log(TAG, "Prince reclaimed " + type + " lvl " + object.getLvl()
+                        + " — refunded [nail:" + refund1 + ",slate:" + refund2
+                        + ",ingot:" + refund3 + ",relic:" + refund4 + "]");
+                }
                 // removeObject already handles pool size reduction
                 removeObject(objectId);
-                Gdx.app.log(TAG, "Prince reclaimed storage: " + type);
                 break;
             }
 
@@ -1124,8 +1154,12 @@ public class EventManager {
             // ── Chests: opened by royal decree ──
             case "nail_chest": case "slate_chest":
             case "ingot_chest": case "relic_chest": {
+                // Dismissing skips the token(s) a tap would have yielded — award
+                // a small consolation Gold amount instead of nothing.
+                goldManager.onDismissChest();
                 removeObject(objectId);
-                Gdx.app.log(TAG, "Prince dismissed chest: " + type);
+                Gdx.app.log(TAG, "Prince dismissed chest: " + type
+                    + " — +" + GoldManager.EARN_DISMISS_CHEST + " Gold");
                 break;
             }
 
@@ -1721,5 +1755,11 @@ public class EventManager {
         // Update the object manager so stored positions stay in sync
         GRID_OBJECT_MANAGER.update(originId, tx, ty);
         GRID_OBJECT_MANAGER.update(targetId, ox, oy);
+
+        // Animate the displaced object gliding from its old cell into the
+        // dragged object's old cell instead of teleporting. The dragged
+        // (origin) object is delivered by the finger, so only the target
+        // needs a slide.
+        targetGO.triggerSlide(tx, ty);
     }
 }

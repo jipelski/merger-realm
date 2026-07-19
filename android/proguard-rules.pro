@@ -50,3 +50,31 @@
 # These two lines are used with mapping files; see https://developer.android.com/build/shrink-code#retracing
 -keepattributes LineNumberTable,SourceFile
 -renamesourcefileattribute SourceFile
+
+# ── Gson reflection: every persisted save/data class in this project is
+# serialized by RAW Java field name (JsonManager's Gson instance uses no
+# @SerializedName anywhere in the codebase) — R8 renaming those fields would
+# silently break save/load round-trips and bundled-default-data parsing in
+# release builds only (debug has no minify, so this doesn't show there). See
+# CLAUDE.md's "Persistence rules" and the 2026-07-16 Play Console prep notes.
+-keepattributes Signature,*Annotation*,EnclosingMethod,InnerClasses
+
+# TypeToken anonymous subclasses (JsonManager uses `new TypeToken<...>(){}`
+# extensively for Map/List/array shapes) need their generic signature kept,
+# which the Signature attribute above covers, plus the class itself.
+-keep,allowobfuscation class com.google.gson.reflect.TypeToken
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# Merger Realm persisted model + data classes: GameObject subtypes (Unit,
+# Facility, Storage, Monster, Chest, Token, ResourcePouch, Prince — see
+# JsonManager's RuntimeTypeAdapterFactory registrations), RaidState and its
+# graph (Combatant, ActiveStatusEffect, RaidEnemy, DeadPartySnapshot,
+# CombatEvent), ExplorationSlot, Item, GenData subclasses (reward queue),
+# FacilitySpawnConfiguration all live here or in data/.
+-keep class com.jipelski.mergerrealm.model.** { *; }
+-keep class com.jipelski.mergerrealm.data.** { *; }
+
+# Private Gson response POJO used by ServerTimeManager's (currently no-op)
+# server time sync — harmless to keep now, needed the moment a real backend
+# is wired up.
+-keep class com.jipelski.mergerrealm.util.ServerTimeManager$* { *; }
