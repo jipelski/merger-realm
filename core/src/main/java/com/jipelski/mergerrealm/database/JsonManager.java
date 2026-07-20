@@ -94,18 +94,32 @@ public class JsonManager {
 
     /**
      * Writes JSON to local writable storage with an integrity hash.
+     *
+     * Writes go to temp files first, then FileHandle.moveTo() (File.renameTo
+     * on local storage — atomic on the same volume) into their real path. A
+     * process kill mid-write (e.g. an OS force-stop landing during pause()/
+     * dispose()'s save sequence) can no longer leave a torn/truncated file
+     * whose hash fails verifyIntegrity() and gets silently deleted on the
+     * next load — the previous, still-valid pair is untouched until the
+     * moveTo() commits the new one. This traced back to a real bug: offline
+     * progress (including periodic facility spawns) silently no-op'd after
+     * a force-close because TIMESTAMP_KEY, written last in that sequence,
+     * was the file most likely to be caught mid-write.
      */
     private void writeJson(String filename, Object data) {
         try {
             String json = gson.toJson(data);
-
-            FileHandle saveFile = Gdx.files.local(SAVE_DIR + filename + ".json");
-            saveFile.writeString(json, false);
-
-            // Write integrity hash alongside the save
             String hash = computeHash(filename, json);
+
+            FileHandle saveTmp = Gdx.files.local(SAVE_DIR + filename + ".json.tmp");
+            saveTmp.writeString(json, false);
+            FileHandle saveFile = Gdx.files.local(SAVE_DIR + filename + ".json");
+            saveTmp.moveTo(saveFile);
+
+            FileHandle hashTmp = Gdx.files.local(HASH_DIR + filename + ".hash.tmp");
+            hashTmp.writeString(hash, false);
             FileHandle hashFile = Gdx.files.local(HASH_DIR + filename + ".hash");
-            hashFile.writeString(hash, false);
+            hashTmp.moveTo(hashFile);
 
             Gdx.app.log(TAG, "Saved: " + filename);
         } catch (Exception e) {

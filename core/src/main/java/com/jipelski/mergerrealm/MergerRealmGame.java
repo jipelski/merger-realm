@@ -121,6 +121,14 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     private float saveTimer = 0f;
     private static final float SAVE_INTERVAL = 5f;
 
+    // Independent of saveDirty/saveTimer above — "last active" must keep
+    // refreshing even during an idle-but-open session (no grid changes to
+    // set saveDirty), so a force-stop (which skips pause()/dispose() and
+    // therefore the timestamp re-stamp there) only ever loses at most one
+    // SAVE_INTERVAL of freshness instead of a whole session. See
+    // JsonManager.writeJson()'s javadoc for the bug this closes.
+    private float timestampSaveTimer = 0f;
+
     private static final float LOCK_BTN_SIZE = 30f;
     private static final float INFO_BTN_SIZE = 16f;
     private static final float SETTINGS_BTN_SIZE = 28f;
@@ -441,15 +449,32 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
 
         Gdx.app.log(TAG, "offline progress");
         int[] savedTimestamp = jsonManager.loadArray(TIMESTAMP_KEY);
-        if (savedTimestamp == null || savedTimestamp.length < 2) return;
+        if (savedTimestamp == null || savedTimestamp.length < 2) {
+            // Missing on a genuine first launch — but also what a torn/
+            // deleted TIMESTAMP_KEY save looks like (see JsonManager.
+            // writeJson()'s javadoc). Logged so that distinction is at
+            // least visible in logcat instead of a silent, unexplained
+            // "no offline progress" report.
+            Gdx.app.log(TAG, "processOfflineProgress: no saved timestamp"
+                + " (first launch, or the save was missing/invalid) — skipping");
+            return;
+        }
 
         long savedTime = ((long) savedTimestamp[0] << 32) | (savedTimestamp[1] & 0xFFFFFFFFL);
         long now = eventManager.getServerTimeManager().getTrustedTimeMillis();
         long elapsedMs = now - savedTime;
-        if (elapsedMs <= 0) return;
+        if (elapsedMs <= 0) {
+            Gdx.app.log(TAG, "processOfflineProgress: elapsedMs=" + elapsedMs
+                + " (<= 0) — skipping");
+            return;
+        }
 
         long cappedSeconds = Math.min(elapsedMs / 1000, MAX_OFFLINE_SECONDS);
-        if (cappedSeconds < 15) return;
+        if (cappedSeconds < 15) {
+            Gdx.app.log(TAG, "processOfflineProgress: only " + cappedSeconds
+                + "s elapsed (below 15s threshold) — skipping");
+            return;
+        }
 
         long ticks = cappedSeconds / 15;
 
@@ -571,6 +596,18 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
     @Override
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
+
+        // Deliberately outside the modal-gated block below and not tied to
+        // saveDirty — "last active" should keep refreshing even while the
+        // app is open but idle (a modal panel is up, or the player simply
+        // isn't touching anything), so a force-stop never loses more than
+        // one SAVE_INTERVAL of freshness. See the timestampSaveTimer field
+        // javadoc for why this exists as a separate timer.
+        timestampSaveTimer += delta;
+        if (timestampSaveTimer >= SAVE_INTERVAL) {
+            timestampSaveTimer -= SAVE_INTERVAL;
+            saveTimestamp();
+        }
 
         // Don't process input/ticks while popup is visible
         if (!offlinePopup.isVisible() && !inventoryMenu.isBrowsing() && !explorePanel.isVisible()
