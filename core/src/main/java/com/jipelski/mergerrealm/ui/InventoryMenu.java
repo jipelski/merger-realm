@@ -1115,6 +1115,18 @@ public class InventoryMenu {
             return true;
         }
 
+        // ── Fragments tab dispatch ──
+        // Fragments/runes live in RuneSystem's counter, never as Inventory
+        // items, so filteredItems (and getItemIndexAt below) is always empty
+        // on this tab. Route [Craft]/[Apply] taps in the content area to the
+        // tab's own hit-testing directly; otherwise the visible [Craft] button
+        // is drawn but never actionable.
+        if (activeTab == TAB_FRAGMENTS
+            && touchPos.y >= getItemAreaBottom() && touchPos.y <= getItemAreaTop()) {
+            handleFragmentTabTouch();
+            return true;
+        }
+
         // ── Item tap ──
         int idx = getItemIndexAt(touchPos.x, touchPos.y);
         if (idx >= 0 && idx < filteredItems.size()) {

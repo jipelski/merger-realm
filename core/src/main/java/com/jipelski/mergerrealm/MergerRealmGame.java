@@ -981,6 +981,11 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
         int cols = grid.getWidth();
         int rows = grid.getHeight();
 
+        // Pass 1: stationary objects, in normal column-major draw order.
+        // Anything mid a swap-slide is deferred to pass 2 below instead of
+        // being drawn here, so it isn't painted over by a cell visited later
+        // in this loop (e.g. a slide passing under an object to its right).
+        boolean anySliding = false;
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
                 Cell cell = grid.getCell(x, y);
@@ -992,55 +997,91 @@ public class MergerRealmGame extends ApplicationAdapter implements GameEventList
                     continue;
                 }
 
-                float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
-                float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
-
-                String objectId = cell.getOccupant();
-                GameObject obj = gom.getObject(objectId);
-
-                // Swap slide: while active, draw at an interpolated position
-                // between the object's old cell and its current (destination)
-                // cell instead of snapping straight there. The HP bar below
-                // reuses drawX/drawY, so it travels with the sprite for free.
-                if (obj != null) {
-                    float slideP = slideProgress(obj);
-                    if (slideP < 1f) {
-                        float fromX = gridStartX + obj.getSlideFromX() * (cellSize + LayoutConfig.CELL_GAP);
-                        float fromY = baseY + (rows - 1 - obj.getSlideFromY()) * (cellSize + LayoutConfig.CELL_GAP);
-                        drawX = fromX + (drawX - fromX) * slideP;
-                        drawY = fromY + (drawY - fromY) * slideP;
-                    }
+                GameObject obj = gom.getObject(cell.getOccupant());
+                if (obj != null && slideProgress(obj) < 1f) {
+                    anySliding = true;
+                    continue;
                 }
 
-                Texture tex = (obj != null)
-                    ? spriteManager.getTextureForObject(obj.getType(), obj.getLvl())
-                    : spriteManager.getDefaultTile();
+                drawCellObject(obj, x, y, rows, baseY);
+            }
+        }
 
-                float margin = cellSize * 0.05f;
-                drawObjectSprite(tex, obj, drawX + margin, drawY + margin, cellSize - margin * 2);
-                if (obj instanceof Unit) {
-                    Unit unit = (Unit) obj;
-                    if (unit.isWounded()) {
-                        float barWidth = cellSize - margin * 4;
-                        float barHeight = 3f;
-                        float barX = drawX + margin * 2;
-                        float barY = drawY + margin;
-                        float hpRatio = (float) unit.getHp() / unit.getMax_hp();
+        // Pass 2: sliding objects, drawn last so they render above every
+        // stationary object they travel over/across during the swap.
+        if (anySliding) {
+            for (int x = 0; x < cols; x++) {
+                for (int y = 0; y < rows; y++) {
+                    Cell cell = grid.getCell(x, y);
+                    if (cell.isEmpty()) continue;
 
-                        // Background (dark red)
-                        batch.setColor(0.4f, 0.1f, 0.1f, 0.8f);
-                        // Use a 1x1 white pixel texture or uiTex for the bar
-                        batch.draw(whiteTex, barX, barY, barWidth, barHeight);
+                    if (inputHandler.isDragging()
+                        && x == inputHandler.getOriginCellX()
+                        && y == inputHandler.getOriginCellY()) {
+                        continue;
+                    }
 
-                        // Fill (green to red based on HP)
-                        float r = 1f - hpRatio;
-                        float g = hpRatio;
-                        batch.setColor(r, g, 0.1f, 0.9f);
-                        batch.draw(whiteTex, barX, barY, barWidth * hpRatio, barHeight);
-
-                        batch.setColor(1f, 1f, 1f, 1f); // reset
+                    GameObject obj = gom.getObject(cell.getOccupant());
+                    if (obj != null && slideProgress(obj) < 1f) {
+                        drawCellObject(obj, x, y, rows, baseY);
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Draws a single grid cell's object (sprite + wounded-unit HP bar) at
+     * cell (x, y), applying the swap-slide position interpolation if the
+     * object has an active slide. Extracted out of drawGridAtY so the
+     * sliding-objects-drawn-last split above can call it from either pass
+     * without duplicating the draw logic.
+     */
+    private void drawCellObject(GameObject obj, int x, int y, int rows, float baseY) {
+        float drawX = gridStartX + x * (cellSize + LayoutConfig.CELL_GAP);
+        float drawY = baseY + (rows - 1 - y) * (cellSize + LayoutConfig.CELL_GAP);
+
+        // Swap slide: while active, draw at an interpolated position
+        // between the object's old cell and its current (destination)
+        // cell instead of snapping straight there. The HP bar below
+        // reuses drawX/drawY, so it travels with the sprite for free.
+        if (obj != null) {
+            float slideP = slideProgress(obj);
+            if (slideP < 1f) {
+                float fromX = gridStartX + obj.getSlideFromX() * (cellSize + LayoutConfig.CELL_GAP);
+                float fromY = baseY + (rows - 1 - obj.getSlideFromY()) * (cellSize + LayoutConfig.CELL_GAP);
+                drawX = fromX + (drawX - fromX) * slideP;
+                drawY = fromY + (drawY - fromY) * slideP;
+            }
+        }
+
+        Texture tex = (obj != null)
+            ? spriteManager.getTextureForObject(obj.getType(), obj.getLvl())
+            : spriteManager.getDefaultTile();
+
+        float margin = cellSize * 0.05f;
+        drawObjectSprite(tex, obj, drawX + margin, drawY + margin, cellSize - margin * 2);
+        if (obj instanceof Unit) {
+            Unit unit = (Unit) obj;
+            if (unit.isWounded()) {
+                float barWidth = cellSize - margin * 4;
+                float barHeight = 3f;
+                float barX = drawX + margin * 2;
+                float barY = drawY + margin;
+                float hpRatio = (float) unit.getHp() / unit.getMax_hp();
+
+                // Background (dark red)
+                batch.setColor(0.4f, 0.1f, 0.1f, 0.8f);
+                // Use a 1x1 white pixel texture or uiTex for the bar
+                batch.draw(whiteTex, barX, barY, barWidth, barHeight);
+
+                // Fill (green to red based on HP)
+                float r = 1f - hpRatio;
+                float g = hpRatio;
+                batch.setColor(r, g, 0.1f, 0.9f);
+                batch.draw(whiteTex, barX, barY, barWidth * hpRatio, barHeight);
+
+                batch.setColor(1f, 1f, 1f, 1f); // reset
             }
         }
     }
